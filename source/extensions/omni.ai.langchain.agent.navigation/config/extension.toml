@@ -1,0 +1,25 @@
+[package]
+authors = ["Omniverse GenAI Team"]
+category = "AI"
+changelog = "docs/CHANGELOG.md"
+description = "Scene Navigation Agent is a specialized AI assistant for navigating USD scenes."
+icon = "data/icon.png"
+keywords = ["ai", "usd", "chat", "assistant", "navigation"]
+preview_image = "data/preview.png"
+readme = "docs/README.md"
+repository = ""
+title = "Scene Navigation Agent"
+version = "1.0.7"
+
+[dependencies]
+"omni.ai.chat_usd.bundle" = {}
+
+[[python.module]]
+name = "omni.ai.langchain.agent.navigation"
+
+[package.writeTarget]
+kit = true
+python = true
+
+[documentation]
+pages = ["docs/README.md", "docs/CHANGELOG.md"]

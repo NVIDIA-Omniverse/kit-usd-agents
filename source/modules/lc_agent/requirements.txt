@@ -1,0 +1,13 @@
+# This file lists all Python dependencies for the LC Ai Agent project.
+# Some dependencies, such as usd-core, may not be available via PyPI and
+# need to be installed manually or be present in the environment.
+
+# Fixed version. Later versions may not be compatible with Kit because of pydantic.
+langchain-core
+
+aioredis==2.0.1
+langchain
+langchainhub
+libcst==1.5.0
+tiktoken
+toml==0.10.2

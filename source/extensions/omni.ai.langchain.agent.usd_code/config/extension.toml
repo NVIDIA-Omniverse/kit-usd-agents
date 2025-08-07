@@ -1,0 +1,41 @@
+[package]
+version = "2.0.7"
+authors = ["Omniverse GenAI Team"]
+title = "USD Code Agent (Preview)"
+description = "Integration of the chat USD Agent into Kit"
+readme = "docs/README.md"
+repository = ""
+category = "Internal"
+keywords = ["ai", "LangChain", "core"]
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+
+[dependencies]
+"omni.ai.langchain.core" = { version = "2.0.6" }
+"omni.ai.langchain.widget.core" = { optional = true }
+"omni.usd" = {}
+
+[[python.module]]
+name = "omni.ai.langchain.agent.usd_code"
+
+[settings.exts."omni.ai.langchain.agent.usd_code"]
+enable_code_interpreter = true
+enable_interpreter_security = true
+enable_scene_info = true
+enable_code_atlas = true
+enable_rag_metafunctions = true
+enable_undo_stack = true
+max_retries = 4
+
+[package.writeTarget]
+kit = true
+python = true
+
+[documentation]
+pages = ["docs/Overview.md", "docs/CHANGELOG.md"]
+
+[[test]]
+stdoutFailPatterns.exclude = [
+    "*Warning:*",
+]

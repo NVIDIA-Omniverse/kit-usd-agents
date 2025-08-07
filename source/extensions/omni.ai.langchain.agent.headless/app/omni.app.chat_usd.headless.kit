@@ -1,0 +1,22 @@
+[package]
+title = "Chat USD Headless For Kit"
+description = "Kit Extensions to work with ChatUSD"
+repository = ""
+version = "1.2.0"
+
+# That makes it browsable in UI with "app" filter
+keywords = ["app"]
+
+[dependencies]
+"omni.ai.langchain.agent.headless" = {}
+"omni.ai.langchain.agent.usd_code" = {}
+"omni.kit.loop" = {}
+"omni.usd" = {}
+
+[settings]
+# Fast shutdown by default
+app.fastShutdown = true
+
+[settings.app.exts]
+# Append local extension folders
+folders.'++' = ["${app}/../exts", "${app}/../extscache/"]

@@ -1,0 +1,19 @@
+[
+  {
+    "children": [
+      {
+        "dock_id": 1,
+        "dock_tab_bar_enabled": true,
+        "dock_tab_bar_visible": false,
+        "height": 940.5714721679688,
+        "position_x": 0.0,
+        "position_y": 22.85714340209961,
+        "selected_in_dock": true,
+        "title": "AI Agent",
+        "visible": true,
+        "width": 1039.4285888671875
+      }
+    ],
+    "dock_id": 1
+  }
+]

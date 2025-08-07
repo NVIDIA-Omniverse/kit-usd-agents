@@ -1,0 +1,4 @@
+- All the part of a prim path have to start with letter 
+    - Dont ever do that f"/Grid/{i}_{j}/Sphere", this is illegal
+    - instead fo f"/Grid/Sphere_{i}_{j}"
+- when using Sdf make sure to import it, in general Sdf is useful so make sure not to forget it when you need it

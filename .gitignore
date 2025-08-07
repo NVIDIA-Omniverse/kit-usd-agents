@@ -1,0 +1,22 @@
+﻿# All folders starting with _ are local.
+_*/
+
+# Compiled python files.
+*.py[cod]
+
+# Visual Studio files.
+/.vs
+**/.vscode/ipch
+
+# macOS files.
+.DS_Store
+**.egg-info
+
+# Generated license file.
+PACKAGE-DEPS.yaml
+source/modules/agents/usd/build/lib/**
+source/modules/data_generation/usdcode/build/lib/**
+source/modules/lc_agent/build/lib/**
+source/modules/rags/rag_modifiers/build/lib/**
+source/modules/rags/retrievers/build/lib/**
+source/modules/rags/rag_nodes/build/lib/**

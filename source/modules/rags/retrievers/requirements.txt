@@ -1,0 +1,4 @@
+faiss-cpu
+langchain-nvidia-ai-endpoints
+langchain_community
+lc_agent

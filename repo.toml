@@ -1,0 +1,62 @@
+########################################################################################################################
+# Repo tool base settings
+########################################################################################################################
+
+[repo]
+
+# Use the Kit Template repo configuration as a base. Only override things specific to the repo.
+import_configs = ["${root}/_repo/deps/repo_kit_tools/kit-template/repo.toml"]
+
+# Repository Name
+name = "kit-usd-agents"
+
+[repo_build]
+post_build.commands = []
+licensing.enabled = false
+
+[repo_build.docker]
+enabled = false
+
+[repo_build.fetch.pip]
+licensing_enabled = false
+# List of pip files to pip install from (in order)
+files_to_pull = [
+    "${root}/deps/pip-core.toml",
+    "${root}/deps/pip-aiq.toml",
+]
+
+[repo_build.msbuild]
+link_host_toolchain = true
+vs_version = ""
+
+[repo_docs]
+name = "Kit Extension Template C++"
+project = "kit-usd-agents"
+api_output_directory = "api"
+use_fast_doxygen_conversion=false
+sphinx_version = "4.5.0.2-py3.10-${platform}"
+sphinx_exclude_patterns = [
+    "_build",
+    "tools",
+    "VERSION.md",
+    "source/extensions/*/config/actions_api.md",
+    "source/extensions/*/docs/Overview.md",
+    "source/extensions/*/docs/CHANGELOG.md",
+    "source/extensions/*/README.md",
+]
+
+[repo_docs.kit]
+extensions = [
+]
+
+[repo_package.packages."platform:windows-x86_64".docs]
+windows_max_path_length = 0
+
+[repo_precache_exts]
+registries = [
+    { name = "kit/default", url = "https://ovextensionsprod.blob.core.windows.net/exts/kit/prod/${kit_version_major}/shared" },
+    { name = "kit/sdk", url = "https://ovextensionsprod.blob.core.windows.net/exts/kit/prod/sdk/${kit_version_short}/${kit_git_hash}" },
+]
+
+[repo_symstore]
+enabled = false

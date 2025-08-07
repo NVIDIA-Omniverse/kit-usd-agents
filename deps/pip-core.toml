@@ -1,0 +1,24 @@
+[[dependency]]
+python = "../_build/target-deps/python"
+packages = [
+    "source/modules/lc_agent",
+    "source/modules/rags/rag_modifiers",
+    "source/modules/rags/rag_nodes",
+    "source/modules/rags/retrievers",
+    "source/modules/agents/usd",
+    "source/modules/data_generation/usdcode",
+    "blobfile",
+    "faiss-cpu==1.9.0",
+    "fastapi",
+    "langchain-nvidia-ai-endpoints",
+    "langchain-openai",
+    "numpy==1.26.0",
+    "tiktoken",
+    "uvicorn",
+]
+extra_args = ["--no-cache-dir", "--force-reinstall", "--upgrade", "--ignore-installed"]
+target = "../_build/target-deps/pip_core_prebundle" # This folder will be linked into 'omni.ai.langchain.core' extension (see premake file)
+platforms = ["*"]
+download_only = false
+append_to_install_folder = true
+gather_licenses_path = "../_build/PACKAGE-LICENSES/PIP-prebundled-LICENSES.txt"

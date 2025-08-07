@@ -1,0 +1,26 @@
+functions:
+  planning:
+    _type: planning
+    system_message: "{data/planning_gen_system.md}"
+    short_plan: true
+    add_details: false
+  ChatUSD_USDCodeInteractive:
+    _type: ChatUSD_USDCodeInteractive
+  ChatUSD_SceneInfo:
+    _type: ChatUSD_SceneInfo
+  ChatUSD_USDSearch:
+    _type: ChatUSD_USDSearch
+    # host_url: "http://api.ov-simready.deepsearch-horde.nvidia.com/search"
+    # username: \$omni-api-token
+    # url_replacements:
+    #   "s3://example-bucket/": "https://example-bucket.com/"
+    search_path: "*simready_content*"
+
+workflow:
+  _type: MultiAgent
+  system_message: "{data/chat_usd_supervisor_identity.md} {data/chat_usd_planning_supervisor_identity.md}"
+  tool_names:
+    - planning
+    - ChatUSD_USDCodeInteractive
+    - ChatUSD_SceneInfo
+    - ChatUSD_USDSearch

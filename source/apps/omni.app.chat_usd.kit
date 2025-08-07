@@ -1,0 +1,47 @@
+[package]
+title = "Chat USD For Kit"
+description = "Kit Extensions to work with ChatUSD"
+repository = ""
+version = "1.2.0"
+
+# That makes it browsable in UI with "app" filter
+keywords = ["app"]
+
+[dependencies]
+"omni.ai.chat_usd.bundle" = {order = 1000}
+"omni.kit.widget.graph" = {}
+"omni.kit.widget.text_editor" = {}
+
+"omni.app.editor.base" = {order = -10}
+"omni.kit.property.bundle" = {}
+"omni.usd" = {}
+
+[settings]
+app.menu.legacy_mode = false
+app.versionFile = "${app#}/../VERSION"
+
+# you can setup your token here or in your environment variables at OPENAI_API_KEY
+# persistent.exts."omni.gpt.core".token = <Your_Token_here>
+
+app.kit.editor.setup = true
+exts."omni.app.setup".backgroundRendererLoad = true
+app.layout.default = "${app}/layout/creator.json"
+
+app.runLoops.main.rateLimitEnabled = true
+app.runLoops.main.rateLimitFrequency = 120
+app.runLoops.main.rateLimitUseBusyLoop = false
+
+# Fast shutdown by default
+app.fastShutdown = true
+
+[settings.app.exts]
+# Append local extension folders
+folders.'++' = ["${app}/../exts", "${app}/../extscache/"]
+
+[[test]]
+args = [
+	"--no-assert-dialog",
+	"--/renderer/multiGpu/autoEnable=false",
+	"--/app/asyncRendering=false",
+	"--/renderer/debug/validation/enabled=false",
+]

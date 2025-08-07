@@ -1,0 +1,30 @@
+[package]
+version = "0.1.4"
+authors = ["Omniverse GenAI Team"]
+title = "LangChain AIQ (Preview)"
+description = "Pip bundle that includes aiq_cosmos and lc_agent_aiq packages for the Omniverse LangChain AIQ extension."
+readme = "docs/README.md"
+category = "Internal"
+keywords = ["ai", "LangChain", "AIQ"]
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+
+[[python.module]]
+name = "omni.ai.langchain.aiq"
+
+[[python.module]]
+path = "pip_aiq_prebundle"
+
+[package.writeTarget]
+kit = true
+python = true
+platform = true
+
+[documentation]
+pages = ["docs/Overview.md", "docs/CHANGELOG.md"]
+
+[[test]]
+stdoutFailPatterns.exclude = [
+    "*Warning:*",
+]

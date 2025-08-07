@@ -1,0 +1,89 @@
+[package]
+version = "2.0.15"
+authors = ["Omniverse GenAI Team"]
+title = "Chat USD (Preview)"
+description = "Integration of the USD NIM & Agents into Kit"
+readme = "docs/README.md"
+repository = ""
+category = "Internal"
+keywords = ["ai", "LangChain", "core"]
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+
+[dependencies]
+"omni.ai.langchain.agent.omni_ui" = { optional = true }
+"omni.ai.langchain.agent.usd_code" = { version = "2.0.7" }
+"omni.ai.langchain.extra" = { optional = true }
+"omni.ai.langchain.widget.core" = { version = "2.0.6" }
+"omni.kit.clipboard" = {}
+"omni.kit.widget.text_editor" = {}
+
+[[python.module]]
+name = "omni.ai.chat_usd.bundle"
+
+[fswatcher.patterns]
+include = ["*.toml", "*.py", "*.md"]
+
+[settings.exts."omni.ai.chat_usd.bundle"]
+# Alternative to NVIDIA_API_KEY
+nvidia_api_key = "" # Put your API key here
+openai_api_key = "" # Put your OpenAI API key here
+
+# enable/disable the chat USD agent
+register_chat_usd_agent = true
+register_usd_tutor_agent = false
+register_all_chat_models = false
+
+# enable/disable the chat USD agent with Omni UI
+chat_usd_with_omni_ui = false
+
+# the url of your USD Search NIM server
+usd_search_host_url = "https://ai.api.nvidia.com/v1/omniverse/nvidia/usdsearch"
+
+chat_usd_multishot = true
+
+chat_usd_developer_mode = true
+
+# Use an nvdev embedding model
+# nvidia_embedding_model = "nvdev/nvidia/nv-embedqa-e5-v5"
+
+# the url of your custom chat model server
+# custom_chat_model = "http://127.0.0.1:9901/"
+
+# Use an nvdev chat model
+# [settings.exts."omni.ai.chat_usd.bundle".custom_chat_model]
+# base_url = "https://integrate.api.nvidia.com/v1"
+# model = "nvdev/nvidia/usdcode-llama-3.1-70b-instruct"
+# api_key = "nvapi-XXX" # Put your API key here
+
+[settings.exts."omni.ai.langchain.widget.core"]
+window_name = "Chat USD"
+
+[package.writeTarget]
+kit = true
+python = true
+
+[documentation]
+pages = [
+    "docs/Overview.md",
+    "docs/advanced/extending.md",
+    "docs/architecture/README.md",
+    "docs/architecture/component-interactions.md",
+    "docs/architecture/extension-integration.md",
+    "docs/architecture/message-flow.md",
+    "docs/architecture/multi-agent-architecture.md",
+    "docs/components/README.md",
+    "docs/components/chat-usd-network-node.md",
+    "docs/components/chat-usd-supervisor-node.md",
+    "docs/components/modifiers.md",
+    "docs/components/scene-info-network-node.md",
+    "docs/components/usd-code-interactive-network-node.md",
+    "docs/components/usd-search-network-node.md",
+    "docs/CHANGELOG.md"
+]
+
+[[test]]
+stdoutFailPatterns.exclude = [
+    "*Warning:*",
+]

@@ -1,0 +1,51 @@
+[package]
+version = "2.0.6"
+authors = ["Omniverse GenAI Team"]
+title = "LangChain Widgets (Preview)"
+description = "A UI Framework for Building Adaptive and Intelligent Networked Systems."
+readme = "docs/README.md"
+repository = ""
+category = "Example"
+keywords = ["kit", "example"]
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+
+[settings.exts."omni.ai.langchain.widget.core"]
+chat_view.default_agent_name = ""
+chat_view.default_agent_core = ""
+redis = false
+redis_username = ""
+show_window_on_startup = true
+window_name = "Chat"
+
+[package.writeTarget]
+kit = true
+python = true
+
+[dependencies]
+"omni.ai.langchain.core" = {}
+"omni.kit.clipboard" = {}
+"omni.kit.widget.graph" = {optional = true}
+"omni.kit.widget.text_editor" = {optional = true}
+"omni.kit.window.filepicker" = {}
+"omni.kit.menu.utils" = {}
+"omni.ui" = {}
+
+[[python.module]]
+name = "omni.ai.langchain.widget.core"
+
+[settings.persistent.exts."omni.ai.langchain.widget.core"]
+chat_model = ""
+node_name = ""
+
+[documentation]
+pages = [
+    "docs/Overview.md",
+    "docs/CHANGELOG.md",
+]
+
+[[test]]
+dependencies = [
+    "omni.kit.ui_test", # UI testing extension
+]

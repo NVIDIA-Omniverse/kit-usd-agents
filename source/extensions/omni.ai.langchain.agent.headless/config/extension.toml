@@ -1,0 +1,52 @@
+[package]
+version = "1.2.3"
+authors = ["Omniverse GenAI Team"]
+title = "Headless USD Agent (Preview)"
+description = "Headless USD manipulation through AI-assisted code generation for Kit applications"
+readme = "docs/README.md"
+repository = ""
+category = "Internal"
+keywords = ["ai", "LangChain", "core", "headless"]
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+
+[dependencies]
+"omni.ai.langchain.agent.usd_code" = { optional = true }
+"omni.ai.langchain.core" = {}
+"omni.usd" = {}
+
+[[python.module]]
+name = "omni.ai.langchain.agent.headless"
+
+[settings.exts."omni.ai.langchain.agent.headless"]
+# Alternative to NVIDIA_API_KEY
+nvidia_api_key = "" # Put your API key here
+
+# the url of your custom chat model server
+# custom_chat_model = "http://127.0.0.1:9901/"
+
+# Natural language prompt describing the desired USD modifications
+prompt = ""
+
+# Agent type to use for USD manipulation (default: "USD Code Interactive")
+agent = "USD Code Interactive"
+
+# AI model to use for code generation (default: "nvidia/usdcode-llama-3.1-70b-instruct")
+model = "nvidia/usdcode-llama-3.1-70b-instruct"
+
+# Path to the USD file to manipulate
+stage = ""
+
+[documentation]
+pages = ["docs/Overview.md", "docs/CHANGELOG.md"]
+
+[[test]]
+args = [
+    "--/exts/omni.ai.langchain.agent.headless/stage=test",
+    "--/exts/omni.ai.langchain.agent.headless/prompt=test",
+]
+stdoutFailPatterns.exclude = [
+    "*Warning:*",
+    "*Unsupported file: test*",
+]

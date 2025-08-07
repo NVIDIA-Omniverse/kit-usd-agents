@@ -1,0 +1,26 @@
+[package]
+version = "0.1.2"
+authors = ["NVIDIA"]
+title = "Stage Builder - Multi-Agent USD Scene Builder"
+description = "Multi-agent system for intelligent USD stage creation using coordinated agents for design, layout, and asset placement."
+category = "AI"
+keywords = ["AI", "USD", "planning", "stage", "builder", "multi-agent"]
+icon = "data/icon.png"
+preview_image = "data/preview.png"
+changelog = "docs/CHANGELOG.md"
+readme = "docs/README.md"
+repository = ""
+license = ""
+git = ""
+
+# When loading extension, supports loading a specific version
+[dependencies]
+"omni.ai.aiq.agent.chat_usd" = {}
+"omni.ai.chat_usd.bundle" = {}
+
+# Main python module this extension provides
+[[python.module]]
+name = "omni.ai.aiq.stage_builder"
+
+[[test]]
+stdoutFailPatterns.exclude = ["*Warning:*"]

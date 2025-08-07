@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="30"
+   viewBox="-200 -1160 1200 1200"
+   width="30"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="library_books_FILL0_wght400_GRAD0_opsz24.svg"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="37.708333"
+     inkscape:cx="9.8254144"
+     inkscape:cy="9.401105"
+     inkscape:window-width="5120"
+     inkscape:window-height="2068"
+     inkscape:window-x="-12"
+     inkscape:window-y="-12"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <path
+     d="m 320,-480 h 160 v -80 H 320 Z m 0,-120 h 320 v -80 H 320 Z m 0,-120 h 320 v -80 H 320 Z m -80,400 q -33,0 -56.5,-23.5 Q 160,-367 160,-400 v -480 q 0,-33 23.5,-56.5 Q 207,-960 240,-960 h 480 q 33,0 56.5,23.5 23.5,23.5 23.5,56.5 v 480 q 0,33 -23.5,56.5 Q 753,-320 720,-320 Z m 0,-80 H 720 V -880 H 240 Z M 80,-160 Q 47,-160 23.5,-183.5 0,-207 0,-240 v -560 h 80 v 560 h 560 v 80 z m 160,-720 v 480 z"
+     id="path1"
+     style="fill:#ffffff;fill-opacity:1" />
+</svg>
