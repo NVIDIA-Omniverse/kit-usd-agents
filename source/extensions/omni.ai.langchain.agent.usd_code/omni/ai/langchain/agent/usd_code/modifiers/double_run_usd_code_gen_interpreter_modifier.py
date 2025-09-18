@@ -160,10 +160,8 @@ class DoubleRunUSDCodeGenInterpreterModifier(CodeInterpreterModifier):
         self._second_run = second_run
         self._undo_stack = undo_stack
 
-    def _run(self, code):
-        # Run the code twice to ensure that the code is deterministic.
-        code_interpreter_tool = CodeInterpreterTool(hide_items=self._hide_items)
-
+    def _preprocess_code(self, code):
+        """Preprocess the code: strip python prefix, format, fix imports."""
         if code.startswith("python"):
             code = code[len("python") :].strip()
         if code.startswith("\npython"):
@@ -177,6 +175,10 @@ class DoubleRunUSDCodeGenInterpreterModifier(CodeInterpreterModifier):
         code = fix_pxr_import(code)
         code = fix_typing_import(code)
 
+        return code
+
+    def _prepare_empty_stage_code(self, code):
+        """Prepare code with in-memory stage for test run."""
         empty_stage_code = INMEMORY_STAGE_CODE
         # Just in case it really wants to do something with the stage
         empty_stage_code += (
@@ -186,6 +188,50 @@ class DoubleRunUSDCodeGenInterpreterModifier(CodeInterpreterModifier):
             .replace("usdcode.get_selection()", "__get_selection()")
             .replace("usdcode.set_selection(", "__set_selection(")
         )
+        return empty_stage_code
+
+    def _postprocess_result(self, result):
+        """Postprocess the result: format numbers and check line count."""
+        result = format_numbers_in_string(result)
+
+        if "error:" in result.lower():
+            return result
+
+        lines = result.splitlines()
+        max_lines = 500
+        half_lines = max_lines // 2 - 3
+        lines_count = len(lines)
+        if lines_count > max_lines:
+            begin = lines[:half_lines]
+            end = lines[-half_lines:]
+            begin = "\n".join(begin)
+            end = "\n".join(end)
+            result = begin + "\n\n... (skipped) ...\n\n" + end
+            return f"error: Code printed too many lines ({lines_count}). Please reduce the output:\n{result}"
+
+        return result
+
+    def _handle_edit_target_cleanup(self, edit_target_manager):
+        """Handle edit target cleanup and layer marking."""
+        print("Restoring the original edit target.")
+        edit_target_manager.restore_edit_target()
+
+        if edit_target_manager._new_layer and not edit_target_manager._new_layer.empty:
+            # Mark the layer for merging
+            layer = edit_target_manager._new_layer
+            custom_layer_data = layer.customLayerData
+            custom_layer_data["DoubleRunUSDCodeGenCommand"] = "yes"
+            layer.customLayerData = custom_layer_data
+
+            # Execute the command to handle merging on save
+            omni.kit.commands.execute("DoubleRunUSDCodeGenCommand", layer=layer)
+
+    def _run(self, code):
+        # Run the code twice to ensure that the code is deterministic.
+        code_interpreter_tool = CodeInterpreterTool(hide_items=self._hide_items)
+
+        code = self._preprocess_code(code)
+        empty_stage_code = self._prepare_empty_stage_code(code)
 
         # First run to check for errors
         if self._first_run:
@@ -207,34 +253,37 @@ class DoubleRunUSDCodeGenInterpreterModifier(CodeInterpreterModifier):
             result = super()._run(SELECTION_CODE + code)
         finally:
             if self._undo_stack:
-                print("Restoring the original edit target.")
-                edit_target_manager.restore_edit_target()
+                self._handle_edit_target_cleanup(edit_target_manager)
 
-                if edit_target_manager._new_layer and not edit_target_manager._new_layer.empty:
-                    # Mark the layer for merging
-                    layer = edit_target_manager._new_layer
-                    custom_layer_data = layer.customLayerData
-                    custom_layer_data["DoubleRunUSDCodeGenCommand"] = "yes"
-                    layer.customLayerData = custom_layer_data
+        return self._postprocess_result(result)
 
-                    # Execute the command to handle merging on save
-                    omni.kit.commands.execute("DoubleRunUSDCodeGenCommand", layer=layer)
+    async def _run_async(self, code):
+        # Run the code twice to ensure that the code is deterministic.
+        code_interpreter_tool = CodeInterpreterTool(hide_items=self._hide_items)
 
-        result = format_numbers_in_string(result)
+        code = self._preprocess_code(code)
+        empty_stage_code = self._prepare_empty_stage_code(code)
 
-        if "error:" in result.lower():
-            return result
+        # First run to check for errors
+        if self._first_run:
+            execution_result = await code_interpreter_tool._arun(empty_stage_code)
+            if "error:" in execution_result.lower():
+                return execution_result
 
-        lines = result.splitlines()
-        max_lines = 500
-        half_lines = max_lines // 2 - 3
-        lines_count = len(lines)
-        if lines_count > max_lines:
-            begin = lines[:half_lines]
-            end = lines[-half_lines:]
-            begin = "\n".join(begin)
-            end = "\n".join(end)
-            result = begin + "\n\n... (skipped) ...\n\n" + end
-            return f"error: Code printed too many lines ({lines_count}). Please reduce the output:\n{result}"
+            print("First run of the code is successful.", execution_result)
 
-        return result
+            if not self._second_run:
+                return execution_result
+
+        if self._undo_stack:
+            edit_target_manager = EditTargetManager()
+            edit_target_manager.set_edit_target()
+
+        try:
+            # Second run with the actual stage
+            result = await super()._run_async(SELECTION_CODE + code)
+        finally:
+            if self._undo_stack:
+                self._handle_edit_target_cleanup(edit_target_manager)
+
+        return self._postprocess_result(result)

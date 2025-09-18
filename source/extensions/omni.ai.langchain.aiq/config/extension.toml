@@ -1,5 +1,5 @@
 [package]
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Omniverse GenAI Team"]
 title = "LangChain AIQ (Preview)"
 description = "Pip bundle that includes aiq_cosmos and lc_agent_aiq packages for the Omniverse LangChain AIQ extension."

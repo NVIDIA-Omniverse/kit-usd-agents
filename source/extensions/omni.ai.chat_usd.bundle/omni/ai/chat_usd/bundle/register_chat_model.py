@@ -245,7 +245,7 @@ def register_chat_model(model_names=None, api_key=None, register_all_lc_agent_mo
             max_tokens = context_window_size - model_args.get("max_tokens", 1024)
             model_registry.register(
                 nice_name,
-                create_custom_model,
+                create_custom_model(),
                 tokenizer,
                 max_tokens,
                 hidden,
@@ -317,7 +317,7 @@ def register_chat_model(model_names=None, api_key=None, register_all_lc_agent_mo
 
             model_registry.register(
                 name,
-                create_builtin_model,
+                create_builtin_model(),
                 tokenizer,
                 max_tokens - args["max_tokens"],
                 hidden,

@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.7] - 2025-09-17
+
+### Added
+- Support for image attachments in chat interface
+- Image upload button in chat input field
+- Support for @image() syntax in prompts
+- RunnableHumanImageNode registration for multi-modal content
+- Enhanced tokenizer to handle multi-modal messages
+
+### Changed
+- Modified agent delegate to process and extract image paths from prompts
+- Updated chat widget to handle image references in prompts
+- Enhanced chat view to properly handle multi-modal content when naming networks
+
 ## [2.0.6] - 2025-08-02
 
 ### Changed

@@ -11,7 +11,7 @@ import asyncio
 import weakref
 
 import omni.ui as ui
-from lc_agent import NetworkList, NetworkModifier, RunnableHumanNode, RunnableNetwork
+from lc_agent import NetworkList, NetworkModifier, RunnableHumanImageNode, RunnableHumanNode, RunnableNetwork
 
 from .agent_combobox import AgentComboBox
 from .chat_history_widget import ChatHistoryWidget
@@ -162,7 +162,18 @@ class ChatWidget:
             network.chat_model_name = chat_model_name
         if prompt:
             with network:
-                RunnableHumanNode(prompt)
+                # Check if prompt contains image references
+                import re
+
+                image_pattern = r"@image\(([^)]+)\)"
+                images = re.findall(image_pattern, prompt)
+
+                if images:
+                    # Remove @image() references from prompt
+                    clean_prompt = re.sub(image_pattern, "", prompt).strip()
+                    RunnableHumanImageNode(clean_prompt, images)
+                else:
+                    RunnableHumanNode(prompt)
 
         stop_astream_event = self.view_widget.delegate._stop_astream_event
         stop_astream_event.clear()

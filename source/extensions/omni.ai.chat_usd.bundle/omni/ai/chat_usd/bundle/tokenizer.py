@@ -116,7 +116,23 @@ class Tokenizer:
         - Setting `allowed_special` to "all" will treat all text corresponding
           to special tokens to be encoded as special tokens.
         """
-        assert type(s) is str
+        # Handle non-string content (e.g., multi-modal messages with images)
+        if not isinstance(s, str):
+            # If it's a list (multi-modal content), extract just the text parts
+            if isinstance(s, list):
+                text_parts = []
+                for item in s:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+                s = " ".join(text_parts)
+            else:
+                # Convert to string as fallback
+                s = str(s)
+
+        if not s:
+            return []  # Return empty list for empty content
 
         # The tiktoken tokenizer can handle <=400k chars without
         # pyo3_runtime.PanicException.

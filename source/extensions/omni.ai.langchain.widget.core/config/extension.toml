@@ -1,5 +1,5 @@
 [package]
-version = "2.0.6"
+version = "2.0.7"
 authors = ["Omniverse GenAI Team"]
 title = "LangChain Widgets (Preview)"
 description = "A UI Framework for Building Adaptive and Intelligent Networked Systems."

@@ -11,7 +11,7 @@ import carb.settings
 import omni.ext
 import omni.kit.menu.utils
 import omni.ui as ui
-from lc_agent import RunnableAINode, RunnableHumanNode, RunnableNode, get_node_factory
+from lc_agent import RunnableAINode, RunnableHumanImageNode, RunnableHumanNode, RunnableNode, get_node_factory
 
 from .agent_delegate import DefaultDelegate
 from .assistant_agent import AssistantAgent
@@ -58,6 +58,7 @@ class WidgetCoreExtension(omni.ext.IExt):
 
         get_node_factory().register(AssistantAgent, name="Assistant", hidden=True)
         get_node_factory().register(RunnableHumanNode, name="UserAgent", hidden=True)
+        get_node_factory().register(RunnableHumanImageNode, name="UserAgentImage", hidden=True)
         get_node_factory().register(RunnableNode, hidden=True)
         get_node_factory().register(RunnableAINode, hidden=True)
 
@@ -145,6 +146,7 @@ class WidgetCoreExtension(omni.ext.IExt):
 
         get_node_factory().unregister(AssistantAgent)
         get_node_factory().unregister(RunnableHumanNode)
+        get_node_factory().unregister(RunnableHumanImageNode)
         get_node_factory().unregister(RunnableNode)
         get_node_factory().unregister(RunnableAINode)
 

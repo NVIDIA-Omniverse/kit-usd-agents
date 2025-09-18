@@ -534,10 +534,23 @@ class ChatView:
     async def _name_network(self, network):
         # Get the first agent
         agent = network.nodes[0]
+
+        # Extract text content from agent outputs (handle both string and multi-modal content)
+        if isinstance(agent.outputs.content, list):
+            # Multi-modal content - extract text parts
+            text_content = ""
+            for item in agent.outputs.content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_content += item.get("text", "")
+                elif isinstance(item, str):
+                    text_content += item
+        else:
+            text_content = agent.outputs.content or ""
+
         # Get the request to ask AI how to name it
         request = (
             "Summerize a short name for the question in 3 words \n\n"
-            + agent.outputs.content
+            + text_content
             + "\n\n The answer just contains the short name"
         )
 

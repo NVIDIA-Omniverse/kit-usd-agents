@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.7] - 2025-09-09
+
+### Changed
+- Added jiter-0.10.0 dependency
+
 ## [2.0.6] - 2025-09-04
 
 ### Changed

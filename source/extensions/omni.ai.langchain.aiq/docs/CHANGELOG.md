@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2025-09-17
+
+### Changed
+- Locked aiqtoolkit version to 1.1.0 in pip dependencies
+- Locked aiqtoolkit-langchain version to 1.1.0 in pip dependencies
+
 ## [0.1.4] - 2025-08-01
 
 ### Changed

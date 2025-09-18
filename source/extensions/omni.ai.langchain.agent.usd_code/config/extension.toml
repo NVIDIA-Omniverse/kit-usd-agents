@@ -1,5 +1,5 @@
 [package]
-version = "2.0.7"
+version = "2.0.9"
 authors = ["Omniverse GenAI Team"]
 title = "USD Code Agent (Preview)"
 description = "Integration of the chat USD Agent into Kit"
@@ -12,7 +12,7 @@ preview_image = "data/preview.png"
 icon = "data/icon.png"
 
 [dependencies]
-"omni.ai.langchain.core" = { version = "2.0.6" }
+"omni.ai.langchain.core" = { version = "2.0.7" }
 "omni.ai.langchain.widget.core" = { optional = true }
 "omni.usd" = {}
 

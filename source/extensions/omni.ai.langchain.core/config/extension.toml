@@ -1,5 +1,5 @@
 [package]
-version = "2.0.6"
+version = "2.0.7"
 authors = ["Omniverse GenAI Team"]
 title = "LangChain Core (Preview)"
 description = "A core AI extension pulls the networked AI system transitioned to incorporate the open-source LangChain framework"

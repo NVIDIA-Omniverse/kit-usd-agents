@@ -1,8 +1,8 @@
 [[dependency]]
 python = "../_build/target-deps/python"
 packages = [
-    "aiqtoolkit",
-    "aiqtoolkit-langchain",
+    "aiqtoolkit==1.1.0",
+    "aiqtoolkit-langchain==1.1.0",
     "source/modules/aiq/lc_agent_aiq",
     "source/modules/agents/planning",
 

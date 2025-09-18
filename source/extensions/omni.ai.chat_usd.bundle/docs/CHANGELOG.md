@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.18] - 2025-09-17
+
+- DoubleRunUSDCodeGenInterpreterModifier supports async code
+
+## [2.0.17] - 2025-09-17
+
+### Changed
+- Updated omni.ai.langchain.widget.core dependency to 2.0.7
+- Enhanced tokenizer to handle multi-modal content (images)
+- Modified chat model registration to properly instantiate model factories
+
+## [2.0.16] - 2025-09-09
+
+### Changed
+- Updated omni.ai.langchain.agent.usd_code dependency to 2.0.8
+
 ## [2.0.15] - 2025-09-04
 
 ### Changed

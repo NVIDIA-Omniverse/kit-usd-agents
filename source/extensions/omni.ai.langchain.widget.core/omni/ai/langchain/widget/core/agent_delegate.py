@@ -19,7 +19,7 @@ import omni.appwindow
 import omni.kit.app
 import omni.kit.clipboard as clipboard
 import omni.ui as ui
-from lc_agent import RunnableNetwork, RunnableNode, get_node_factory
+from lc_agent import RunnableHumanImageNode, RunnableHumanNode, RunnableNetwork, RunnableNode, get_node_factory
 
 from .style import chat_window_style
 from .utils.formated_text import FormatedText
@@ -32,15 +32,20 @@ try:
 except ImportError:
     TELEMETRY_AVAILABLE = False
 
-from omni.kit.window.filepicker.dialog import FilePickerDialog
+from omni.kit.window.filepicker import FilePickerDialog
 
 
-def _process_prompt(model, image_path: str = None):
+def _process_prompt(model):
+    """Process prompt and extract image paths if present."""
     prompt = model.as_string
-    if image_path:
-        prompt = f"{prompt} @image({image_path})"
-    # print(f"prompt: {prompt}")
-    return prompt
+
+    # Extract any @image() references from the prompt
+    import re
+
+    image_pattern = r"@image\(([^)]+)\)"
+    embedded_images = re.findall(image_pattern, prompt)
+
+    return prompt, embedded_images
 
 
 class RoleItem(ui.AbstractItem):
@@ -335,7 +340,7 @@ class LayoutDelegate(AgentDelegate):
                 self.model = None
                 self.edit = False
 
-                self._image_path = None  # TODO: want some more general container for attachments
+                self._image_path = None  # Legacy field for compatibility
                 self._enter_was_pressed = False  # Track if Enter was pressed in the previous frame
 
             def __del__(self):
@@ -394,11 +399,11 @@ class LayoutDelegate(AgentDelegate):
                 if not self.model:
                     return
 
-                prompt = _process_prompt(self.model, self._image_path)
-                if not prompt:
+                prompt, images = _process_prompt(self.model)
+                if not prompt and not images:
                     return
 
-                self._send_message_func(self._network, prompt)
+                self._send_message_func(self._network, prompt or "Please analyze the attached image(s)", images)
                 self.model.as_string = ""
 
             async def _loop(self, loop_event):
@@ -489,26 +494,32 @@ class LayoutDelegate(AgentDelegate):
         """Builds the buttons for the request widget"""
 
         def send_clicked_fn(network, model):
-            prompt = _process_prompt(model, self._field_state._image_path)
-            if prompt:
-                self._submit_prompt(network, prompt)
+            prompt, images = _process_prompt(model)
+            if prompt or images:
+                self._submit_prompt(network, prompt, images)
             model.as_string = ""
 
         self._input_filepicker = None
 
         def _on_input_image_button_clicked():
-            def _on_apply_input_image(file, directory):
-                if directory and file:
-                    url = f"{directory}/{file}"
-                    self._field_state._image_path = url  # store on FieldState so text field can access as well
+            def _on_apply_input_image(filename, dirname):
+                # Handle both (file, directory) and (filename, dirname) parameter names
+                if dirname and filename:
+                    image_path = os.path.join(dirname, filename) if dirname != "." else filename
+                    # Append @image(path) to the text field
+                    current_text = input_model.as_string
+                    if current_text and not current_text.endswith(" "):
+                        current_text += " "
+                    input_model.as_string = f"{current_text}@image({image_path})"
+                    print(f"[Image Support] Added image reference: @image({image_path})")
                 if self._input_filepicker:
                     self._input_filepicker.hide()
 
             if not self._input_filepicker:
                 self._input_filepicker = FilePickerDialog(
-                    "Input Image",
+                    "Select Image",
                     click_apply_handler=_on_apply_input_image,
-                    file_extension_options=[(".png", "PNG Image")],
+                    file_extension_options=[(".png", "PNG Image"), (".jpg", "JPEG Image"), (".jpeg", "JPEG Image")],
                 )
             self._input_filepicker.show()
 
@@ -516,7 +527,14 @@ class LayoutDelegate(AgentDelegate):
             ui.Spacer(width=10)
             with ui.VStack(width=0, content_clipping=True):
                 ui.Spacer()
-                ui.Button(name="upload", height=32, width=32, clicked_fn=_on_input_image_button_clicked, visible=0)
+                self._upload_btn = ui.Button(
+                    name="upload",
+                    tooltip="Attach images (click to select)",
+                    height=32,
+                    width=32,
+                    clicked_fn=_on_input_image_button_clicked,
+                    visible=True,  # Make visible by default
+                )
                 ui.Spacer()
             ui.Spacer(width=2)
             with ui.ZStack():
@@ -557,15 +575,22 @@ class LayoutDelegate(AgentDelegate):
             else:
                 self._send_image_btn.visible = False
 
-    def _submit_prompt(self, network, prompt):
+    def _submit_prompt(self, network, prompt, images=None):
         """
         Submits a user prompt to the network, creating a new agent with the prompt.
+        If images are provided, uses RunnableHumanImageNode instead.
 
         Args:
             network (RunnableNetwork): The agent network to add the agent to.
             prompt (str): The user's message prompt.
+            images (list): Optional list of image paths or URLs.
         """
-        network.add_node(get_node_factory().create_node("UserAgent", prompt))
+        if images and len(images) > 0:
+            # Use RunnableHumanImageNode when images are present
+            network.add_node(get_node_factory().create_node("UserAgentImage", prompt, images))
+        else:
+            # Regular text-only message
+            network.add_node(get_node_factory().create_node("UserAgent", prompt))
         self._process_network(network)
 
     def _process_network(self, network):
@@ -908,7 +933,14 @@ class DefaultDelegate(LayoutDelegate):
         output = agent.outputs
         if output:
             if isinstance(output.content, list):
-                return "\n".join(entry["text"] for entry in output.content if entry["type"] == "text")
+                # Safely extract text from multi-modal content
+                text_parts = []
+                entry = output.content[0]
+                if isinstance(entry, dict) and entry.get("type") == "text":
+                    text_parts.append(entry.get("text", ""))
+                elif isinstance(entry, str):
+                    text_parts.append(entry)
+                return "".join(text_parts)
             else:
                 result = output.content
                 if isinstance(result, str) and result.startswith("FINAL "):
@@ -966,6 +998,7 @@ class DefaultDelegate(LayoutDelegate):
                 self.formatted_text: Any = None
                 self.progress: Any = None
                 self.tokens: Any = None
+                self.images: list = []
 
         self._data = WidgetData()
 

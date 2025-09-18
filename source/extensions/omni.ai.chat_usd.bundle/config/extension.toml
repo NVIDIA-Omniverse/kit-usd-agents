@@ -1,5 +1,5 @@
 [package]
-version = "2.0.15"
+version = "2.0.18"
 authors = ["Omniverse GenAI Team"]
 title = "Chat USD (Preview)"
 description = "Integration of the USD NIM & Agents into Kit"
@@ -13,9 +13,9 @@ icon = "data/icon.png"
 
 [dependencies]
 "omni.ai.langchain.agent.omni_ui" = { optional = true }
-"omni.ai.langchain.agent.usd_code" = { version = "2.0.7" }
+"omni.ai.langchain.agent.usd_code" = { version = "2.0.9" }
 "omni.ai.langchain.extra" = { optional = true }
-"omni.ai.langchain.widget.core" = { version = "2.0.6" }
+"omni.ai.langchain.widget.core" = { version = "2.0.7" }
 "omni.kit.clipboard" = {}
 "omni.kit.widget.text_editor" = {}
 
