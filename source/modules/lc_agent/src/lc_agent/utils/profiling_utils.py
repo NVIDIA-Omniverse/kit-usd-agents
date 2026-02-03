@@ -16,15 +16,40 @@ the network's `profiling` field and is automatically serialized/deserialized
 with the network.
 """
 
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
+from functools import wraps
+from langsmith import traceable as langsmith_traceable
 from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any, TYPE_CHECKING, Callable
 import contextvars
-import time
+import inspect
 import os
+import time
 
 if TYPE_CHECKING:
     from ..runnable_network import RunnableNetwork
 
+
+def _force_single_task_langsmith_streaming() -> None:
+    """Ensure LangSmith does not use asyncio.create_task(context=...) during streaming.
+
+    LangSmith's run_helpers uses langsmith._internal._aiter.asyncio_accepts_context()
+    to decide whether to call asyncio.create_task for each generator step.
+    For compatibility with anyio-based clients (e.g., NAT MCP), we force this
+    probe to return False so streaming stays within a single task.
+    """
+    try:
+        from langsmith._internal import _aiter as _ls_aiter  # type: ignore
+
+        def _no_context() -> bool:
+            return False
+
+        _ls_aiter.asyncio_accepts_context = _no_context  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+
+# Apply the patch at import time so all decorators pick it up
+_force_single_task_langsmith_streaming()
 
 # Thread-local storage for profiling stacks per network
 # Note: We don't use a default dict here because it would be shared across contexts.
@@ -301,6 +326,79 @@ def disable_profiling() -> None:
 def is_profiling_enabled() -> bool:
     """Check if profiling is enabled."""
     return _PROFILING_ENABLED
+
+
+def create_langsmith_traceable(
+    get_name: Callable[[Any], str],
+    get_metadata: Callable[[Any], Dict[str, Any]],
+    get_process_inputs: Callable[[Any], Callable],
+    get_process_outputs: Callable[[Any], Callable],
+) -> Callable:
+    """
+    Create a langsmith traceable decorator for both sync and async functions.
+
+    This factory creates a decorator that wraps functions with langsmith tracing,
+    using callbacks to get runtime information from the instance (self).
+
+    Args:
+        get_name: Function that takes self and returns the trace name
+        get_metadata: Function that takes self and returns metadata dict
+        get_process_inputs: Function that takes self and returns process_inputs callable
+        get_process_outputs: Function that takes self and returns process_outputs callable
+
+    Returns:
+        Decorator function that can wrap both sync and async methods
+    """
+
+    def decorator(func: Callable) -> Callable:
+        # Check for async generator first (before iscoroutinefunction which also matches generators)
+        if inspect.isasyncgenfunction(func):
+
+            @wraps(func)
+            async def async_gen_wrapper(self, *args, **kwargs):
+                # Apply traceable with closures at runtime
+                traced = langsmith_traceable(
+                    name=get_name(self),
+                    metadata=get_metadata(self),
+                    process_inputs=get_process_inputs(self),
+                    process_outputs=get_process_outputs(self),
+                )(func)
+                # For async generators, iterate and yield (don't await!)
+                async for item in traced(self, *args, **kwargs):
+                    yield item
+
+            return async_gen_wrapper
+
+        elif inspect.iscoroutinefunction(func):
+
+            @wraps(func)
+            async def async_wrapper(self, *args, **kwargs):
+                # Apply traceable with closures at runtime
+                traced = langsmith_traceable(
+                    name=get_name(self),
+                    metadata=get_metadata(self),
+                    process_inputs=get_process_inputs(self),
+                    process_outputs=get_process_outputs(self),
+                )(func)
+                return await traced(self, *args, **kwargs)
+
+            return async_wrapper
+        else:
+
+            @wraps(func)
+            def sync_wrapper(self, *args, **kwargs):
+                # Apply traceable with closures at runtime
+                traced = langsmith_traceable(
+                    name=get_name(self),
+                    metadata=get_metadata(self),
+                    process_inputs=get_process_inputs(self),
+                    process_outputs=get_process_outputs(self),
+                )(func)
+                return traced(self, *args, **kwargs)
+
+            return sync_wrapper
+
+    return decorator
 
 
 def format_profiling_tree(network: "RunnableNetwork", indent: int = 2) -> str:

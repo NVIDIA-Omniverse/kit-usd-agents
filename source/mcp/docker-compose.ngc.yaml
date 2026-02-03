@@ -1,0 +1,95 @@
+# Docker Compose for deployment using NVIDIA NGC API for embeddings and reranking
+#
+# This configuration uses NVIDIA's cloud-hosted embedder and reranker services
+# via your NVIDIA API key. No local GPUs are required for embeddings/reranking.
+#
+# Prerequisites:
+#   - NVIDIA API key from https://build.nvidia.com/
+#   - Docker
+#
+# Usage:
+#   export NVIDIA_API_KEY=your_nvidia_api_key
+#   docker compose -f docker-compose.ngc.yaml up --build
+#
+# To run specific services only:
+#   docker compose -f docker-compose.ngc.yaml up usd-code-mcp
+#
+# Services:
+#   - OmniUI MCP:   http://localhost:9901
+#   - Kit MCP:      http://localhost:9902
+#   - USD Code MCP: http://localhost:9903
+#
+# For local GPU-based embedder/reranker (requires 2 GPUs), use:
+#   docker compose -f docker-compose.local.yaml up --build
+
+services:
+  # ============================================================================
+  # MCP Servers - Using NVIDIA NGC API for embeddings/reranking
+  # ============================================================================
+
+  # OmniUI MCP Server - Port 9901
+  omni-ui-mcp:
+    build:
+      context: ./omni_ui_mcp
+      dockerfile: Dockerfile
+    image: omni-ui-mcp:ngc
+    container_name: omni-ui-mcp
+    ports:
+      - "9901:9901"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9901
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Kit MCP Server - Port 9902
+  kit-mcp:
+    build:
+      context: ./kit_mcp
+      dockerfile: Dockerfile
+    image: kit-mcp:ngc
+    container_name: kit-mcp
+    ports:
+      - "9902:9902"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9902
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # USD Code MCP Server - Port 9903
+  usd-code-mcp:
+    build:
+      context: ./usd_code_mcp
+      dockerfile: Dockerfile
+    image: usd-code-mcp:ngc
+    container_name: usd-code-mcp
+    ports:
+      - "9903:9903"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9903
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  default:
+    name: mcp-ngc-network

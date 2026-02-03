@@ -1,0 +1,28 @@
+[package]
+# Package metadata
+title = "Omni AI Planning Agent"
+description = "Planning agent for creating detailed scene creation and modification plans"
+version = "0.1.1"
+category = "AI"
+authors = ["NVIDIA"]
+readme = "docs/README.md"
+repository = ""
+changelog = "docs/CHANGELOG.md"
+preview_image = "data/preview.png"
+icon = "data/icon.png"
+keywords = ["ai", "chat", "planning", "usd"]
+
+# Dependencies
+[dependencies]
+"omni.ai.chat_usd.bundle" = {}
+"omni.ai.langchain.core" = {}
+
+# Python module definition
+[[python.module]]
+name = "omni.ai.langchain.agent.planning"
+
+# Extension entry point
+[extension]
+python = [
+    "source/extensions/omni.ai.langchain.agent.planning/omni/ai/langchain/agent/planning/extension.py",
+]

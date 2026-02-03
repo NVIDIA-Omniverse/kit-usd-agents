@@ -1,3 +1,70 @@
+## 0.2.19 - 2025-12-17
+- Add option to code atlas scan to exclude submodules
+- Fix class usages not ordered
+
+## 0.2.19 - 2026-01-06
+- Added LangSmith 0.6 compatibility
+  - LangSmith 0.6 uses Pydantic v2 which strictly validates `RunTree.inputs` as `dict`
+  - Added `_to_dict` helper in `RunnableNetwork` to convert non-dict values (HumanMessage, AIMessage, lists, Pydantic models) to dict format
+  - Maintains backward compatibility with older LangSmith versions
+  - Added integration tests for LangSmith compatibility (test_langsmith_compat.py)
+
+## 0.2.18 - 2025-12-09
+- Promote the class or function to higher level module if it is publicly exposed there
+- Fix for code atlas not following symbolic links
+- Fix for not listing functions inside the module
+- Avoid adding functions or classes nested in functions
+- Fix for duplicate class usages
+- Fix AST syntax error when parsing some files
+- Fix not resolving submodule names correctly
+
+
+## 0.2.17 - 2025-12-04
+- Improved multi-agent classification parsing to handle LLM preamble text before actions
+- Added `_line_starts_with_action` helper function for case-insensitive action matching
+- Added `_find_action_at_line_start` to find first valid action at the start of any line
+- Updated `parse_classification_result` to search for actions across multiple lines
+- Added `skip_route_nodes` parameter to `get_routing_tools_info` function to exclude specific route nodes
+
+## 0.2.16 - 2025-12-02
+- Fixed critical concurrency race condition in global registries (NodeFactory, ChatModelRegistry, RetrieverRegistry)
+- Added reference counting to prevent premature unregistration when concurrent requests share the same names
+- Added thread-safe locking (threading.RLock) to all registry operations
+- Fixed list duplication bug in ChatModelRegistry and RetrieverRegistry where names were appended on every register()
+- Added comprehensive concurrency tests (18 new tests)
+
+## 0.2.15 - 2025-12-01
+- Fixed critical concurrency race condition in RunnableNetwork context management
+- Changed ContextVar implementation to use immutable list operations instead of mutable list
+- Prevents concurrent async workflows from interfering with each other's network context
+- Added comprehensive concurrency tests for RunnableNetwork (9 new tests)
+
+## 0.2.14 - 2025-11-05
+- Fixed `_parse_and_extract_channel_metadata` to correctly handle multiple consecutive channel sections
+- Added tests for RunnableNode functionality:
+- Added tests for profiling utilities:
+
+## 0.2.13 - 2025-11-04
+- Added optional channel metadata extraction from chat model outputs
+- Added support for `<|channel|>` tags with multi-channel metadata extraction
+- Added support for `<think>` and `<thinking>` tags for model reasoning capture
+- Added `LC_AGENT_PARSE_CHANNEL_METADATA` environment variable to enable/disable feature
+- Made `_parse_and_extract_channel_metadata` a method of RunnableNode (overridable)
+- Channel metadata extracted to `metadata["channel"][channel_name]`
+- Thinking metadata extracted to `metadata["think"]` or `metadata["thinking"]`
+
+## 0.2.12 - 2025-10-28
+- Added langsmith tracing integration for networks and nodes
+
+## 0.2.11 - 2025-10-22
+- Fix error extracting argument type annotation
+- Fix issue with indentation when extracting source code
+- Fix pydantic error in codeinterpreter_tool.py
+
+## 0.2.10 - 2025-10-07
+- Fix for source code start line not extracted correctly.
+- Fix for collecting wildcard import modules twice.
+
 ## 0.2.9 - 2025-09-04
 - Fixed package URL
 

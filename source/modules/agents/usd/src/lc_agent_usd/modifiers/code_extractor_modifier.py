@@ -138,9 +138,7 @@ class CodeExtractorModifier(NetworkModifier):
         self._snippet_verification = snippet_verification
         self._shippet_language_check = shippet_language_check
 
-    async def on_post_invoke_async(
-        self, network: "RunnableNetwork", node: "RunnableNode"
-    ):
+    async def on_post_invoke_async(self, network: "RunnableNetwork", node: "RunnableNode"):
         if (
             # If it's a final result
             node.invoked
@@ -150,14 +148,31 @@ class CodeExtractorModifier(NetworkModifier):
             parents = network.get_parents(node)
             parent = parents[-1] if parents else None
             if self._snippet_verification and parent:
-                if not await verify_to_run(
-                    parent.outputs.content, node.outputs.content, network
-                ):
+                if not await verify_to_run(parent.outputs.content, node.outputs.content, network):
                     return
 
             code_snippet, language_tag = extract_code_snippet(node.outputs.content)
             if not code_snippet:
-                # TODO: Critical error, no code snippet found.
+                # Check if this looks like code without proper formatting
+                content = node.outputs.content.strip()
+                looks_like_code = (
+                    "await " in content
+                    or ("(" in content and ")" in content)  # function call
+                    or " = " in content  # assignment
+                )
+
+                if looks_like_code:
+                    node >> RunnableHumanNode(
+                        human_message=(
+                            "Your response appears to contain Python code but is missing the required "
+                            "code block formatting.\n\n"
+                            "Please wrap your code in triple backticks like this:\n\n"
+                            "```python\n"
+                            "your code here\n"
+                            "```"
+                        ),
+                        metadata={"format_error": True},
+                    )
                 return
 
             if self._shippet_language_check and language_tag != "python":

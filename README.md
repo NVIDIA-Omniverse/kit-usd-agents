@@ -1,41 +1,106 @@
 # Kit USD Agents
 
-This repository contains Chat USD and its supporting framework for AI-assisted Universal Scene Description (USD) development in NVIDIA Omniverse Kit.
+AI-powered development tools for NVIDIA Omniverse, including Chat USD and Model Context Protocol (MCP) servers for Kit, USD, and OmniUI development.
 
-## What is Chat USD?
+## What's Included
 
-Chat USD is a specialized AI assistant that enables natural language interaction with USD scenes. Built on top of LangChain, Chat USD provides a multi-agent system for USD development workflows.
+This repository provides two types of AI development tools:
 
-### Core Capabilities
-- **USD Code Generation & Execution**: Generate and execute USD code from natural language descriptions
-- **Asset Search**: Search for USD assets using natural language queries
-- **Scene Information**: Analyze and retrieve information about USD scenes
-- **Interactive Development**: Real-time scene modification through conversation
-- **Extensibility**: Add custom agents like navigation, UI generation, and more
+### 1. Chat USD Extension
 
-## Repository Structure
+Chat USD is an AI assistant that runs inside NVIDIA Omniverse Kit, enabling natural language interaction with USD scenes.
 
-### Extensions
-- `omni.ai.chat_usd.bundle` - The main Chat USD extension bundle
-- `omni.ai.langchain.agent.usd_code` - USD code generation and execution agent
-- `omni.ai.langchain.agent.navigation` - Example custom agent for scene navigation
-- `omni.ai.langchain.widget.core` - UI components for AI-powered interfaces
-- `omni.ai.langchain.core` - Bridge between LangChain and Omniverse
-- `omni.ai.langchain.aiq` - NVIDIA NeMo Agent Toolkit platform integration
-- `omni.ai.aiq.agent.chat_usd` - Chat USD integration with NVIDIA NeMo Agent Toolkit
+**Capabilities:**
+- **USD Code Generation**: Generate and execute USD Python code from natural language
+- **Asset Search**: Find USD assets using conversational queries
+- **Scene Analysis**: Get information about your current USD scene
+- **Real-time Editing**: Modify scenes interactively through conversation
+- **Custom Agents**: Extensible architecture for adding specialized capabilities
 
-### Modules
-- `lc_agent` - Core LC Agent built on LangChain
-- `agents/usd` - USD-specific agent implementations
-- `data_generation/usdcode` - USD meta-functions for optimized operations
-- `rags` - Retrieval-augmented generation components
-- `aiq` - NVIDIA NeMo Agent Toolkit integration utilities
+### 2. MCP Servers
+
+Three standalone [Model Context Protocol](https://modelcontextprotocol.io/) servers that integrate with AI coding assistants like Claude, Cursor, and other MCP-compatible tools.
+
+#### USD Code MCP Server
+Provides USD/OpenUSD API assistance with 8 specialized tools:
+- Browse USD modules and classes
+- Get detailed API documentation
+- Search code examples with semantic search
+- Access USD knowledge base
+
+#### Kit MCP Server  
+Comprehensive Kit development assistance with 12 specialized tools:
+- Search 400+ Kit extensions
+- Explore extension APIs and dependencies
+- Find code examples and test patterns
+- Access Kit documentation and settings
+
+#### OmniUI MCP Server
+OmniUI development assistance with 7 specialized tools:
+- Browse UI classes and modules
+- Get widget documentation and examples
+- Search styling and scene system APIs
 
 ## Getting Started
 
-1. Build: `build.bat -r`
-2. Run: `_build\windows-x86_64\release\omni.app.chat_usd.bat`
+### Chat USD Extension
+
+Build and run in Omniverse Kit:
+```bash
+# Windows
+build.bat -r
+_build\windows-x86_64\release\omni.app.chat_usd.bat
+
+# Linux
+./build.sh -r
+./_build/linux-x86_64/release/omni.app.chat_usd.sh
+```
+
+### MCP Servers
+
+Each MCP server can be run locally with Docker or Python. See the individual server documentation:
+- [USD Code MCP](source/mcp/usd_code_mcp/README.md)
+- [Kit MCP](source/mcp/kit_mcp/README.md)
+- [OmniUI MCP](source/mcp/omni_ui_mcp/README.md)
+
+**Quick Start (Docker - Recommended):**
+```bash
+# Set your NVIDIA API key first
+export NVIDIA_API_KEY=your_api_key_here  # Linux/macOS
+# or
+set NVIDIA_API_KEY=your_api_key_here     # Windows
+
+# Build wheels and start all MCP servers
+cd source/mcp
+./build-wheels.sh all  # or build-wheels.bat all on Windows
+docker compose -f docker-compose.ngc.yaml up --build
+```
+
+This uses NVIDIA's cloud-hosted embedder and reranker services via your API key. No local GPUs required.
+
+**Local GPU Deployment (Advanced):**
+
+For running embedder/reranker models locally on your own GPUs (requires 2 NVIDIA GPUs):
+```bash
+export NGC_API_KEY=your_ngc_api_key      # For pulling NIM container images
+export NVIDIA_API_KEY=your_nvidia_api_key
+
+cd source/mcp
+./build-wheels.sh all
+docker compose -f docker-compose.local.yaml up --build
+```
+
+See [Local Deployment Guide](source/mcp/LOCAL_DEPLOYMENT.md) for details.
+
+**Requirements:**
+- [NVIDIA API Key](https://build.nvidia.com/) (for embeddings, reranking, and LLM access)
+- Docker (recommended for deployment)
 
 ## Documentation
 
-For detailed documentation on Chat USD architecture, components, and how to extend it with custom agents, see the documentation in source/extensions/omni.ai.chat_usd.bundle/docs/README.md
+- [Chat USD Architecture](source/extensions/omni.ai.chat_usd.bundle/docs/README.md)
+- [MCP Local Deployment Guide](source/mcp/LOCAL_DEPLOYMENT.md)
+
+## Contributing
+
+This project is currently not accepting contributions.

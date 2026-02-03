@@ -1,5 +1,5 @@
 [package]
-version = "2.0.20"
+version = "2.0.24"
 authors = ["Omniverse GenAI Team"]
 title = "Chat USD (Preview)"
 description = "Integration of the USD NIM & Agents into Kit"
@@ -13,9 +13,9 @@ icon = "data/icon.png"
 
 [dependencies]
 "omni.ai.langchain.agent.omni_ui" = { optional = true }
-"omni.ai.langchain.agent.usd_code" = { version = "2.0.10" }
+"omni.ai.langchain.agent.usd_code" = { version = "2.0.14" }
 "omni.ai.langchain.extra" = { optional = true }
-"omni.ai.langchain.widget.core" = { version = "2.0.7" }
+"omni.ai.langchain.widget.core" = { version = "3.0.0" }
 "omni.kit.clipboard" = {}
 "omni.kit.widget.text_editor" = {}
 
@@ -45,16 +45,16 @@ chat_usd_multishot = true
 
 chat_usd_developer_mode = true
 
-# Use an nvdev embedding model
-# nvidia_embedding_model = "nvdev/nvidia/nv-embedqa-e5-v5"
+# Use an nvidia embedding model
+# nvidia_embedding_model = "nvidia/nv-embedqa-e5-v5"
 
 # the url of your custom chat model server
 # custom_chat_model = "http://127.0.0.1:9901/"
 
-# Use an nvdev chat model
+# Use an nvidia chat model
 # [settings.exts."omni.ai.chat_usd.bundle".custom_chat_model]
 # base_url = "https://integrate.api.nvidia.com/v1"
-# model = "nvdev/nvidia/usdcode-llama-3.1-70b-instruct"
+# model = "nvidia/usdcode-llama-3.1-70b-instruct"
 # api_key = "nvapi-XXX" # Put your API key here
 
 [settings.exts."omni.ai.langchain.widget.core"]

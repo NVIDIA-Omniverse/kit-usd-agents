@@ -7,37 +7,98 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
-from .chat_model_registry import get_chat_model_registry
-from .node_factory import get_node_factory
-from .utils.culling import _cull_messages
-from .utils.profiling_utils import Profiler
-from .uuid_utils import UUIDMixin
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.callbacks.base import BaseCallbackHandler
-from langchain_core.callbacks.base import BaseCallbackManager
-from langchain_core.messages import (
-    AIMessage,
-    AIMessageChunk,
-    BaseMessage,
-    BaseMessageChunk,
-    HumanMessage,
-    SystemMessage,
-    ToolMessage,
-)
+import os
+import time
+from typing import Any, AsyncIterator, Callable, Dict, ForwardRef, Iterator, List, Optional, Type, Union
+
+from langchain_core.callbacks.base import BaseCallbackHandler, BaseCallbackManager
+from langchain_core.messages import (AIMessage, AIMessageChunk, BaseMessage, BaseMessageChunk, HumanMessage,
+                                     SystemMessage, ToolMessage)
 from langchain_core.messages import messages_to_dict as langchain_messages_to_dict
 from langchain_core.outputs import LLMResult
 from langchain_core.prompt_values import ChatPromptValue
-from langchain_core.runnables import Runnable
-from langchain_core.runnables import RunnableConfig
-from langchain_core.runnables import RunnableSerializable
-from langchain_core.runnables import ensure_config
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable, RunnableConfig, RunnableSerializable, ensure_config
 from langchain_core.runnables.base import RunnableBinding
 from langchain_core.runnables.utils import Input, Output
+from langsmith.run_helpers import tracing_context
 from pydantic import model_serializer, model_validator
-from typing import Any, Dict, Iterator, List, Optional, AsyncIterator, ForwardRef, Type, Union
 from typing_extensions import Self
-import os
-import time
+
+from .chat_model_registry import get_chat_model_registry
+from .node_factory import get_node_factory
+from .utils.culling import _cull_messages
+from .utils.profiling_utils import Profiler, create_langsmith_traceable
+from .uuid_utils import UUIDMixin
+
+
+def _create_node_langsmith_traceable() -> Callable:
+    """
+    Create a langsmith traceable decorator configured for RunnableNode.
+
+    Groups all node-specific tracing configuration into one factory function.
+    """
+
+    def get_name(node: "RunnableNode") -> str:
+        """Get the trace name for a node."""
+        return node.name or type(node).__name__
+
+    def get_metadata(node: "RunnableNode") -> Dict[str, Any]:
+        """Get metadata for node tracing."""
+        return {
+            "node_type": type(node).__name__,
+            "node_uuid": node.uuid(),
+            "node_name": node.name,
+            "metadata": node.metadata,
+        }
+
+    def get_process_inputs(node: "RunnableNode") -> Callable[[dict], dict]:
+        """Get process_inputs function for node tracing."""
+
+        def process_inputs(inputs: dict) -> dict:
+            # Inject parent information into inputs
+            parents = []
+            iterated = set()
+            for p in node._iterate_chain(iterated):
+                if p is node:
+                    continue
+                parents.append(
+                    {
+                        "node_type": type(p).__name__,
+                        "node_name": p.name,
+                        "node_uuid": p.uuid(),
+                        "outputs": p.outputs,
+                    }
+                )
+
+            return {
+                **inputs,
+                "parents": parents,
+            }
+
+        return process_inputs
+
+    def get_process_outputs(node: "RunnableNode") -> Callable[[Any], dict]:
+        """Get process_outputs function for node tracing."""
+
+        def process_outputs(outputs: Any) -> dict:
+            # Return node outputs if available
+            if node.outputs:
+                return node.outputs
+            return outputs
+
+        return process_outputs
+
+    return create_langsmith_traceable(
+        get_name=get_name,
+        get_metadata=get_metadata,
+        get_process_inputs=get_process_inputs,
+        get_process_outputs=get_process_outputs,
+    )
+
+
+# Create node-specific langsmith traceable decorator
+_traceable = _create_node_langsmith_traceable()
 
 
 def _messages_to_dict(messages: List[BaseMessage]):
@@ -111,8 +172,60 @@ def _is_message(message):
     if isinstance(message, str):
         return True
 
-    if isinstance(message, tuple) and all(isinstance(i, str) for i in message) and len(message) == 2:
+    if (
+        isinstance(message, tuple)
+        and all(isinstance(i, str) for i in message)
+        and len(message) == 2
+    ):
         return True
+
+
+def _normalize_to_message(message) -> BaseMessage:
+    """
+    Convert various message-like inputs to proper BaseMessage objects.
+
+    Accepts:
+    - BaseMessage: returned as-is
+    - str: converted to HumanMessage
+    - tuple (role, content): converted based on role
+    - dict with role/content: converted based on role
+
+    Returns:
+        BaseMessage instance
+    """
+    if isinstance(message, BaseMessage):
+        return message
+
+    if isinstance(message, str):
+        return HumanMessage(content=message)
+
+    if isinstance(message, tuple) and len(message) == 2:
+        role, content = message
+        role_lower = role.lower()
+        if role_lower in ("user", "human"):
+            return HumanMessage(content=content)
+        elif role_lower in ("assistant", "ai"):
+            return AIMessage(content=content)
+        elif role_lower == "system":
+            return SystemMessage(content=content)
+        else:
+            # Default to HumanMessage for unknown roles
+            return HumanMessage(content=content)
+
+    if isinstance(message, dict) and "role" in message and "content" in message:
+        role = message["role"].lower()
+        content = message["content"]
+        if role in ("user", "human"):
+            return HumanMessage(content=content)
+        elif role in ("assistant", "ai"):
+            return AIMessage(content=content)
+        elif role == "system":
+            return SystemMessage(content=content)
+        else:
+            return HumanMessage(content=content)
+
+    # Fallback: wrap in HumanMessage
+    return HumanMessage(content=str(message))
 
 
 class ModelNotFoundError(Exception):
@@ -181,7 +294,9 @@ class CountTokensCallbackHandler(BaseCallbackHandler):
 
         return result
 
-    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
+    def on_llm_start(
+        self, _serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ) -> None:
         invoc_params = kwargs.get("invocation_params", {})
         self._model = invoc_params.get("model_name") or invoc_params.get("model")
 
@@ -226,14 +341,20 @@ class CountTokensCallbackHandler(BaseCallbackHandler):
         # Calculate elapsed time in seconds
         self._elapsed_time = end_time - self._start_time
         # Calculate elapsed time excluding time to first token
-        self._elapsed_time_wo_ttf = end_time - (self._first_token_received_time or self._start_time)
+        self._elapsed_time_wo_ttf = end_time - (
+            self._first_token_received_time or self._start_time
+        )
 
         # Save tokens per second (with and without time to first token)
         self._tokens_per_second_with_ttf = (
-            self._completion_tokens / self._elapsed_time if self._elapsed_time > 0 else None
+            self._completion_tokens / self._elapsed_time
+            if self._elapsed_time > 0
+            else None
         )
         self._tokens_per_second_wo_ttf = (
-            self._completion_tokens / self._elapsed_time_wo_ttf if self._elapsed_time_wo_ttf > 0 else None
+            self._completion_tokens / self._elapsed_time_wo_ttf
+            if self._elapsed_time_wo_ttf > 0
+            else None
         )
 
     @property
@@ -270,7 +391,9 @@ class CountTokensCallbackHandler(BaseCallbackHandler):
 
 
 RunnableNode = ForwardRef("RunnableNode")
-OutputType = Union[HumanMessage, AIMessage, SystemMessage, ToolMessage, ChatPromptTemplate]
+OutputType = Union[
+    HumanMessage, AIMessage, SystemMessage, ToolMessage, ChatPromptTemplate
+]
 
 
 class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
@@ -289,6 +412,11 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
     # Add class variable for debug file
     _debug_payload_file = os.environ.get("LC_AGENT_DEBUG_PAYLOAD")
+
+    # Add class variable for channel metadata parsing
+    _parse_channel_metadata = os.environ.get(
+        "LC_AGENT_PARSE_CHANNEL_METADATA", "1"
+    ).lower() in ("1", "true", "yes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -350,22 +478,30 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
         if message_type == "human":
             # Create a HumanMessage
             content = message_dict.get("content", "")
-            kwargs = {k: v for k, v in message_dict.items() if k not in ["type", "content"]}
+            kwargs = {
+                k: v for k, v in message_dict.items() if k not in ["type", "content"]
+            }
             return HumanMessage(content=content, **kwargs)
         elif message_type == "ai":
             # Create an AIMessage
             content = message_dict.get("content", "")
-            kwargs = {k: v for k, v in message_dict.items() if k not in ["type", "content"]}
+            kwargs = {
+                k: v for k, v in message_dict.items() if k not in ["type", "content"]
+            }
             return AIMessage(content=content, **kwargs)
         elif message_type == "system":
             # Create a SystemMessage
             content = message_dict.get("content", "")
-            kwargs = {k: v for k, v in message_dict.items() if k not in ["type", "content"]}
+            kwargs = {
+                k: v for k, v in message_dict.items() if k not in ["type", "content"]
+            }
             return SystemMessage(content=content, **kwargs)
         elif message_type == "tool" and "tool_call_id" in message_dict:
             # Create a ToolMessage only if tool_call_id is present
             content = message_dict.get("content", "")
-            kwargs = {k: v for k, v in message_dict.items() if k not in ["type", "content"]}
+            kwargs = {
+                k: v for k, v in message_dict.items() if k not in ["type", "content"]
+            }
             return ToolMessage(content=content, **kwargs)
 
         # If we can't determine the type or it's not a valid message dict,
@@ -447,7 +583,17 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
             if need_type_name is None:
                 # If no type is specified, use the default handler
-                return handler(data)
+                # But still handle outputs field specially to avoid message deserialization issues
+                outputs = None
+                if "outputs" in edited_data:
+                    outputs = cls._deserialize_outputs(edited_data.pop("outputs"))
+
+                result = handler(edited_data)
+
+                if outputs is not None:
+                    result.outputs = outputs
+
+                return result
 
             # Use a factory or some registry to get the correct type
             # Check by name first and if it's not there, check by type
@@ -508,6 +654,95 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
     def __str__(self):
         return self.__repr__()
 
+    def _parse_and_extract_channel_metadata(
+        self, content: str, metadata: Dict[str, Any]
+    ) -> tuple[str, Dict[str, Any]]:
+        """
+        Parse and extract channel metadata from content that starts with <|channel|>, <think>, or <thinking> tags.
+
+        Extracts metadata sections and removes them from the content, keeping only the remaining text.
+        These tags are mutually exclusive - only one type can exist in the content.
+
+        Args:
+            content (str): The content string to parse
+            metadata (Dict[str, Any]): The metadata dictionary to update
+
+        Returns:
+            tuple: (cleaned_content, updated_metadata)
+
+        Examples:
+            Input: "<|channel|>commentary<|message|>Tool call<|end|>Hello"
+            Output: ("Hello", metadata_with_channel)
+
+            Input: "<think>reasoning here</think>Hello world"
+            Output: ("Hello world", metadata_with_think)
+
+            Input: "<thinking>deep thought</thinking>Hello world"
+            Output: ("Hello world", metadata_with_thinking)
+        """
+        import re
+
+        if not isinstance(content, str):
+            return content, metadata
+
+        # Check for <think> tag
+        if content.startswith("<think>"):
+            think_match = re.search(r"<think>(.*?)</think>", content, re.DOTALL)
+            if think_match:
+                metadata["think"] = think_match.group(1)
+                remaining_content = content[think_match.end() :]
+                return remaining_content, metadata
+
+        # Check for <thinking> tag
+        if content.startswith("<thinking>"):
+            thinking_match = re.search(
+                r"<thinking>(.*?)</thinking>", content, re.DOTALL
+            )
+            if thinking_match:
+                metadata["thinking"] = thinking_match.group(1)
+                remaining_content = content[thinking_match.end() :]
+                return remaining_content, metadata
+
+        # Check for <|channel|> tags
+        if content.startswith("<|channel|>"):
+            # Initialize channel dict in metadata if not present
+            if "channel" not in metadata:
+                metadata["channel"] = {}
+
+            # Parse all consecutive channel sections from the beginning
+            # Pattern: <|channel|>channel_name<|message|>message_content<|end|>
+            channel_pattern = r"<\|channel\|>(.*?)<\|message\|>(.*?)<\|end\|>"
+
+            # Keep parsing and removing channel sections from the start
+            current_content = content
+            while current_content.startswith("<|channel|>"):
+                match = re.match(channel_pattern, current_content, re.DOTALL)
+                if not match:
+                    # No valid channel section found, stop parsing
+                    break
+
+                channel_name = match.group(1)
+                message_content = match.group(2)
+
+                # Store or append to the channel in metadata
+                if channel_name in metadata["channel"]:
+                    # If channel already exists, append with separator
+                    metadata["channel"][channel_name] += "\n" + message_content
+                else:
+                    metadata["channel"][channel_name] = message_content
+
+                # Remove the matched section and continue
+                current_content = current_content[match.end() :]
+
+            # Whatever remains after all channel sections is the actual content
+            remaining_content = current_content
+
+            return remaining_content, metadata
+
+        # No special tags found, return as is
+        return content, metadata
+
+    @_traceable
     def invoke(
         self,
         input: Dict[str, Any] = {},
@@ -527,26 +762,36 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
         try:
             parents_result = self._process_parents(input, config, **kwargs)
-            chat_model_input = self._combine_inputs(input, config, parents_result, **kwargs)
+            chat_model_input = self._combine_inputs(
+                input, config, parents_result, **kwargs
+            )
 
             if self.verbose:
                 print(f"[{self.name}] Input:", type(input))
                 print(f"[{self.name}] Chat model input:", chat_model_input)
 
             chat_model_name = self._get_chat_model_name(chat_model_input, input, config)
-            chat_model = self._get_chat_model(chat_model_name, chat_model_input, input, config)
+            chat_model = self._get_chat_model(
+                chat_model_name, chat_model_input, input, config
+            )
 
             # Tool messages
-            chat_model_input = self._sanitize_messages_for_chat_model(chat_model_input, chat_model_name, chat_model)
+            chat_model_input = self._sanitize_messages_for_chat_model(
+                chat_model_input, chat_model_name, chat_model
+            )
 
             max_tokens = get_chat_model_registry().get_max_tokens(chat_model_name)
             tokenizer = get_chat_model_registry().get_tokenizer(chat_model_name)
             if max_tokens is not None and tokenizer is not None:
-                chat_model_input = _cull_messages(chat_model_input, max_tokens, tokenizer)
+                chat_model_input = _cull_messages(
+                    chat_model_input, max_tokens, tokenizer
+                )
 
             self.metadata["chat_model_input"] = _messages_to_dict(chat_model_input)
 
-            result = self._invoke_chat_model(chat_model, chat_model_input, input, config, **kwargs)
+            result = self._invoke_chat_model(
+                chat_model, chat_model_input, input, config, **kwargs
+            )
         except BaseException as e:
             self.metadata["error"] = str(e)
             raise
@@ -570,9 +815,21 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             print(f"[{self.name}] Token usage:", self.metadata["token_usage"])
 
         self.outputs = result
+
+        # Parse channel metadata if enabled
+        if self._parse_channel_metadata and isinstance(self.outputs, AIMessage):
+            cleaned_content, updated_metadata = (
+                self._parse_and_extract_channel_metadata(
+                    self.outputs.content, self.metadata
+                )
+            )
+            self.outputs.content = cleaned_content
+            self.metadata = updated_metadata
+
         self.invoked = True
         return self.outputs
 
+    @_traceable
     async def ainvoke(
         self,
         input: Dict[str, Any] = {},
@@ -592,26 +849,36 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
         try:
             parents_result = await self._aprocess_parents(input, config, **kwargs)
-            chat_model_input = await self._acombine_inputs(input, config, parents_result, **kwargs)
+            chat_model_input = await self._acombine_inputs(
+                input, config, parents_result, **kwargs
+            )
 
             if self.verbose:
                 print(f"[{self.name}] Input:", type(input))
                 print(f"[{self.name}] Chat model input:", chat_model_input)
 
             chat_model_name = self._get_chat_model_name(chat_model_input, input, config)
-            chat_model = self._get_chat_model(chat_model_name, chat_model_input, input, config)
+            chat_model = self._get_chat_model(
+                chat_model_name, chat_model_input, input, config
+            )
 
             # Tool messages
-            chat_model_input = self._sanitize_messages_for_chat_model(chat_model_input, chat_model_name, chat_model)
+            chat_model_input = self._sanitize_messages_for_chat_model(
+                chat_model_input, chat_model_name, chat_model
+            )
 
             max_tokens = get_chat_model_registry().get_max_tokens(chat_model_name)
             tokenizer = get_chat_model_registry().get_tokenizer(chat_model_name)
             if max_tokens is not None and tokenizer is not None:
-                chat_model_input = _cull_messages(chat_model_input, max_tokens, tokenizer)
+                chat_model_input = _cull_messages(
+                    chat_model_input, max_tokens, tokenizer
+                )
 
             self.metadata["chat_model_input"] = _messages_to_dict(chat_model_input)
 
-            result = await self._ainvoke_chat_model(chat_model, chat_model_input, input, config, **kwargs)
+            result = await self._ainvoke_chat_model(
+                chat_model, chat_model_input, input, config, **kwargs
+            )
         except BaseException as e:
             self.metadata["error"] = str(e)
             raise
@@ -635,9 +902,21 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             print(f"[{self.name}] Token usage:", self.metadata["token_usage"])
 
         self.outputs = result
+
+        # Parse channel metadata if enabled
+        if self._parse_channel_metadata and isinstance(self.outputs, AIMessage):
+            cleaned_content, updated_metadata = (
+                self._parse_and_extract_channel_metadata(
+                    self.outputs.content, self.metadata
+                )
+            )
+            self.outputs.content = cleaned_content
+            self.metadata = updated_metadata
+
         self.invoked = True
         return self.outputs
 
+    @_traceable
     async def astream(
         self,
         input: Input = {},
@@ -655,7 +934,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
         try:
             parents_result = await self._aprocess_parents(input, config, **kwargs)
-            chat_model_input = await self._acombine_inputs(input, config, parents_result, **kwargs)
+            chat_model_input = await self._acombine_inputs(
+                input, config, parents_result, **kwargs
+            )
 
             if self.verbose:
                 print(f"[{self.name}] Input:", type(input))
@@ -666,20 +947,28 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             self.outputs = outputs
 
             chat_model_name = self._get_chat_model_name(chat_model_input, input, config)
-            chat_model = self._get_chat_model(chat_model_name, chat_model_input, input, config)
+            chat_model = self._get_chat_model(
+                chat_model_name, chat_model_input, input, config
+            )
 
             # Tool messages
-            chat_model_input = self._sanitize_messages_for_chat_model(chat_model_input, chat_model_name, chat_model)
+            chat_model_input = self._sanitize_messages_for_chat_model(
+                chat_model_input, chat_model_name, chat_model
+            )
 
             max_tokens = get_chat_model_registry().get_max_tokens(chat_model_name)
             tokenizer = get_chat_model_registry().get_tokenizer(chat_model_name)
             if max_tokens is not None and tokenizer is not None:
-                chat_model_input = _cull_messages(chat_model_input, max_tokens, tokenizer)
+                chat_model_input = _cull_messages(
+                    chat_model_input, max_tokens, tokenizer
+                )
 
             self.metadata["chat_model_input"] = _messages_to_dict(chat_model_input)
 
             latest_node = None
-            async for item in self._astream_chat_model(chat_model, chat_model_input, input, config, **kwargs):
+            async for item in self._astream_chat_model(
+                chat_model, chat_model_input, input, config, **kwargs
+            ):
                 if isinstance(item.content, list):
                     # Sonnet 3.7 returns a list of dicts with text instead of a string
                     # We need to merge them into a single string otherwise we
@@ -741,6 +1030,14 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             # Print token usage
             print(f"[{self.name}] Token usage:", self.metadata["token_usage"])
 
+        # Parse channel metadata if enabled
+        if self._parse_channel_metadata and isinstance(outputs, AIMessage):
+            cleaned_content, updated_metadata = (
+                self._parse_and_extract_channel_metadata(outputs.content, self.metadata)
+            )
+            outputs.content = cleaned_content
+            self.metadata = updated_metadata
+
         self.invoked = True
 
     def _get_chat_model_name(self, chat_model_input, invoke_input, config):
@@ -772,7 +1069,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             chat_model = ChatOpenAI(model="gpt-3.5-turbo")
 
         if chat_model is None:
-            raise ModelNotFoundError(f"Chat model '{chat_model_name}' not found in the registry")
+            raise ModelNotFoundError(
+                f"Chat model '{chat_model_name}' not found in the registry"
+            )
 
         return chat_model
 
@@ -808,14 +1107,19 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
         content = f"\n\n{'='*80}\n"
         content += f"{json.dumps(description, indent=2)}\n\n"
         content += "Chat Model Input:\n"
-        content += "\n".join(f"[{i+1}] {msg}" for i, msg in enumerate(formatted_messages))
+        content += "\n".join(
+            f"[{i+1}] {msg}" for i, msg in enumerate(formatted_messages)
+        )
         content += "\n"
 
         # Append to the file specified in the environment variable
         with open(self._debug_payload_file, "a", encoding="utf-8") as f:
             f.write(content)
 
-    async def _astream_chat_model(self, chat_model, chat_model_input, invoke_input, config, **kwargs):
+    async def _astream_chat_model(
+        self, chat_model, chat_model_input, invoke_input, config, **kwargs
+    ):
+        _ = invoke_input  # Reserved for subclass use
         # Save chat model input to payload.txt
         self._save_chat_model_input_to_payload(chat_model_input)
 
@@ -823,7 +1127,10 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
         async for item in chat_model.astream(chat_model_input, config, **kwargs):
             yield item
 
-    def _invoke_chat_model(self, chat_model, chat_model_input, invoke_input, config, **kwargs):
+    def _invoke_chat_model(
+        self, chat_model, chat_model_input, invoke_input, config, **kwargs
+    ):
+        _ = invoke_input  # Reserved for subclass use
         # Save chat model input to payload.txt
         self._save_chat_model_input_to_payload(chat_model_input)
 
@@ -832,7 +1139,10 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
         return result
 
-    async def _ainvoke_chat_model(self, chat_model, chat_model_input, invoke_input, config, **kwargs):
+    async def _ainvoke_chat_model(
+        self, chat_model, chat_model_input, invoke_input, config, **kwargs
+    ):
+        _ = invoke_input  # Reserved for subclass use
         # Save chat model input to payload.txt
         self._save_chat_model_input_to_payload(chat_model_input)
 
@@ -862,7 +1172,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
                 if parent not in iterated:
                     yield from parent._iterate_chain(iterated)
             else:
-                raise NotImplementedError("Iteration of non-RunnableNodes is not implemented")
+                raise NotImplementedError(
+                    "Iteration of non-RunnableNodes is not implemented"
+                )
 
         if not self.metadata.get("contribute_to_history", True):
             # Don't yield the current node if it doesn't contribute to the history.
@@ -958,7 +1270,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
             self._clear_parents()
             self._add_parent(FromRunnableNode(other))
-        elif isinstance(other, list) and all(isinstance(i, RunnableNode) for i in other):
+        elif isinstance(other, list) and all(
+            isinstance(i, RunnableNode) for i in other
+        ):
             self._clear_parents()
             for o in other:
                 self._add_parent(o)
@@ -985,21 +1299,27 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
 
         return other
 
-    def _process_parents(self, input: Dict[str, Any], config: Optional[RunnableConfig], **kwargs: Any) -> list:
+    def _process_parents(
+        self, input: Dict[str, Any], config: Optional[RunnableConfig], **kwargs: Any
+    ) -> list:
         parents_result = []
         iterated = set()
         for p in self._iterate_chain(iterated):
             if p is self:
                 continue
 
-            result = p.invoke(input, config, **kwargs)
+            # Disable langsmith tracing for parent invokes to avoid polluting profiling
+            with tracing_context(enabled=False):
+                result = p.invoke(input, config, **kwargs)
             if isinstance(result, list):
                 parents_result.extend(result)
             else:
                 parents_result.append(result)
         return parents_result
 
-    async def _aprocess_parents(self, input: Dict[str, Any], config: Optional[RunnableConfig], **kwargs: Any) -> list:
+    async def _aprocess_parents(
+        self, input: Dict[str, Any], config: Optional[RunnableConfig], **kwargs: Any
+    ) -> list:
         with Profiler(
             f"process_parents_{self.__class__.__name__}",
             "process_parents",
@@ -1013,7 +1333,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
                 if p is self:
                     continue
 
-                result = await p.ainvoke(input, config, **kwargs)
+                # Disable langsmith tracing for parent invokes to avoid polluting profiling
+                with tracing_context(enabled=False):
+                    result = await p.ainvoke(input, config, **kwargs)
                 if isinstance(result, list):
                     parents_result.extend(result)
                 else:
@@ -1043,7 +1365,11 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             if isinstance(msg, AIMessage):
                 tool_calls = getattr(msg, "tool_calls", None)
                 if tool_calls:
-                    tool_ids = [tool_call.get("id") for tool_call in tool_calls if "id" in tool_call]
+                    tool_ids = [
+                        tool_call.get("id")
+                        for tool_call in tool_calls
+                        if "id" in tool_call
+                    ]
                     ainode_idx_to_tool_ids[idx] = set(tool_ids)
                     ainode_messages_with_tool_calls.append(idx)
             elif isinstance(msg, ToolMessage):
@@ -1075,7 +1401,11 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
         # Step 3: Remove unmatched AINodeMessages and ToolMessages
         indices_to_remove = set()
         for idx, msg in enumerate(messages):
-            if isinstance(msg, AIMessage) and idx in ainode_idx_to_tool_ids and idx not in messages_in_groups:
+            if (
+                isinstance(msg, AIMessage)
+                and idx in ainode_idx_to_tool_ids
+                and idx not in messages_in_groups
+            ):
                 indices_to_remove.add(idx)
             elif isinstance(msg, ToolMessage) and idx not in messages_in_groups:
                 indices_to_remove.add(idx)
@@ -1165,6 +1495,13 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
         elif _is_message(input_result):
             chat_model_input.append(input_result)
 
+        # Normalize all message-like inputs (tuples, dicts, strings) to BaseMessage objects
+        # This ensures .copy() and .content access will work correctly
+        chat_model_input = [
+            _normalize_to_message(m) if not isinstance(m, (BaseMessage, ChatPromptTemplate)) else m
+            for m in chat_model_input
+        ]
+
         # some model require for the System Message to be the first input
         # message can be HumanMessage, "AssistantMessage", "SystemMessage"
         # we leave all the other message in the same order
@@ -1187,7 +1524,9 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
                 chat_model_input.append(last_message)
             else:
                 # if the same type
-                if type(last_message) is type(message) and not isinstance(message, ToolMessage):
+                if type(last_message) is type(message) and not isinstance(
+                    message, ToolMessage
+                ):
                     last_message.content += "\n\n" + str(message.content)
                 elif message:
                     last_message = message.copy()
@@ -1247,7 +1586,8 @@ class RunnableNode(RunnableSerializable[Input, Output], UUIDMixin):
             config["callbacks"] = callbacks
         else:
             raise ValueError(
-                f"Unexpected type for callbacks: {callbacks}." "Expected None, list or AsyncCallbackManager."
+                f"Unexpected type for callbacks: {type(callbacks).__name__} ({callbacks!r}). "
+                "Expected None, list, or BaseCallbackManager."
             )
 
         return config

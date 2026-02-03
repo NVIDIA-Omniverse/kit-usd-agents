@@ -33,7 +33,7 @@ install_requires = req_file("requirements.txt")
 
 setup(
     name="lc_agent_rag_modifiers",
-    version="0.2.3",
+    version="0.2.5",
     author="Omniverse GenAI Team",
     author_email="doyopk-org@exchange.nvidia.com",
     description="Utility modules for LC Agent",

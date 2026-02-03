@@ -784,3 +784,284 @@ class TestProfilingWithDisabled:
         
         # No profiling data should be created
         assert network.profiling is None
+
+
+class TestProfilingFrameEdgeCases:
+    """Test edge cases for ProfilingFrame."""
+
+    def test_profiling_frame_get_self_duration_no_children(self):
+        """Test get_self_duration with no children."""
+        frame = ProfilingFrame(
+            name="test",
+            frame_type="custom",
+            start_time=1000.0,
+            end_time=1005.0,
+            duration=5.0
+        )
+        
+        # No children, self duration == total duration
+        assert frame.get_self_duration() == 5.0
+
+    def test_profiling_frame_get_self_duration_with_children(self):
+        """Test get_self_duration correctly excludes children."""
+        parent = ProfilingFrame(
+            name="parent",
+            frame_type="custom",
+            start_time=1000.0,
+            end_time=1010.0,
+            duration=10.0
+        )
+        
+        child1 = ProfilingFrame(
+            name="child1",
+            frame_type="custom",
+            start_time=1001.0,
+            end_time=1004.0,
+            duration=3.0
+        )
+        
+        child2 = ProfilingFrame(
+            name="child2",
+            frame_type="custom",
+            start_time=1005.0,
+            end_time=1009.0,
+            duration=4.0
+        )
+        
+        parent.children = [child1, child2]
+        
+        # Self duration = 10 - (3 + 4) = 3
+        assert parent.get_self_duration() == 3.0
+
+    def test_profiling_frame_get_self_duration_no_duration(self):
+        """Test get_self_duration when duration is None."""
+        frame = ProfilingFrame(
+            name="test",
+            frame_type="custom",
+            start_time=1000.0
+        )
+        
+        # No duration set yet
+        assert frame.get_self_duration() == 0.0
+        assert frame.get_total_duration() == 0.0
+
+    def test_profiling_frame_close_idempotent(self):
+        """Test that close() can be called multiple times safely."""
+        frame = ProfilingFrame(
+            name="test",
+            frame_type="custom",
+            start_time=1000.0
+        )
+        
+        # First close
+        frame.close()
+        first_end_time = frame.end_time
+        first_duration = frame.duration
+        
+        assert first_end_time is not None
+        assert first_duration is not None
+        
+        # Second close should not change values
+        time.sleep(0.01)  # Wait a bit
+        frame.close()
+        
+        assert frame.end_time == first_end_time
+        assert frame.duration == first_duration
+
+
+class TestProfilerEdgeCases:
+    """Test edge cases for Profiler class."""
+
+    def setup_method(self):
+        """Reset profiling state before each test."""
+        enable_profiling()
+        _profiling_stacks.set({})
+
+    def teardown_method(self):
+        """Clean up after each test."""
+        disable_profiling()
+        _profiling_stacks.set({})
+
+    def test_profiler_stop_without_start(self):
+        """Test that stop() without start() doesn't crash."""
+        network = RunnableNetwork()
+        
+        p = Profiler("test", "custom", network=network, auto_start=False)
+        
+        # Stop without starting
+        p.stop()  # Should not raise
+        
+        assert not p._started
+        assert p.frame is None
+
+    def test_profiler_stop_twice(self):
+        """Test that stop() can be called multiple times."""
+        network = RunnableNetwork()
+        
+        p = Profiler("test", "custom", network=network)
+        
+        # Stop once
+        p.stop()
+        assert not p._started
+        
+        # Stop again - should be safe
+        p.stop()
+        assert not p._started
+
+    def test_profiler_without_network(self):
+        """Test Profiler behavior when no network is active."""
+        # No active network, profiler should handle gracefully
+        p = Profiler("test", "custom", auto_start=True)
+        
+        # Should not crash, just return None
+        assert p.frame is None
+
+    def test_profiler_update_metadata_without_frame(self):
+        """Test update_metadata when frame is None."""
+        network = RunnableNetwork()
+        
+        p = Profiler("test", "custom", network=network, auto_start=False)
+        
+        # Update metadata without starting (frame is None)
+        p.update_metadata(key="value")  # Should not crash
+        
+        assert p.frame is None
+
+
+class TestProfilingDataEdgeCases:
+    """Test edge cases for ProfilingData."""
+
+    def test_profiling_data_calculate_total_duration_empty(self):
+        """Test calculate_total_duration with no frames."""
+        data = ProfilingData()
+        data.calculate_total_duration()
+        
+        # Should handle empty frames list gracefully
+        assert data.total_duration is None
+
+    def test_profiling_data_calculate_total_duration_missing_end_times(self):
+        """Test calculate_total_duration with incomplete frames."""
+        data = ProfilingData()
+        
+        frame1 = ProfilingFrame(
+            name="complete",
+            frame_type="custom",
+            start_time=1000.0,
+            end_time=1005.0,
+            duration=5.0
+        )
+        
+        frame2 = ProfilingFrame(
+            name="incomplete",
+            frame_type="custom",
+            start_time=1002.0
+            # No end_time
+        )
+        
+        data.add_frame(frame1)
+        data.add_frame(frame2)
+        
+        # Should handle frames without end_time
+        data.calculate_total_duration()
+        # Will only count frames with end_time
+        assert data.total_duration == 5.0  # 1005.0 - 1000.0
+
+
+class TestProfilingTreeFormatterEdgeCases:
+    """Test edge cases for format_profiling_tree."""
+
+    def setup_method(self):
+        """Reset profiling state before each test."""
+        enable_profiling()
+        _profiling_stacks.set({})
+
+    def teardown_method(self):
+        """Clean up after each test."""
+        disable_profiling()
+        _profiling_stacks.set({})
+
+    def test_format_profiling_tree_with_chunk_content(self):
+        """Test formatting with chunk frames containing content."""
+        network = RunnableNetwork()
+        network.profiling = ProfilingData()
+        
+        parent = ProfilingFrame(
+            name="node",
+            frame_type="node",
+            start_time=1000.0,
+            end_time=1003.0,
+            duration=3.0
+        )
+        
+        chunk = ProfilingFrame(
+            name="chunk",
+            frame_type="chunk",
+            start_time=1001.0,
+            end_time=1002.0,
+            duration=1.0,
+            metadata={"content": "This is chunk content\nwith newlines", "chunk_index": 0}
+        )
+        
+        parent.children = [chunk]
+        network.profiling.add_frame(parent)
+        
+        result = format_profiling_tree(network)
+        
+        # Check that chunk content is displayed and newlines are handled
+        assert "chunk [chunk]" in result
+        assert "Content:" in result
+        assert "chunk_index=0" in result
+
+    def test_format_profiling_tree_deep_nesting(self):
+        """Test formatting with deeply nested frames."""
+        network = RunnableNetwork()
+        network.profiling = ProfilingData()
+        
+        # Create 5 levels deep
+        root = ProfilingFrame(
+            name="level0",
+            frame_type="network",
+            start_time=0.0,
+            end_time=10.0,
+            duration=10.0
+        )
+        
+        current = root
+        for i in range(1, 5):
+            child = ProfilingFrame(
+                name=f"level{i}",
+                frame_type="custom",
+                start_time=float(i),
+                end_time=float(i + 1),
+                duration=1.0
+            )
+            current.children = [child]
+            current = child
+        
+        network.profiling.add_frame(root)
+        
+        result = format_profiling_tree(network)
+        lines = result.split("\n")
+        
+        # Check all levels are present
+        for i in range(5):
+            assert any(f"level{i}" in line for line in lines)
+
+    def test_format_profiling_tree_with_pending_frame(self):
+        """Test formatting with frames that haven't been closed."""
+        network = RunnableNetwork()
+        network.profiling = ProfilingData()
+        
+        frame = ProfilingFrame(
+            name="pending",
+            frame_type="custom",
+            start_time=1000.0
+            # No end_time or duration
+        )
+        
+        network.profiling.add_frame(frame)
+        
+        result = format_profiling_tree(network)
+        
+        # Should show "pending" for duration
+        assert "pending [custom] - pending" in result

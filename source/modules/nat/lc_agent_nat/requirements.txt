@@ -1,0 +1,2 @@
+nvidia-nat>=1.4.0rc2
+nvidia-nat-langchain>=1.4.0rc2

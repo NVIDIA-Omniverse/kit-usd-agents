@@ -99,7 +99,9 @@ class RunnableRoutingNode(RunnableNode):
         self.inputs.append(RunnableSystemAppend(system_message=system_message))
 
 
-def get_routing_tools_info(network: "MultiAgentNetworkNode", use_long_prompt: bool) -> Tuple[str, str, str]:
+def get_routing_tools_info(
+    network: "MultiAgentNetworkNode", use_long_prompt: bool, skip_route_nodes: List[str] = []
+) -> Tuple[str, str, str]:
     """
     Helper function to build the tools descriptions, call formats, and example tool name
     for the routing prompt.
@@ -111,6 +113,8 @@ def get_routing_tools_info(network: "MultiAgentNetworkNode", use_long_prompt: bo
 
     # Loop over each registered route node to build the list of tools.
     for route in network.route_nodes:
+        if route in skip_route_nodes:
+            continue
         # Retrieve the node type registered with the node factory.
         node_type = node_factory.get_registered_node_type(route)
         if not node_type:
@@ -466,46 +470,132 @@ def set_nodes_history_contribution(
         iterator_node.metadata["contribute_to_history"] = contribute
 
 
+def _line_starts_with_action(line: str, valid_actions: List[str]) -> Optional[str]:
+    """
+    Checks if a line starts with a valid action.
+
+    Returns the matched action name if found, None otherwise.
+    """
+    stripped = line.strip()
+    if not stripped:
+        return None
+
+    for action in valid_actions:
+        if not stripped.upper().startswith(action.upper()):
+            continue
+
+        # Ensure it's a complete word (followed by space or end of line)
+        remainder = stripped[len(action):]
+        if remainder and not remainder[0].isspace():
+            continue
+
+        return action
+
+    return None
+
+
+def _find_action_at_line_start(text: str, route_nodes: List[str]) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Finds the first line that starts with a valid action (FINAL or a route node).
+
+    Content includes all text after the action until the next action is found.
+
+    Examples:
+        Input: "Now I understand\n\nKitInfo What is the user name?\nCheck the tools\nKitInfo What is the address"
+        Output: ("KitInfo", "What is the user name?\nCheck the tools")
+
+        Input: "The user said Victor\nFINAL Victor"
+        Output: ("FINAL", "Victor")
+
+    Args:
+        text: The text to search.
+        route_nodes: List of valid route node names.
+
+    Returns:
+        Tuple of (action, content) where:
+        - action: The matched action name (original case for routes, "FINAL" for final)
+        - content: Text after the action up to the next action, or None if empty
+    """
+    valid_actions = ["FINAL"] + list(route_nodes)
+    lines = text.split("\n")
+
+    # Find the first line with a valid action
+    first_action = None
+    first_action_line_idx = None
+    first_line_content = None
+
+    for i, line in enumerate(lines):
+        action = _line_starts_with_action(line, valid_actions)
+        if action:
+            first_action = action
+            first_action_line_idx = i
+            # Extract content after the action on this line
+            first_line_content = line.strip()[len(action):].strip()
+            break
+
+    if first_action is None:
+        return (None, None)
+
+    # Collect content lines until the next action
+    content_parts = []
+    if first_line_content:
+        content_parts.append(first_line_content)
+
+    for i in range(first_action_line_idx + 1, len(lines)):
+        line = lines[i]
+        # Stop if this line starts with another action
+        if _line_starts_with_action(line, valid_actions):
+            break
+        content_parts.append(line.strip())
+
+    # Join and clean up the content
+    content = "\n".join(content_parts).strip() or None
+
+    return (first_action, content)
+
+
 def parse_classification_result(result: str, network: "MultiAgentNetworkNode") -> Optional[Dict[str, Optional[str]]]:
     """
     Parses the classification node output and returns an actionable dictionary.
 
-    The expected result is a single line in one of the formats:
-      - "FINAL <answer>"
-      - "<tool_name> <short question>"
+    Handles cases where the LLM outputs preamble text before the action.
+    Searches for route node names or "FINAL" at the start of any line.
+
+    Examples of valid inputs:
+        "KitInfo What is the user name?"
+        "Now I understand\n\nKitInfo What is the user name?"
+        "The user said Victor\nFINAL Victor"
 
     Args:
         result: The raw result string from the classification output.
         network: The multi-agent network node to validate against its route nodes.
 
     Returns:
-        A dictionary with keys "action", "content", and "full" (original result),
-        or None if parsing fails.
+        A dictionary with keys "action", "content", "full", and "is_loop",
+        or None if no valid action is found.
     """
     result = result.strip()
     if not result:
         return None
-    parts = result.split(maxsplit=1)
-    action = parts[0].upper()
-    content = parts[1] if len(parts) > 1 else None
-    if action == "FINAL":
+
+    # Find the first line that starts with a valid action
+    action, content = _find_action_at_line_start(result, network.route_nodes)
+    if action is None:
+        return None
+
+    # Handle FINAL action
+    if action.upper() == "FINAL":
         return {"action": "FINAL", "content": content, "full": result, "is_loop": False}
-    # Check if the action matches any of the valid route nodes.
-    for route in network.route_nodes:
-        if action == route.upper():
-            is_loop = False
 
-            # Loop detection
-            human_node, tools_called = _get_human_node_and_tools(network, network.get_leaf_node())
-            if human_node and tools_called:
-                last_tool_call = tools_called[-1]
-                last_tool_call_name = last_tool_call["tool_call_name"]
-                last_tool_call_content = last_tool_call["tool_call_content"]
-                if last_tool_call_name == route and last_tool_call_content == content:
-                    is_loop = True
+    # Handle route node action with loop detection
+    is_loop = False
+    human_node, tools_called = _get_human_node_and_tools(network, network.get_leaf_node())
+    if human_node and tools_called:
+        last_tool_call = tools_called[-1]
+        if last_tool_call["tool_call_name"] == action and last_tool_call["tool_call_content"] == content:
+            is_loop = True
 
-            return {"action": route, "content": content, "full": result, "is_loop": is_loop}
-    return None
+    return {"action": action, "content": content, "full": result, "is_loop": is_loop}
 
 
 def _get_human_node_and_tools(

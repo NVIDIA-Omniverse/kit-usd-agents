@@ -26,7 +26,7 @@ class CodeAtlasModuleInfo(CodeAtlasObjectInfo):
     file_path: str = Field(..., description="File system path to Python module file")
     class_names: List[str] = Field([], description="List of class names in the module")
     function_names: List[str] = Field([], description="List of public function names included in the module")
-    equivelant_modules: List[str] = Field([], description="List of equivelant modules") # e.g. omni.ui.scene == omni.ui_scene
+    equivalent_modules: List[str] = Field([], description="List of equivalent modules") # e.g. omni.ui.scene == omni.ui_scene
     extension_name: Optional[str] = Field(None, description="Kit extension name of the module, only set on the root module")
 
 

@@ -1,0 +1,102 @@
+# Data Collection Pipeline Configuration
+# This file configures the automated Kit extensions data collection pipeline
+
+[input]
+
+# Extensions to exclude from processing (performance/testing extensions)
+excluded_extensions = [
+]
+
+[[input.repo]]
+# Path to repository remote URL or local path
+url = "ssh://git@gitlab-master.nvidia.com:12051/omniverse/kit-github/kit-app-template.git"
+branch = "production/109.0"
+exts_path = "extscache"
+has_version = true
+app_template_path = "templates/apps"
+
+[[input.repo]]
+url = "ssh://git@gitlab-master.nvidia.com:12051/omniverse/sample-p1-extensions.git"
+branch = "production/109.0"
+exts_path = "extscache"
+
+[[input.repo]]
+url = "https://github.com/NVIDIA-Omniverse/kit-usd-agents.git"
+branch = "main"
+exts_path = "exts"
+
+[output]
+# Directory for intermediate pipeline files
+work_dir = "../../../../_pipeline_output/kit"
+
+# Final output directory (relative to pipeline script)
+# This should point to the kit_fns data directory
+target_dir = "../src/kit_fns/data"
+
+# Whether to keep intermediate processing files after completion
+keep_intermediates = true
+
+[processing]
+# Whether to include function source code in Code Atlas (increases size significantly)
+include_source_code = false
+
+# Code examples extraction thresholds
+code_examples_min_lines = 50        # Minimum lines for "interesting" methods
+code_examples_min_complexity = 3    # Minimum complexity score
+code_examples_scan_mode = "all"
+
+# Modules to exclude when scanning Python code (e.g., OGN nodes, bundled packages)
+excluded_modules = [
+    "ogn",
+    "pip_prebundle",
+    "pip_aiq_prebundle", # omni.ai.langchain.aiq
+    "pip_core_prebundle", # omni.ai.langchain.core
+    "debugpy", # omni.kit.debug.python
+    "reportlab", # omni.kit.markup.core
+    "xlsxwriter", # omni.kit.markup.core
+]
+
+# Maximum number of extensions to process (-1 = all)
+max_extensions = -1
+
+# Number of parallel workers for processing (future enhancement)
+parallel_workers = 4
+
+[embeddings]
+# NVIDIA embedding model to use
+model = "nvidia/nv-embedqa-e5-v5"
+
+# Batch size for embedding generation
+batch_size = 50
+
+# NVIDIA API key (use environment variable)
+# Set NVIDIA_API_KEY environment variable
+nvidia_api_key = "${NVIDIA_API_KEY}"
+
+# Optional custom endpoint URL
+endpoint_url = ""
+
+encoding_model = "cl100k_base"
+
+max_tokens = 500
+
+[logging]
+# Logging level: DEBUG, INFO, WARNING, ERROR
+level = "INFO"
+
+# Log file path (null = console only)
+log_file = "pipeline.log"
+
+# Advanced pipeline settings
+[advanced]
+# Retry failed stages (future enhancement)
+retry_failed_stages = false
+
+# Automatically resume from last successful stage on next run
+# When true: Pipeline automatically checks for and resumes from checkpoint
+# When false: Must use --resume flag explicitly to resume from checkpoint
+# Use --force flag to ignore checkpoint and start fresh
+resume_on_failure = true
+
+# Validate outputs after each stage
+validate_outputs = true

@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.2.3] - 2026-01-23
+- Updated pip_core_prebundle dependencies
+
+## [2.2.2] - 2026-01-23
+- Version bump
+
+## [2.2.1] - 2026-01-02
+- lc-agent upgrade
+
+## [2.2.0] - 2025-12-12
+- Republish
+
+## [2.1.0] - 2025-12-11
+- Republish
+
+## [2.0.9] - 2025-11-04
+
+### Changed
+- Updated for new version of lc-agent
+
 ## [2.0.8] - 2025-09-22
 
 ### Changed

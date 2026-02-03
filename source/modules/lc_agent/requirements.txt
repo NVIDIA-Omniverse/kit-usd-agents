@@ -2,11 +2,13 @@
 # Some dependencies, such as usd-core, may not be available via PyPI and
 # need to be installed manually or be present in the environment.
 
-# Fixed version. Later versions may not be compatible with Kit because of pydantic.
-langchain-core
+# We're using langchain >= 1.2.7 (CVE-2025-68664 fix) across all components
+langchain-core>=1.2.7,<2.0.0
+langchain_classic
+langsmith>=0.6.3
 
 aioredis==2.0.1
-langchain
+langchain>=1.2.7,<2.0.0
 langchainhub
 libcst==1.5.0
 tiktoken

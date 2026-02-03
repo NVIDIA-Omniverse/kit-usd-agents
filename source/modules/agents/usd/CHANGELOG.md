@@ -1,3 +1,6 @@
+## 0.2.5 - 2025-12-05
+- Added detection in `CodeExtractorModifier` for code responses missing proper formatting, prompts LLM to fix formatting
+
 ## 0.2.4 - 2025-09-04
 - Fixed package URL
 

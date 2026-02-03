@@ -1,0 +1,110 @@
+[tool.poetry]
+name = "kit-fns"
+version = "0.6.0"
+description = "Kit functions for NVIDIA Omniverse Kit development - providing Kit extension information, APIs, code examples, and application templates (NAT-compatible)"
+authors = ["Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>"]
+readme = "README.md"
+homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+documentation = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+keywords = ["kit", "omniverse", "ai", "tools", "code-generation", "aiq", "functions"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [{include = "kit_fns", from = "src"}]
+include = [
+    "src/kit_fns/data/**/*",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+# NAT dependencies - allow pre-releases
+nvidia-nat = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-langchain = {version = ">=1.4.0rc3", allow-prereleases = true}
+# LangChain dependencies
+langchain = ">=1.2.6"
+langchain-community = ">=0.3.31"
+langchain-core = ">=0.3.80"
+langchain-nvidia-ai-endpoints = ">=1.0.2"
+# Vector search and HTTP dependencies
+faiss-cpu = ">=1.7.0"
+requests = ">=2.25.0"
+httpx = ">=0.24.0"
+# Configuration support
+pyyaml = ">=6.0"
+# Telemetry support
+redis = {extras = ["hiredis"], version = ">=4.5.0"}
+# Transitive dependencies
+grpcio = ">=1.76.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
+
+# Entry points for Kit functions - Dual registration for AIQ and NAT compatibility
+# AIQ entry points (backwards compatibility)
+[tool.poetry.plugins."aiq.components"]
+kit_fns_get_kit_instructions = "kit_fns.register_get_kit_instructions"
+kit_fns_search_kit_extensions = "kit_fns.register_search_kit_extensions"
+kit_fns_get_kit_extension_details = "kit_fns.register_get_kit_extension_details"
+kit_fns_get_kit_extension_dependencies = "kit_fns.register_get_kit_extension_dependencies"
+kit_fns_get_kit_extension_apis = "kit_fns.register_get_kit_extension_apis"
+kit_fns_get_kit_api_details = "kit_fns.register_get_kit_api_details"
+kit_fns_search_kit_code_examples = "kit_fns.register_search_kit_code_examples"
+kit_fns_search_kit_test_examples = "kit_fns.register_search_kit_test_examples"
+kit_fns_search_kit_settings = "kit_fns.register_search_kit_settings"
+kit_fns_search_kit_app_templates = "kit_fns.register_search_kit_app_templates"
+kit_fns_get_kit_app_template_details = "kit_fns.register_get_kit_app_template_details"
+kit_fns_search_kit_knowledge = "kit_fns.register_search_kit_knowledge"
+
+# NAT entry points (native)
+[tool.poetry.plugins."nat.components"]
+kit_fns_get_kit_instructions = "kit_fns.register_get_kit_instructions"
+kit_fns_search_kit_extensions = "kit_fns.register_search_kit_extensions"
+kit_fns_get_kit_extension_details = "kit_fns.register_get_kit_extension_details"
+kit_fns_get_kit_extension_dependencies = "kit_fns.register_get_kit_extension_dependencies"
+kit_fns_get_kit_extension_apis = "kit_fns.register_get_kit_extension_apis"
+kit_fns_get_kit_api_details = "kit_fns.register_get_kit_api_details"
+kit_fns_search_kit_code_examples = "kit_fns.register_search_kit_code_examples"
+kit_fns_search_kit_test_examples = "kit_fns.register_search_kit_test_examples"
+kit_fns_search_kit_settings = "kit_fns.register_search_kit_settings"
+kit_fns_search_kit_app_templates = "kit_fns.register_search_kit_app_templates"
+kit_fns_get_kit_app_template_details = "kit_fns.register_get_kit_app_template_details"
+kit_fns_search_kit_knowledge = "kit_fns.register_search_kit_knowledge"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 120
+ignore = ["E501", "W503"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=kit_fns --cov-report=term-missing"

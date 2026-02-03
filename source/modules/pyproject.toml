@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "lc_agent_repo"
+version = "0.1.0"
+description = ""
+authors = []
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+lc_agent = { path = "./lc_agent", develop = true }
+lc_agent_chainlit = { path = "./apps/chainlit", develop = true }
+lc_agent_chat_models = { path = "./models/chat_models", develop = true }
+lc_agent_faiss_rag_gen = { path = "./apps/faiss_rag_gen", develop = true }
+lc_agent_rag_modifiers = { path = "./rags/rag_modifiers", develop = true }
+lc_agent_rag_nodes = { path = "./rags/rag_nodes", develop = true }
+lc_agent_retrievers = { path = "./rags/retrievers", develop = true }
+lc_agent_sdg_networks = { path = "./data_generation/sdg_networks", develop = true }
+lc_agent_service = { path = "./services/lc_agent_service", develop = true }
+lc_agent_usd = { path = "./agents/usd", develop = true }
+lc_agent_mf_networks = { path = "./data_generation/mf_networks", develop = true }
+usdcode = { path = "./data_generation/usdcode", develop = true }
+lc_agent_doc_atlas = { path = "./agents/doc_atlas", develop = true }
+lc_agent_usd_tutor = { path = "./agents/usd_tutor", develop = true }
+lc_agent_nat = { path = "./nat/lc_agent_nat", develop = true }
+lc_agent_summary = { path = "./experimental/lc_agent_summary", develop = true }
+omni_nat_planning = { path = "./agents/planning", develop = true }
+lc_agent_interactive = { path = "./agents/interactive", develop = true }
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+tox = "^3.24.4"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.20.0"
+libcst = "1.5.0"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

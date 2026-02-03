@@ -42,12 +42,19 @@ class CodeAtlasCache(CodeAtlasLookup):
     def empty(self):
         return not (self._modules or self._classes or self._methods or self._used_classes)
 
-    def scan(self, module_path: str, overwrite=True):
+    def scan(self, module_path: str, overwrite=True, excluded_modules=None):
+        """
+        Scan the module path and collect the code atlas information.
+        Args:
+            module_path (str): The path to the module to scan.
+            overwrite (bool): Whether to overwrite the existing code atlas information.
+            excluded_modules (Optional[List[str]]): A list of modules to exclude from the scan.
+        """
         # token = carb.tokens.get_tokens_interface()
         # module_path = token.resolve(module_path)
 
         # Primary library we are interested in
-        module_analyzer = ModuleAnalyzer(module_path, self._modules if not overwrite else None)
+        module_analyzer = ModuleAnalyzer(module_path, self._modules if not overwrite else None, excluded_modules=excluded_modules)
         module_analyzer.analyze()
 
         # All the classes in module analyzer directory
@@ -99,16 +106,16 @@ class CodeAtlasCache(CodeAtlasLookup):
         with open(path, "r") as f:
             json_data = json.load(f)
 
-            # equivelant modules map
+            # equivalent modules map
             module_maps = {}
 
             # Reconstruct modules
             if "modules" in json_data:
                 for k, v in json_data["modules"].items():
                     self._modules[k] = CodeAtlasModuleInfo(**v)
-                    if expand_equivalent_modules and self._modules[k].equivelant_modules:
-                        module_maps[k] = self._modules[k].equivelant_modules
-                
+                    if expand_equivalent_modules and self._modules[k].equivalent_modules:
+                        module_maps[k] = self._modules[k].equivalent_modules
+
             # Reconstruct classes
             if "classes" in json_data:
                 self._classes.update({k: CodeAtlasClassInfo(**v) for k, v in json_data["classes"].items()})
@@ -121,7 +128,7 @@ class CodeAtlasCache(CodeAtlasLookup):
             if "used_classes" in json_data:
                 self._used_classes.update(json_data["used_classes"])
 
-            # if there are equivelant modules, map the modules, classes and methods
+            # if there are equivalent modules, map the modules, classes and methods
             if module_maps:
                 for k, v in module_maps.items():
                     for m in v:
@@ -132,7 +139,7 @@ class CodeAtlasCache(CodeAtlasLookup):
 
     def save(self, path: str):
         # token = carb.tokens.get_tokens_interface()
-        # path = token.resolve(path)     
+        # path = token.resolve(path)
 
         with open(path, "w") as f:
             json_data = {

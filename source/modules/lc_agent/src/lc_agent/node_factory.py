@@ -16,6 +16,7 @@ from typing import Optional
 from typing import Type
 from typing import Union
 import inspect
+import threading
 
 DEBUG_CREATED_AT = "/exts/omni.ai_node.core/factory/debug/created_at"
 
@@ -37,10 +38,17 @@ class NodeFactory:
         Initializes a new instance of the NodeFactory class.
         """
         self._registered_nodes = {}
+        self._ref_counts = {}  # Reference counting for concurrent request safety
+        self._lock = threading.RLock()  # Thread-safe access to registrations
 
     def register(self, node_type: Type, *args, **kwargs):
         """
         Registers a new node type with the node registry.
+
+        This method uses reference counting to support concurrent requests that
+        register the same node name. Each register() call increments the reference
+        count, and the node is only removed when all corresponding unregister()
+        calls have been made.
 
         Args:
             node_type (type): The class of the node.
@@ -49,11 +57,19 @@ class NodeFactory:
         """
         name = kwargs.get("name", None) or str(node_type.__name__)
 
-        self._registered_nodes[name] = (node_type, args, kwargs)
+        with self._lock:
+            # Increment reference count
+            self._ref_counts[name] = self._ref_counts.get(name, 0) + 1
+            self._registered_nodes[name] = (node_type, args, kwargs)
 
     def unregister(self, node_type: Union[Type, str]):
         """
-        Unregisters an node type from the node registry.
+        Unregisters a node type from the node registry.
+
+        This method decrements the reference count for the node. The node is only
+        actually removed when the reference count reaches zero, ensuring that
+        concurrent requests that share the same node name don't interfere with
+        each other.
 
         Args:
             node_type (Union[Type, str]): The class of the node or name of the node type to be unregistered.
@@ -65,7 +81,14 @@ class NodeFactory:
         else:
             name = str(node_type.__name__)
 
-        self._registered_nodes.pop(name, None)
+        with self._lock:
+            # Decrement reference count
+            if name in self._ref_counts:
+                self._ref_counts[name] -= 1
+                # Only remove when no more references
+                if self._ref_counts[name] <= 0:
+                    self._registered_nodes.pop(name, None)
+                    del self._ref_counts[name]
 
     def has_registered(self, name: str) -> bool:
         """

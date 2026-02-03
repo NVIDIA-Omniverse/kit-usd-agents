@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.24] - 2026-01-23
+- Updated omni.ai.langchain.agent.usd_code dependency to 2.0.14
+
+## [2.0.23] - 2026-01-23
+- Updated omni.ai.langchain.agent.usd_code dependency to 2.0.13
+
+## [2.0.22] - 2026-01-02
+- Updated omni.ai.langchain.agent.usd_code dependency to 2.0.12
+
+## [2.0.21] - 2025-11-04
+
+### Changed
+- Updated omni.ai.langchain.agent.usd_code dependency to 2.0.11
+
 ## [2.0.20] - 2025-09-23
 
 ### Added

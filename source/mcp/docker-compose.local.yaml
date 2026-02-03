@@ -1,0 +1,181 @@
+# Docker Compose for local deployment with shared Embedder and Reranker NIMs
+#
+# This configuration runs shared NIM containers for embedder and reranker,
+# with multiple MCP servers connecting to them. This is more efficient than
+# running separate NIMs for each MCP server.
+#
+# Prerequisites:
+#   - 2 NVIDIA GPUs (one for embedder, one for reranker)
+#   - NGC API key for pulling NIM images
+#   - NVIDIA API key for LLM access
+#
+# Usage:
+#   export NGC_API_KEY=your_ngc_api_key
+#   export NVIDIA_API_KEY=your_nvidia_api_key
+#   docker compose -f docker-compose.local.yaml up --build
+#
+# To run specific services only:
+#   docker compose -f docker-compose.local.yaml up embedder reranker usd-code-mcp
+#
+# Services:
+#   - Embedder NIM: http://localhost:8001 (GPU 0)
+#   - Reranker NIM: http://localhost:8002 (GPU 1)
+#   - OmniUI MCP:   http://localhost:9901
+#   - Kit MCP:      http://localhost:9902
+#   - USD Code MCP: http://localhost:9903
+#
+# To use existing external embedder/reranker instead of local NIMs:
+#   1. Comment out or remove the 'embedder' and 'reranker' services below
+#   2. Set environment variables to point to your existing services:
+#      export KIT_LOCAL_EMBEDDER_URL=http://your-embedder-host:port
+#      export KIT_LOCAL_RERANKER_URL=http://your-reranker-host:port
+#   3. Update the MCP service environment to use these URLs
+
+services:
+  # ============================================================================
+  # Shared NIM Services (GPU)
+  # ============================================================================
+
+  # Embedder NIM - runs on GPU 0
+  embedder:
+    image: nvcr.io/nim/nvidia/nv-embedqa-e5-v5:latest
+    container_name: mcp-embedder
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # Reranker NIM - runs on GPU 1
+  reranker:
+    image: nvcr.io/nim/nvidia/llama-3.2-nv-rerankqa-1b-v2:latest
+    container_name: mcp-reranker
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+    ports:
+      - "8002:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # ============================================================================
+  # MCP Servers (CPU) - All connect to shared embedder/reranker
+  # ============================================================================
+
+  # OmniUI MCP Server - Port 9901
+  omni-ui-mcp:
+    build:
+      context: ./omni_ui_mcp
+      dockerfile: Dockerfile
+    image: omni-ui-mcp:local
+    container_name: omni-ui-mcp
+    ports:
+      - "9901:9901"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9901
+      - KIT_EMBEDDER_BACKEND=local
+      - KIT_LOCAL_EMBEDDER_URL=http://embedder:8000
+      - KIT_RERANKER_BACKEND=local
+      - KIT_LOCAL_RERANKER_URL=http://reranker:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      embedder:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Kit MCP Server - Port 9902
+  kit-mcp:
+    build:
+      context: ./kit_mcp
+      dockerfile: Dockerfile
+    image: kit-mcp:local
+    container_name: kit-mcp
+    ports:
+      - "9902:9902"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9902
+      - KIT_EMBEDDER_BACKEND=local
+      - KIT_LOCAL_EMBEDDER_URL=http://embedder:8000
+      - KIT_RERANKER_BACKEND=local
+      - KIT_LOCAL_RERANKER_URL=http://reranker:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      embedder:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # USD Code MCP Server - Port 9903
+  usd-code-mcp:
+    build:
+      context: ./usd_code_mcp
+      dockerfile: Dockerfile
+    image: usd-code-mcp:local
+    container_name: usd-code-mcp
+    ports:
+      - "9903:9903"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9903
+      - KIT_EMBEDDER_BACKEND=local
+      - KIT_LOCAL_EMBEDDER_URL=http://embedder:8000
+      - KIT_RERANKER_BACKEND=local
+      - KIT_LOCAL_RERANKER_URL=http://reranker:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      embedder:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  default:
+    name: mcp-local-network

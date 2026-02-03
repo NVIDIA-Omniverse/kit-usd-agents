@@ -1,0 +1,89 @@
+[tool.poetry]
+name = "omni-ui-aiq"
+version = "1.0.0"
+description = "OmniUI MCP server for Nemo Agent Toolkit - exposes OmniUI functions via Model Context Protocol (NAT-based)"
+authors = ["Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>"]
+readme = "README.md"
+homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+documentation = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+keywords = ["omniui", "ai", "tools", "code-generation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [{include = "omni_ui_mcp", from = "src"}]
+include = [
+    "workflow/config.yaml",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+# NAT dependencies - allow pre-releases
+nvidia-nat = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-langchain = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-mcp = {version = ">=1.4.0rc3", allow-prereleases = true}
+# OmniUI functions package
+omni-ui-fns = {path = "../../../source/aiq/omni_ui_fns", develop = true}
+# MCP server dependencies
+aiohttp-sse = "^2.2.0"
+# Configuration support
+pyyaml = ">=6.0"
+# LangChain dependencies
+langchain = ">=1.2.6"
+langchain-core = ">=0.3.80"
+langchain-community = ">=0.3.31"
+langchain-milvus = ">=0.3.3"
+langchain-nvidia-ai-endpoints = ">=1.0.2"
+urllib3 = ">=2.6.3"
+# Transitive dependencies
+langgraph-checkpoint = ">=4.0.0"
+filelock = ">=3.20.3"
+marshmallow = ">=3.26.2"
+grpcio = ">=1.76.0"
+python-multipart = "0.0.22"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
+
+# MCP server only - functions are now in omni-ui-fns package
+
+[tool.poetry.scripts]
+omni-ui-aiq = "omni_ui_mcp.__main__:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 120
+ignore = ["E501", "W503"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=omni_ui_mcp --cov-report=term-missing"

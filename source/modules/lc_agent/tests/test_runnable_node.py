@@ -12,7 +12,7 @@ from lc_agent.runnable_node import RunnableNode, AINodeMessageChunk, _is_message
 from lc_agent.runnable_network import RunnableNetwork
 from lc_agent.network_modifier import NetworkModifier
 from lc_agent.chat_model_registry import get_chat_model_registry
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, AIMessageChunk
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, AIMessageChunk, ToolMessage
 from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.outputs import ChatResult, ChatGeneration, ChatGenerationChunk
@@ -106,7 +106,8 @@ async def test_runnable_node_astream():
     chunks = []
     async for chunk in node.astream():
         chunks.append(chunk)
-    assert len(chunks) == 3
+    # langchain may add an empty final chunk, so we check for at least 3 chunks
+    assert len(chunks) >= 3
     assert all(isinstance(chunk, AINodeMessageChunk) for chunk in chunks)
     assert "".join(chunk.content for chunk in chunks) == "Streaming dummy response"
     assert node.invoked
@@ -307,6 +308,345 @@ def test_repr_with_different_states():
     repr_string = repr(node)
     assert "TestNode" in repr_string
     assert "Test output" in repr_string
+
+def test_parse_and_extract_channel_metadata_multiple_channels():
+    """Test parsing multiple consecutive channel sections."""
+    node = TestRunnableNode()
+    content = '<|channel|>commentary<|message|>We need to use mcp_kit.search_extensions again with query "extension manager load unload extensions".<|end|><|channel|>commentary<|message|>Let\'s call search_extensions.<|end|><|channel|>commentary<|message|>We need to output a tool call.<|end|><|channel|>commentary<|message|>We need to output a single line with the tool call. Use mcp_kit.search_extensions with query "extension manager load unload extensions".<|end|>mcp_kit.search_extensions {"query": "extension manager load unload extensions", "top_k": 10}'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    # Check that only the final message remains
+    assert cleaned_content == 'mcp_kit.search_extensions {"query": "extension manager load unload extensions", "top_k": 10}'
+    
+    # Check that all channel messages are in metadata
+    assert "channel" in updated_metadata
+    assert "commentary" in updated_metadata["channel"]
+    
+    # Check that all commentary messages are concatenated
+    commentary = updated_metadata["channel"]["commentary"]
+    assert 'We need to use mcp_kit.search_extensions again with query "extension manager load unload extensions".' in commentary
+    assert "Let's call search_extensions." in commentary
+    assert "We need to output a tool call." in commentary
+    assert 'We need to output a single line with the tool call. Use mcp_kit.search_extensions with query "extension manager load unload extensions".' in commentary
+
+def test_parse_and_extract_channel_metadata_single_channel():
+    """Test parsing a single channel section."""
+    node = TestRunnableNode()
+    content = '<|channel|>commentary<|message|>This is a comment.<|end|>Actual message content'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == 'Actual message content'
+    assert "channel" in updated_metadata
+    assert "commentary" in updated_metadata["channel"]
+    assert updated_metadata["channel"]["commentary"] == "This is a comment."
+
+def test_parse_and_extract_channel_metadata_think_tag():
+    """Test parsing <think> tags."""
+    node = TestRunnableNode()
+    content = '<think>This is my reasoning process</think>Final response'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == 'Final response'
+    assert "think" in updated_metadata
+    assert updated_metadata["think"] == "This is my reasoning process"
+
+def test_parse_and_extract_channel_metadata_thinking_tag():
+    """Test parsing <thinking> tags."""
+    node = TestRunnableNode()
+    content = '<thinking>Deep thought process here</thinking>Final answer'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == 'Final answer'
+    assert "thinking" in updated_metadata
+    assert updated_metadata["thinking"] == "Deep thought process here"
+
+def test_parse_and_extract_channel_metadata_no_special_tags():
+    """Test that content without special tags is returned unchanged."""
+    node = TestRunnableNode()
+    content = 'Just a regular message'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == 'Just a regular message'
+    assert updated_metadata == {}
+
+def test_parse_and_extract_channel_metadata_non_string_content():
+    """Test that non-string content is returned unchanged."""
+    node = TestRunnableNode()
+    content = ['list', 'content']
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == ['list', 'content']
+    assert updated_metadata == {}
+
+def test_parse_and_extract_channel_metadata_different_channels():
+    """Test parsing multiple different channel types."""
+    node = TestRunnableNode()
+    content = '<|channel|>commentary<|message|>First comment<|end|><|channel|>debug<|message|>Debug info<|end|>Main message'
+    metadata = {}
+    
+    cleaned_content, updated_metadata = node._parse_and_extract_channel_metadata(content, metadata)
+    
+    assert cleaned_content == 'Main message'
+    assert "channel" in updated_metadata
+    assert "commentary" in updated_metadata["channel"]
+    assert "debug" in updated_metadata["channel"]
+    assert updated_metadata["channel"]["commentary"] == "First comment"
+    assert updated_metadata["channel"]["debug"] == "Debug info"
+
+def test_reorder_tool_messages_valid():
+    """Test _reorder_tool_messages with valid tool call/response pairs."""
+    node = TestRunnableNode()
+    
+    # Create messages with tool calls and responses
+    ai_msg = AIMessage(content="", tool_calls=[{"id": "call_1", "name": "tool", "args": {}}])
+    tool_msg = ToolMessage(content="result", tool_call_id="call_1")
+    human_msg = HumanMessage(content="test")
+    
+    messages = [ai_msg, tool_msg, human_msg]
+    reordered = node._reorder_tool_messages(messages)
+    
+    # Should keep the order and all messages
+    assert len(reordered) == 3
+    assert reordered[0] == ai_msg
+    assert reordered[1] == tool_msg
+    assert reordered[2] == human_msg
+
+def test_reorder_tool_messages_unmatched():
+    """Test _reorder_tool_messages removes unmatched tool messages."""
+    node = TestRunnableNode()
+    
+    # AI message with tool call but no corresponding ToolMessage
+    ai_msg_unmatched = AIMessage(content="", tool_calls=[{"id": "call_missing", "name": "tool", "args": {}}])
+    # ToolMessage without corresponding AI message
+    tool_msg_unmatched = ToolMessage(content="orphan", tool_call_id="call_orphan")
+    # Valid pair
+    ai_msg = AIMessage(content="", tool_calls=[{"id": "call_1", "name": "tool", "args": {}}])
+    tool_msg = ToolMessage(content="result", tool_call_id="call_1")
+    human_msg = HumanMessage(content="test")
+    
+    messages = [ai_msg_unmatched, ai_msg, tool_msg, tool_msg_unmatched, human_msg]
+    reordered = node._reorder_tool_messages(messages)
+    
+    # Only valid pair and human message should remain
+    assert len(reordered) == 3
+    assert ai_msg in reordered
+    assert tool_msg in reordered
+    assert human_msg in reordered
+    assert ai_msg_unmatched not in reordered
+    assert tool_msg_unmatched not in reordered
+
+def test_sanitize_messages_for_chat_model_with_tools():
+    """Test that messages are not sanitized when model has tools bound."""
+    from langchain_core.runnables.base import RunnableBinding
+    from langchain_core.language_models.chat_models import BaseChatModel
+    node = TestRunnableNode()
+    
+    # Create a mock chat model
+    class MockChatModel(BaseChatModel):
+        @property
+        def _llm_type(self) -> str:
+            return "mock"
+        
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            from langchain_core.outputs import ChatResult, ChatGeneration
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content="test"))])
+    
+    # Bind tools to it
+    mock_model = RunnableBinding(bound=MockChatModel(), kwargs={"tools": [{"name": "test_tool"}]})
+    
+    tool_msg = ToolMessage(content="result", tool_call_id="call_1")
+    ai_msg = AIMessage(content="", tool_calls=[{"id": "call_1", "name": "tool", "args": {}}])
+    
+    messages = [tool_msg, ai_msg]
+    result = node._sanitize_messages_for_chat_model(messages, "test_model", mock_model)
+    
+    # Messages should be unchanged
+    assert len(result) == 2
+    assert isinstance(result[0], ToolMessage)
+    assert isinstance(result[1], AIMessage)
+
+def test_sanitize_messages_for_chat_model_without_tools():
+    """Test that messages are sanitized when model doesn't have tools."""
+    node = TestRunnableNode()
+    
+    tool_msg = ToolMessage(content="result", tool_call_id="call_1")
+    ai_msg_with_content = AIMessage(content="text", tool_calls=[{"id": "call_1", "name": "tool", "args": {}}])
+    ai_msg_empty = AIMessage(content="", tool_calls=[{"id": "call_2", "name": "tool", "args": {}}])
+    human_msg = HumanMessage(content="test")
+    
+    messages = [tool_msg, ai_msg_with_content, ai_msg_empty, human_msg]
+    
+    # Mock chat model without tools
+    class MockModel:
+        pass
+    
+    result = node._sanitize_messages_for_chat_model(messages, "test_model", MockModel())
+    
+    # ToolMessage should be converted to HumanMessage
+    # AI message with content but tool_calls should have tool_calls removed
+    # Empty AI message with tool_calls should be removed
+    # Human message should remain
+    assert len(result) == 3
+    assert isinstance(result[0], HumanMessage)  # Converted from ToolMessage
+    assert result[0].content == "result"
+    assert isinstance(result[1], AIMessage)  # AI with content, tool_calls removed
+    assert result[1].content == "text"
+    assert not hasattr(result[1], 'tool_calls') or not result[1].tool_calls
+    assert isinstance(result[2], HumanMessage)  # Original human message
+
+def test_deserialize_message_types():
+    """Test _deserialize_message for different message types."""
+    # Test HumanMessage
+    human_dict = {"type": "human", "content": "Hello"}
+    result = RunnableNode._deserialize_message(human_dict)
+    assert isinstance(result, HumanMessage)
+    assert result.content == "Hello"
+    
+    # Test AIMessage
+    ai_dict = {"type": "ai", "content": "Hi there"}
+    result = RunnableNode._deserialize_message(ai_dict)
+    assert isinstance(result, AIMessage)
+    assert result.content == "Hi there"
+    
+    # Test SystemMessage
+    system_dict = {"type": "system", "content": "You are helpful"}
+    result = RunnableNode._deserialize_message(system_dict)
+    assert isinstance(result, SystemMessage)
+    assert result.content == "You are helpful"
+    
+    # Test ToolMessage
+    tool_dict = {"type": "tool", "content": "Result", "tool_call_id": "call_1"}
+    result = RunnableNode._deserialize_message(tool_dict)
+    assert isinstance(result, ToolMessage)
+    assert result.content == "Result"
+    assert result.tool_call_id == "call_1"
+
+def test_deserialize_message_already_message():
+    """Test that BaseMessage instances are returned as-is."""
+    msg = HumanMessage(content="test")
+    result = RunnableNode._deserialize_message(msg)
+    assert result is msg
+
+def test_deserialize_outputs_single_and_list():
+    """Test _deserialize_outputs with single message and list."""
+    # Single message
+    msg_dict = {"type": "human", "content": "Test"}
+    result = RunnableNode._deserialize_outputs(msg_dict)
+    assert isinstance(result, HumanMessage)
+    
+    # List of messages
+    msg_list = [
+        {"type": "human", "content": "Test1"},
+        {"type": "ai", "content": "Test2"}
+    ]
+    result = RunnableNode._deserialize_outputs(msg_list)
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert isinstance(result[0], HumanMessage)
+    assert isinstance(result[1], AIMessage)
+    
+    # None
+    result = RunnableNode._deserialize_outputs(None)
+    assert result is None
+
+def test_find_metadata_in_node():
+    """Test find_metadata finds value in node's own metadata."""
+    node = TestRunnableNode()
+    node.metadata["test_key"] = "test_value"
+    
+    result = node.find_metadata("test_key")
+    assert result == "test_value"
+
+def test_find_metadata_in_network():
+    """Test find_metadata finds value in active network."""
+    with RunnableNetwork() as network:
+        network.metadata["network_key"] = "network_value"
+        node = TestRunnableNode()
+        
+        result = node.find_metadata("network_key")
+        assert result == "network_value"
+
+def test_find_metadata_not_found():
+    """Test find_metadata returns None when key not found."""
+    node = TestRunnableNode()
+    result = node.find_metadata("nonexistent_key")
+    assert result is None
+
+def test_serialize_model():
+    """Test serialize_model excludes parents and adds node type."""
+    node = TestRunnableNode(name="test_node")
+    parent = TestRunnableNode()
+    node._add_parent(parent)
+    
+    serialized = node.serialize_model()
+    
+    # Should not include parents
+    assert "parents" not in serialized
+    # Should include node type
+    assert "__node_type__" in serialized
+    assert serialized["__node_type__"] == "TestRunnableNode"
+    # Should include name
+    assert "name" in serialized
+    assert serialized["name"] == "test_node"
+
+def test_hash_consistency():
+    """Test that node hash is based on object id."""
+    node1 = TestRunnableNode()
+    node2 = TestRunnableNode()
+    
+    # Different nodes have different hashes
+    assert hash(node1) != hash(node2)
+    
+    # Same node has consistent hash
+    hash1 = hash(node1)
+    hash2 = hash(node1)
+    assert hash1 == hash2
+
+def test_rrshift_with_list():
+    """Test __rrshift__ with list of nodes."""
+    node1 = TestRunnableNode()
+    node2 = TestRunnableNode()
+    child = TestRunnableNode()
+    
+    result = [node1, node2] >> child
+    
+    assert result is child
+    assert len(child.parents) == 2
+    assert node1 in child.parents
+    assert node2 in child.parents
+
+def test_lshift_invalid_type():
+    """Test __lshift__ raises error with invalid type."""
+    node = TestRunnableNode()
+    
+    with pytest.raises(ValueError, match="Invalid parent type"):
+        node << 123
+
+def test_rshift_invalid_type():
+    """Test __rshift__ raises error with invalid type."""
+    node = TestRunnableNode()
+    
+    with pytest.raises(ValueError, match="Invalid child type"):
+        node >> "invalid"
+
+def test_rrshift_invalid_type():
+    """Test __rrshift__ raises error with invalid type."""
+    node = TestRunnableNode()
+    
+    with pytest.raises(ValueError, match="Invalid parent type"):
+        123 >> node
 
 if __name__ == "__main__":
     pytest.main(["-v", "--tb=short"])

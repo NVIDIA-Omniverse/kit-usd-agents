@@ -1,11 +1,17 @@
-## Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
-##
-## NVIDIA CORPORATION and its licensors retain all intellectual property
-## and proprietary rights in and to this software, related documentation
-## and any modifications thereto.  Any use, reproduction, disclosure or
-## distribution of this software and related documentation without an express
-## license agreement from NVIDIA CORPORATION is strictly prohibited.
-##
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import base64
 import json
@@ -76,7 +82,14 @@ class USDSearchModifier(NetworkModifier):
     Text search: @USDSearch("big box", false, 10)@
     Image search: @USDSearch(<image(/path/to/reference.png)>, false, 10)@"""
 
-    def __init__(self, host_url=None, api_key=None, username=None, url_replacements=None, search_path=None):
+    def __init__(
+        self,
+        host_url=None,
+        api_key=None,
+        username=None,
+        url_replacements=None,
+        search_path=None,
+    ):
         """Initialize USDSearchModifier with optional configuration parameters.
 
         Note: While api_key can be passed directly as a parameter, this is intentional to support
@@ -134,7 +147,8 @@ class USDSearchModifier(NetworkModifier):
             item["url"] = (
                 item["url"]
                 .replace(
-                    "s3://deepsearch-demo-content/", "https://omniverse-content-production.s3.us-west-2.amazonaws.com/"
+                    "s3://deepsearch-demo-content/",
+                    "https://omniverse-content-production.s3.us-west-2.amazonaws.com/",
                 )
                 .replace(
                     "s3://deepsearch-content-staging-bucket/",
@@ -279,7 +293,11 @@ class USDSearchModifier(NetworkModifier):
         # Check if we should print curl commands
         print_curl = self._settings.get("/exts/omni.ai.chat_usd.bundle/print_curl_commands")
         if print_curl is None:
-            print_curl = os.environ.get("USDSEARCH_PRINT_CURL", "").lower() in ["true", "1", "yes"]
+            print_curl = os.environ.get("USDSEARCH_PRINT_CURL", "").lower() in [
+                "true",
+                "1",
+                "yes",
+            ]
 
         if print_curl:
             # For debugging, show appropriate message and potentially truncated data
@@ -310,7 +328,7 @@ class USDSearchModifier(NetworkModifier):
             print("=" * 60 + "\n")
 
         try:
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(url, headers=headers, json=payload, timeout=180)
             response.raise_for_status()  # Raise an exception for non-200 status codes
 
             result = response.json()

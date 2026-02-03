@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.14] - 2026-01-23
+- Updated omni.ai.langchain.core dependency to 2.2.3
+
+## [2.0.13] - 2026-01-23
+- Updated omni.ai.langchain.core dependency to 2.2.2
+
+## [2.0.12] - 2026-01-02
+- Updated omni.ai.langchain.core dependency to 2.2.1
+
+## [2.0.11] - 2025-11-04
+
+### Changed
+- Updated omni.ai.langchain.core dependency to 2.0.9
+
 ## [2.0.10] - 2025-09-22
 
 ### Changed

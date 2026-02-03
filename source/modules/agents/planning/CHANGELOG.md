@@ -5,6 +5,13 @@ All notable changes to the AIQ Planning Agent will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-12-04
+### Changed
+- Updated `get_routing_tools_info` call to skip "planning" route node from tool descriptions, preventing circular tool references in plan generation
+
+## [0.1.3] - 2025-11-27
+### Version bump for republishing. Nothing changed.
+
 ## [0.1.2] - 2025-09-04
 
 ### Changed

@@ -1,0 +1,76 @@
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    temperature: 0.0
+    max_tokens: 16384
+
+functions:
+  search_ui_code_examples:
+    _type: omni_ui_fns/search_ui_code_examples
+    verbose: false
+    enable_rerank: true
+    rerank_k: 10
+    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_endpoint: null
+    embedding_api_key: ${NVIDIA_API_KEY}
+    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_endpoint: null
+    reranking_api_key: ${NVIDIA_API_KEY}
+
+  search_ui_window_examples:
+    _type: omni_ui_fns/search_ui_window_examples
+    verbose: false
+    top_k: 8
+    format_type: formatted
+    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_endpoint: null
+    embedding_api_key: ${NVIDIA_API_KEY}
+    faiss_index_path: null
+
+  list_ui_classes:
+    _type: omni_ui_fns/list_ui_classes
+    verbose: false
+
+  list_ui_modules:
+    _type: omni_ui_fns/list_ui_modules
+    verbose: false
+
+  get_ui_class_detail:
+    _type: omni_ui_fns/get_ui_class_detail
+    verbose: false
+
+  get_ui_module_detail:
+    _type: omni_ui_fns/get_ui_module_detail
+    verbose: false
+
+  get_ui_method_detail:
+    _type: omni_ui_fns/get_ui_method_detail
+    verbose: false
+
+  get_ui_instructions:
+    _type: omni_ui_fns/get_ui_instructions
+    verbose: false
+
+  get_ui_class_instructions:
+    _type: omni_ui_fns/get_ui_class_instructions
+    verbose: false
+
+  get_ui_style_docs:
+    _type: omni_ui_fns/get_ui_style_docs
+    verbose: false
+
+workflow:
+  _type: react_agent
+  llm_name: nim_llm
+  tool_names:
+    - search_ui_code_examples
+    - search_ui_window_examples
+    - list_ui_classes
+    - list_ui_modules
+    - get_ui_class_detail
+    - get_ui_module_detail
+    - get_ui_method_detail
+    - get_ui_instructions
+    - get_ui_class_instructions
+    - get_ui_style_docs

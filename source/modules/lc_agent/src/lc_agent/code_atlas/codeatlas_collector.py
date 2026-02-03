@@ -27,7 +27,7 @@ def _get_attribute_text(attr):
 
     if not isinstance(a, ast.Name):
         return None
-    
+
     parts.append(a.id)
 
     return ".".join(reversed(parts))
@@ -43,6 +43,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
         self.source_lines = source_lines
         self.scope_stack = []
         self.imports = {}
+        self.all_attribute_list: Optional[List[str]] = None
         self.methods: List[CodeAtlasMethodInfo] = []
         self.method_stack: List[List[str]] = [[]]
 
@@ -70,13 +71,13 @@ class CodeAtlasCollector(ast.NodeVisitor):
 
             modules = [name.name for name in node.names if not name.name.startswith("_")] if module == "" else [module]
 
-            for module in modules:
-                module = "." * level + module
+            for m in modules:
+                module_with_level = "." * level + m
 
                 if len(node.names) == 1 and node.names[0].name == "*":
-                    self.wildcarts_modules.append(module)
+                    self.wildcarts_modules.append(module_with_level)
                 else:
-                    self.collected_modules.append(module)
+                    self.collected_modules.append(module_with_level)
         else:
             # Handle absolute imports. We only deal with wildcard imports here, since that is the equivalent modules of the current modules
             if len(node.names) == 1 and node.names[0].name == "*":
@@ -112,7 +113,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
         self.classes.append(class_info)
 
         self.exit_scope()
-    
+
     def get_method_identifier(self, node: ast.FunctionDef):
         # Create unique name for methods sharing the same name
         identifier = node.name
@@ -141,7 +142,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
 
         # Process the function body for class usages
         class_usages = self.find_class_usages_in_body(node)
-        class_usages = [self.resolve_name(usage) for usage in class_usages if usage[0] in self.imports]
+        class_usages = sorted([self.resolve_name(usage) for usage in class_usages if usage[0] in self.imports])
 
         decorators = []
         for d in node.decorator_list:
@@ -177,7 +178,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
                 arg_info.type_annotation = docstring_types[arg_info.name]
             if i >= default_start_index:
                 default = node.args.defaults[i - default_start_index]
-                value = self.extract_code(self.source_lines, default.lineno, default.end_lineno, default.col_offset, default.end_col_offset, exclude_docstring=False)
+                value = self.extract_code(node, self.source_lines, default.lineno, default.end_lineno, default.col_offset, default.end_col_offset, exclude_docstring=False)
                 arg_info.default_value = value
             method_info.arguments.append(arg_info)
         if node.args.vararg:
@@ -190,9 +191,6 @@ class CodeAtlasCollector(ast.NodeVisitor):
             arg_info.name = "**" + arg_info.name
             arg_info.is_variadic = True
             method_info.arguments.append(arg_info)
-
-        # Visit any potential nested functions or classes
-        self.generic_visit(node)
 
         # Pop the function name from the scope stack as we leave the function scope
         self.exit_scope()
@@ -220,6 +218,12 @@ class CodeAtlasCollector(ast.NodeVisitor):
         return arg_info
 
     def get_type_annotation_str(self, annotation_node):
+        try:
+            return self._get_type_annotation_str(annotation_node)
+        except Exception:
+            return None
+
+    def _get_type_annotation_str(self, annotation_node):
         """
         Function to extract the string representation of the type annotation.
         """
@@ -238,7 +242,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
                 return None  # In case the base type could not be resolved
 
             # Recursively get the string for the subscript part (index)
-            if isinstance(annotation_node.slice, (ast.Index, ast.Slice, ast.Tuple)):
+            if isinstance(annotation_node.slice, (ast.Index, ast.Slice, ast.Tuple, ast.Name, ast.Attribute)):
                 # ast.Index is deprecated since Python 3.9, but you might still need to support it
                 index_node = (
                     annotation_node.slice.value
@@ -248,14 +252,14 @@ class CodeAtlasCollector(ast.NodeVisitor):
                 index_str = self.get_type_annotation_str(index_node)
                 if index_str is None:
                     return None  # In case the index part could not be resolved
-                return f"{base_str}{index_str}" if isinstance(annotation_node.slice, ast.Tuple) else f"{base_str}[{index_str}]"          
+                return f"{base_str}{index_str}" if isinstance(annotation_node.slice, ast.Tuple) else f"{base_str}[{index_str}]"
             # Handle more complex cases as needed
         elif isinstance(annotation_node, ast.Constant):
             # Handle string annotations (mostly for Python 3.7 and earlier)
             if annotation_node.value is None:
                 return "None"
             else:
-                return annotation_node.s
+                return annotation_node.value if isinstance(annotation_node.value, str) else str(annotation_node.value)
         elif isinstance(annotation_node, (ast.Tuple, ast.List)):
             child_strs = []
             for child in annotation_node.elts:
@@ -276,21 +280,29 @@ class CodeAtlasCollector(ast.NodeVisitor):
             return types
 
         # Use re.findall to look for parameter lines directly in the docstring
-        param_matches = re.findall(r"^\s*(\w+)\s*:\s*(.+)", docstring, flags=re.MULTILINE)
+        param_matches = re.findall(r"^\s*(\w+)\s*\((.+?)\):\s*.+", docstring, flags=re.MULTILINE)
 
         # Process matches and populate the types dictionary
         for param_name, param_type in param_matches:
             param_name = param_name.strip()
             param_type = param_type.strip()
-            types[param_name] = param_type
-
+            try:
+                parsed_param_type = ast.parse(param_type)
+                if len(parsed_param_type.body) == 1 and isinstance(parsed_param_type.body[0], ast.Expr) and isinstance(parsed_param_type.body[0].value, (ast.Name, ast.Attribute, ast.Subscript)):
+                    param_type = self.get_type_annotation_str(parsed_param_type.body[0].value)
+                    types[param_name] = param_type
+            except:
+                pass
         return types
 
     def extract_function_body(self, node, source_lines):
-        if ast.get_docstring(node) and len(node.body) > 1:
+        if ast.get_docstring(node):
             # If a docstring is present, body starts from the second element of node.body
-            start_line = node.body[1].lineno
-            start_line_col_offset = getattr(node.body[1], "col_offset", 0)
+            if len(node.body) > 1:
+                start_line = node.body[1].lineno
+                start_line_col_offset = getattr(node.body[1], "col_offset", 0)
+            else:
+                return None
         else:
             # Otherwise, body starts from the first element of node.body
             start_line = node.body[0].lineno
@@ -298,9 +310,9 @@ class CodeAtlasCollector(ast.NodeVisitor):
 
         # Get the end line of the function body
         end_line = node.body[-1].end_lineno
-        return self.extract_code(source_lines, start_line, end_line, start_line_col_offset, exclude_docstring=True)
-    
-    def extract_code(self, source_lines, start_line, end_line, start_line_col_offset=0, end_line_col_offset=None, exclude_docstring=True):
+        return self.extract_code(node, source_lines, start_line, end_line, start_line_col_offset, exclude_docstring=True)
+
+    def extract_code(self, node, source_lines, start_line, end_line, start_line_col_offset=0, end_line_col_offset=None, exclude_docstring=True):
         # Subtract 1 because lineno is 1-based, unlike list indexing
         body_lines = source_lines[start_line - 1 : end_line]
 
@@ -313,11 +325,47 @@ class CodeAtlasCollector(ast.NodeVisitor):
                 end -= start_line_col_offset
             body_lines[-1] = body_lines[-1][:end]
 
+        # Ignore indentation of string blocks
+        ignored_lines = set()
+        for body_node in ast.walk(node):
+            if isinstance(body_node, ast.Constant) and isinstance(body_node.value, str) and hasattr(body_node, "lineno") and hasattr(body_node, "end_lineno"):
+                for lineno in range(body_node.lineno + 1, body_node.end_lineno + 1):
+                    if lineno > start_line:
+                        ignored_lines.add(lineno - start_line)
+
         # Determine the minimum indentation (ignoring empty lines and start line if not extracting the full line)
-        min_indentation = min((len(line) - len(line.lstrip()) for line in body_lines[1 if start_line_col_offset > 0 else 0:] if line.strip()), default=0)
+        min_indentation = None
+        for lineno in range(1 if start_line_col_offset > 0 else 0, len(body_lines)):
+            if lineno in ignored_lines:
+                continue
+            line = body_lines[lineno]
+            if line.strip():
+                min_indentation = min(min_indentation, len(line) - len(line.lstrip())) if min_indentation is not None else len(line) - len(line.lstrip())
+
+        if min_indentation is None:
+            min_indentation = 0
+
+        # Fix case for indented block like for loop starting from second line
+        if len(body_lines) > 1 and min_indentation > start_line_col_offset:
+            min_indentation = start_line_col_offset
 
         # Dedent the body lines and return the joined string
-        dedented_body_lines = [line[min_indentation:] if line.strip() else line for line in body_lines]
+        dedented_body_lines = []
+        if len(body_lines) > 1 and start_line_col_offset > 0:
+            # Fix case for string blocks can ignore the indentation
+            if start_line_col_offset > min_indentation:
+                body_lines[0] = " " * (start_line_col_offset - min_indentation) + body_lines[0]
+            dedented_body_lines.append(body_lines[0])
+            start_lineno = 1
+        else:
+            start_lineno = 0
+        for lineno in range(start_lineno, len(body_lines)):
+            line = body_lines[lineno]
+            if lineno not in ignored_lines and line.strip():
+                dedented_body_lines.append(line[min_indentation:])
+            else:
+                dedented_body_lines.append(line)
+
         result = "".join(dedented_body_lines).rstrip()
 
         if exclude_docstring:
@@ -332,7 +380,7 @@ class CodeAtlasCollector(ast.NodeVisitor):
     def find_class_usages_in_body(self, node):
         class ClassUsageFinder(ast.NodeVisitor):
             def __init__(self, imports: Dict[str, str]):
-                self.usages = []
+                self.usages = set()
                 self.imports = imports
 
             def visit_Call(self, call_node):
@@ -341,13 +389,13 @@ class CodeAtlasCollector(ast.NodeVisitor):
                     module_alias = call_node.func.value.id
                     attr_name = call_node.func.attr
                     if module_alias in self.imports:
-                        self.usages.append((module_alias, attr_name))
+                        self.usages.add((module_alias, attr_name))
                 # Handles cases where a function is called without .attribute syntax
                 elif isinstance(call_node.func, ast.Name):
                     func_name = call_node.func.id
                     if func_name in self.imports:
                         # Record usages that exactly match the import aliases
-                        self.usages.append((None, func_name))
+                        self.usages.add((None, func_name))
                 # Continue traversal to cover nested expressions and call arguments
                 self.generic_visit(call_node)
 
@@ -364,3 +412,12 @@ class CodeAtlasCollector(ast.NodeVisitor):
             # If there's no attribute, just return the resolved alias (module level import)
             return self.imports[module_alias]
         return None
+
+    def visit_Assign(self, node):
+        # Find elements assigned to the __all__ variable in the module
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "__all__" and isinstance(node.value, ast.List):
+            self.all_attribute_list = []
+            for element in node.value.elts:
+                value = ast.literal_eval(element)
+                if isinstance(value, str):
+                    self.all_attribute_list.append(value)

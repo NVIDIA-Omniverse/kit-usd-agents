@@ -7,6 +7,9 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+import threading
+
+
 class RetrieverRegistry:
     def __init__(self):
         """
@@ -15,27 +18,59 @@ class RetrieverRegistry:
         """
         self.registered_names = []
         self.retrievers = {}
+        self._ref_counts = {}  # Reference counting for concurrent request safety
+        self._lock = threading.RLock()  # Thread-safe access to registrations
 
     def register(self, name: str, retriever):
         """
         Register a BaseRetriever under the given name.
 
+        This method uses reference counting to support concurrent requests that
+        register the same retriever name. Each register() call increments the
+        reference count, and the retriever is only removed when all corresponding
+        unregister() calls have been made.
+
         Args:
             name (str): Name under which the BaseRetriever will be registered.
             retriever: The BaseRetriever object to store.
         """
-        self.registered_names.append(name)
-        self.retrievers[name] = retriever
+        with self._lock:
+            # Increment reference count
+            self._ref_counts[name] = self._ref_counts.get(name, 0) + 1
+
+            # Only add to registered_names if not already present (avoid duplicates)
+            if name not in self.registered_names:
+                self.registered_names.append(name)
+
+            self.retrievers[name] = retriever
 
     def unregister(self, name: str):
         """
         Unregister a BaseRetriever under a given name.
 
+        This method decrements the reference count for the retriever. The retriever
+        is only actually removed when the reference count reaches zero, ensuring that
+        concurrent requests that share the same retriever name don't interfere with
+        each other.
+
         Args:
             name (str): Name under which the BaseRetriever was registered.
+
+        Raises:
+            ValueError: If the name was never registered.
         """
-        self.registered_names.remove(name)
-        self.retrievers.pop(name)
+        with self._lock:
+            # Raise ValueError if name was never registered (preserves original behavior)
+            if name not in self._ref_counts:
+                raise ValueError(f"Retriever '{name}' is not registered")
+
+            # Decrement reference count
+            self._ref_counts[name] -= 1
+            # Only remove when no more references
+            if self._ref_counts[name] <= 0:
+                self.registered_names.remove(name)
+                self.retrievers.pop(name)
+                del self._ref_counts[name]
 
     def get_retriever(self, name: str):
         """

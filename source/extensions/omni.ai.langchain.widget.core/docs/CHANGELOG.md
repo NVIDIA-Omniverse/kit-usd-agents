@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.0.0] - 2025-11-04
+- Updated for NAT rename (RunnableAIQNode to RunnableNATNode)
+
+## [2.0.8] - 2025-10-08
+
+### Fixed
+- when the subnetwork is populated but node.subnetwork is either None or empty, NetworkNodeChatView needs to be updated
+- for chat view, auto expand for layers which only have one node and not the root layer
+
 ## [2.0.7] - 2025-09-17
 
 ### Added

@@ -1,0 +1,106 @@
+[tool.poetry]
+name = "omni-ui-fns"
+version = "0.6.0"
+description = "OmniUI functions for NVIDIA Omniverse - providing OmniUI class information, documentation, and code examples (NAT-compatible)"
+authors = ["Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>"]
+readme = "README.md"
+homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+documentation = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+keywords = ["omniui", "omniverse", "ai", "tools", "code-generation", "aiq", "functions"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [{include = "omni_ui_fns", from = "src"}]
+include = [
+    "src/omni_ui_fns/data/**/*",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+# NAT dependencies - allow pre-releases
+nvidia-nat = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-langchain = {version = ">=1.4.0rc3", allow-prereleases = true}
+# LangChain dependencies
+langchain = ">=1.2.6"
+langchain-community = ">=0.3.31"
+langchain-core = ">=0.3.80"
+langchain-nvidia-ai-endpoints = ">=1.0.2"
+# Vector search and HTTP dependencies
+faiss-cpu = ">=1.7.0"
+requests = ">=2.25.0"
+httpx = ">=0.24.0"
+# Configuration support
+pyyaml = ">=6.0"
+# Telemetry support
+redis = {extras = ["hiredis"], version = ">=4.5.0"}
+# Transitive dependencies
+grpcio = ">=1.76.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
+
+# Entry points for OmniUI functions - Dual registration for AIQ and NAT compatibility
+# AIQ entry points (backwards compatibility)
+[tool.poetry.plugins."aiq.components"]
+omni_ui_fns_search_ui_code_examples = "omni_ui_fns.register_search_ui_code_examples"
+omni_ui_fns_search_ui_window_examples = "omni_ui_fns.register_search_ui_window_examples"
+omni_ui_fns_list_ui_classes = "omni_ui_fns.register_list_ui_classes"
+omni_ui_fns_list_ui_modules = "omni_ui_fns.register_list_ui_modules"
+omni_ui_fns_get_ui_class_detail = "omni_ui_fns.register_get_ui_class_detail"
+omni_ui_fns_get_ui_module_detail = "omni_ui_fns.register_get_ui_module_detail"
+omni_ui_fns_get_ui_method_detail = "omni_ui_fns.register_get_ui_method_detail"
+omni_ui_fns_get_ui_instructions = "omni_ui_fns.register_get_ui_instructions"
+omni_ui_fns_get_ui_class_instructions = "omni_ui_fns.register_get_ui_class_instructions"
+omni_ui_fns_get_ui_style_docs = "omni_ui_fns.register_get_ui_style_docs"
+
+# NAT entry points (native)
+[tool.poetry.plugins."nat.components"]
+omni_ui_fns_search_ui_code_examples = "omni_ui_fns.register_search_ui_code_examples"
+omni_ui_fns_search_ui_window_examples = "omni_ui_fns.register_search_ui_window_examples"
+omni_ui_fns_list_ui_classes = "omni_ui_fns.register_list_ui_classes"
+omni_ui_fns_list_ui_modules = "omni_ui_fns.register_list_ui_modules"
+omni_ui_fns_get_ui_class_detail = "omni_ui_fns.register_get_ui_class_detail"
+omni_ui_fns_get_ui_module_detail = "omni_ui_fns.register_get_ui_module_detail"
+omni_ui_fns_get_ui_method_detail = "omni_ui_fns.register_get_ui_method_detail"
+omni_ui_fns_get_ui_instructions = "omni_ui_fns.register_get_ui_instructions"
+omni_ui_fns_get_ui_class_instructions = "omni_ui_fns.register_get_ui_class_instructions"
+omni_ui_fns_get_ui_style_docs = "omni_ui_fns.register_get_ui_style_docs"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 120
+ignore = ["E501", "W503"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=omni_ui_fns --cov-report=term-missing"

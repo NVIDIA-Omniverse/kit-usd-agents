@@ -1,0 +1,70 @@
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    temperature: 0.0
+    max_tokens: 16384
+
+functions:
+  search_usd_code_examples:
+    _type: omni_aiq_usd_code/search_usd_code_examples
+    verbose: false
+    top_k: 5
+    enable_rerank: true
+    rerank_k: 10
+    # Embedding configuration (uses default NVIDIA API endpoint if not specified)
+    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_endpoint: null  # null means use default NVIDIA endpoint
+    embedding_api_key: ${NVIDIA_API_KEY}
+    # Reranking configuration
+    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_endpoint: null  # null means use default NVIDIA endpoint
+    reranking_api_key: ${NVIDIA_API_KEY}
+
+  search_usd_knowledge:
+    _type: omni_aiq_usd_code/search_usd_knowledge
+    verbose: false
+    top_k: 5
+    enable_rerank: true
+    rerank_k: 10
+    # Embedding configuration (uses default NVIDIA API endpoint if not specified)
+    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_endpoint: null  # null means use default NVIDIA endpoint
+    embedding_api_key: ${NVIDIA_API_KEY}
+    # Reranking configuration
+    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_endpoint: null  # null means use default NVIDIA endpoint
+    reranking_api_key: ${NVIDIA_API_KEY}
+
+  list_usd_modules:
+    _type: omni_aiq_usd_code/list_usd_modules
+    verbose: false
+
+  list_usd_classes:
+    _type: omni_aiq_usd_code/list_usd_classes
+    verbose: false
+
+  get_usd_module_detail:
+    _type: omni_aiq_usd_code/get_usd_module_detail
+    verbose: false
+
+  get_usd_class_detail:
+    _type: omni_aiq_usd_code/get_usd_class_detail
+    verbose: false
+
+  get_usd_method_detail:
+    _type: omni_aiq_usd_code/get_usd_method_detail
+    verbose: false
+
+workflow:
+  _type: react_agent
+  llm_name: nim_llm
+  verbose: false
+  tool_names:
+    - search_usd_code_examples
+    - search_usd_knowledge
+    - list_usd_modules
+    - list_usd_classes
+    - get_usd_module_detail
+    - get_usd_class_detail
+    - get_usd_method_detail

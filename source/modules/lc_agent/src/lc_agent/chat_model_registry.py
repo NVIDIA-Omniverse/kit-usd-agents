@@ -13,6 +13,7 @@ from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Union
+import threading
 
 
 class ChatModelRegistry:
@@ -31,6 +32,8 @@ class ChatModelRegistry:
         """
         self.registered_names = []
         self.chat_models: Dict[str, "ChatModelRegistry._ChatModelEntry"] = {}
+        self._ref_counts = {}  # Reference counting for concurrent request safety
+        self._lock = threading.RLock()  # Thread-safe access to registrations
 
     def register(
         self,
@@ -43,6 +46,11 @@ class ChatModelRegistry:
         """
         Register a Chat Model and optionally a Generator under the same name.
 
+        This method uses reference counting to support concurrent requests that
+        register the same model name. Each register() call increments the reference
+        count, and the model is only removed when all corresponding unregister()
+        calls have been made.
+
         Args:
             name (str): Name under which the Chat Model and optional Generator will be registered.
             chat_model: The Chat Model object to store or a callable that returns a Chat Model.
@@ -50,27 +58,45 @@ class ChatModelRegistry:
             max_tokens: The optional max tokens value.
             hidden: Whether to hide this model from the list of registered names.
         """
-        self.registered_names.append(name)
+        with self._lock:
+            # Increment reference count
+            self._ref_counts[name] = self._ref_counts.get(name, 0) + 1
 
-        # Check if chat_model is a callable (factory function)
-        if callable(chat_model) and not isinstance(chat_model, BaseChatModel):
-            # Store the factory function, not the model itself
-            self.chat_models[name] = self._ChatModelEntry(None, chat_model, tokenizer, max_tokens, hidden)
-        else:
-            # Store the model directly
-            self.chat_models[name] = self._ChatModelEntry(chat_model, None, tokenizer, max_tokens, hidden)
+            # Only add to registered_names if not already present (avoid duplicates)
+            if name not in self.registered_names:
+                self.registered_names.append(name)
+
+            # Check if chat_model is a callable (factory function)
+            if callable(chat_model) and not isinstance(chat_model, BaseChatModel):
+                # Store the factory function, not the model itself
+                self.chat_models[name] = self._ChatModelEntry(None, chat_model, tokenizer, max_tokens, hidden)
+            else:
+                # Store the model directly
+                self.chat_models[name] = self._ChatModelEntry(chat_model, None, tokenizer, max_tokens, hidden)
 
     def unregister(self, name: str):
         """
         Unregister a Chat Model and optionally a Generator under a given name.
 
+        This method decrements the reference count for the model. The model is only
+        actually removed when the reference count reaches zero, ensuring that
+        concurrent requests that share the same model name don't interfere with
+        each other.
+
         Args:
             name (str): Name under which the Chat Model and optional Generator were registered.
         """
-        if name in self.registered_names:
-            self.registered_names.remove(name)
-        if name in self.chat_models:
-            self.chat_models.pop(name)
+        with self._lock:
+            # Decrement reference count
+            if name in self._ref_counts:
+                self._ref_counts[name] -= 1
+                # Only remove when no more references
+                if self._ref_counts[name] <= 0:
+                    if name in self.registered_names:
+                        self.registered_names.remove(name)
+                    if name in self.chat_models:
+                        self.chat_models.pop(name)
+                    del self._ref_counts[name]
 
     def get_model(self, name: str) -> Optional[BaseChatModel]:
         """

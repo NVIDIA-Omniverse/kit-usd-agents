@@ -1,2 +1,2 @@
 lc_agent
-lc_agent_aiq
+lc_agent_nat

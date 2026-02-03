@@ -1,0 +1,34 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: usd-code-mcp
+  description: MCP for USD Code
+  annotations:
+    gitlab.com/project-slug: omniverse/gen-ai/kit-lc-agent
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: usd-code-mcp
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=usd-code-mcp
+    backstage.io/source-template: default:template/kaizen-java-microservice-nvb-template
+    itss.nvidia.com/dns-name: usd-code-mcp.nvidia.com
+    nvb.nvidia.com/project-expiration-timestamp: '0'
+  links:
+    - url: >-
+        https://ov.data.nvidiagrid.net/app/discover?sg_tenant=Global#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15h,to:now))&_a=(columns:!(),filters:!(),index:omniverse-devplat.logs.omni-devinfra-svc,interval:auto,query:(language:kuery,query:%22usd-code-mcp%22),sort:!(!(time,desc)))
+      title: Logs on Kratos Kibana Dashboard
+    - url: >-
+        https://omni-devinfra-prometheus-nvks-blue.service.odp.nvidia.com/graph?g0.expr=jvm_memory_usage_bytes%7Bkubernetes_namespace%3D%22usd-code-mcp%22%7D&g0.tab=1&g0.display_mode=lines&g0.show_exemplars=0&g0.range_input=1h
+      title: Metrics on Prometheus
+    - url: >-
+        https://app.lightstep.com/nvidia-staging/service-directory/usd-code-mcp/deployments?time_window=minutes_60
+      title: Trace on Lightstep
+    - url: https://usd-code-mcp.service.odp.nvidia.com/health
+      title: Health endpoint
+  tags:
+    - usd-agent
+    - usd
+    - usd-code
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/dfagnou-org
+  pic: user:default/dfagnou

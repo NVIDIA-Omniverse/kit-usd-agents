@@ -1,0 +1,78 @@
+[tool.poetry]
+name = "kit-data-collection"
+version = "0.1.2"
+description = "Data collection tools for Kit extensions database processing"
+authors = ["NVIDIA Corporation"]
+readme = "README.md"
+packages = [{include = "extension_data"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+toml = "^0.10.2"
+tiktoken = "^0.8.0"
+pydantic = "^2.0.0"
+
+# LangChain dependencies required by lc_agent
+langchain = "^0.3.0"
+langchain-core = ">=0.1.0"
+langchain-openai = ">=0.2.0"
+langchainhub = "^0.1.0"
+langchain-nvidia-ai-endpoints = ">=0.0.4"
+langchain-community = ">=0.0.10"
+faiss-cpu = "^1.7.0"
+defusedxml = "^0.7.1"  # Secure XML parsing to prevent XXE attacks
+libcst = "1.5.0"
+aioredis = "2.0.1"
+
+docstring_parser = ">=0.17.0"
+
+# Local dependency to lc_agent module for Code Atlas functionality
+lc_agent = {path = "../../../modules/lc_agent", develop = true}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^5.0.0"
+black = "^24.0.0"
+ruff = "^0.5.0"
+mypy = "^1.10.0"
+
+[tool.poetry.scripts]
+build-extensions-db = "extension_data.build_extension_database:main"
+test-single-extension = "extension_data.build_extension_database:test_main"
+generate-embeddings-desc = "extension_data.generate_embeddings_descriptions:main"
+generate-embeddings = "extension_data.generate_extension_embeddings:main"
+build-faiss-db = "extension_data.build_extensions_faiss_database:main"
+
+[[tool.poetry.source]]
+name = "nvidia-pypi"
+url = "https://pypi.nvidia.com/simple"
+priority = "supplemental"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -11,15 +11,18 @@ keywords = ["app"]
 "omni.ai.chat_usd.bundle" = {order = 1000}
 "omni.kit.widget.graph" = {}
 "omni.kit.widget.text_editor" = {}
-"omni.ai.aiq.stage_builder" = {}
+"omni.ai.nat.stage_builder" = {}
 
 "omni.app.editor.base" = {order = -10}
 "omni.kit.property.bundle" = {}
 "omni.usd" = {}
+# "omni.ai.nat.mcp.kit_inspector" = {}
 
 [settings]
 app.menu.legacy_mode = false
 app.versionFile = "${app#}/../VERSION"
+
+# exts."omni.ai.chat_usd.bundle".register_all_chat_models = true
 
 # you can setup your token here or in your environment variables at OPENAI_API_KEY
 # persistent.exts."omni.gpt.core".token = <Your_Token_here>
@@ -31,6 +34,14 @@ app.layout.default = "${app}/layout/creator.json"
 app.runLoops.main.rateLimitEnabled = true
 app.runLoops.main.rateLimitFrequency = 120
 app.runLoops.main.rateLimitUseBusyLoop = false
+
+exts."omni.ai.langchain.widget.core".show_window_on_startup = false
+
+#app.window.dpiScaleOverride = 1.0
+#app.window.scaleToMonitor = false
+
+app.window.width = 1920
+app.window.height = 1080
 
 # Fast shutdown by default
 app.fastShutdown = true

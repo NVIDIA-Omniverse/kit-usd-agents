@@ -1,11 +1,17 @@
-## Copyright (c) 2025, NVIDIA CORPORATION.  All rights reserved.
-##
-## NVIDIA CORPORATION and its licensors retain all intellectual property
-## and proprietary rights in and to this software, related documentation
-## and any modifications thereto.  Any use, reproduction, disclosure or
-## distribution of this software and related documentation without an express
-## license agreement from NVIDIA CORPORATION is strictly prohibited.
-##
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import weakref
 
@@ -15,7 +21,7 @@ from .agent_delegate import DefaultDelegate
 from .chat_view import ChatView
 
 
-def _get_subnodes_count(node: "NetworkNode | RunnableAIQNode") -> int:
+def _get_subnodes_count(node: "NetworkNode | RunnableNATNode") -> int:
     if hasattr(node, "subnetwork"):
         node = node.subnetwork
         if node is None:
@@ -83,8 +89,14 @@ class NetworkNodeDelegate(DefaultDelegate):
                 # Just a small indent
                 ui.Spacer(width=50)
 
+                # Auto-expand if this node is the only node at its level in the parent network
+                auto_expand = (
+                    hasattr(network, "nodes")
+                    and len([n for n in network.nodes if n.metadata.get("contribute_to_ui", True)]) == 1
+                )
+
                 chat_view = NetworkNodeChatView()
-                chat_view.visible = False
+                chat_view.visible = auto_expand
                 if hasattr(node, "subnetwork"):
                     chat_view.network = node.subnetwork
                 else:
@@ -97,11 +109,12 @@ class NetworkNodeDelegate(DefaultDelegate):
 
                     # Appears on create
                     subnodes_count = _get_subnodes_count(node)
-                    button = ui.Button(f"Expand ({subnodes_count})", height=20, width=0, name="expand-collapse")
+                    button_text = f"Collapse ({subnodes_count})" if auto_expand else f"Expand ({subnodes_count})"
+                    button = ui.Button(button_text, height=20, width=0, name="expand-collapse")
                     ui.Line(width=20, alignment=ui.Alignment.V_CENTER)
                     ui.Spacer()
 
-                with ui.Frame(height=0) as frame:
+                with ui.Frame(height=0, visible=not auto_expand) as frame:
                     with ui.VStack():
                         ui.Spacer(height=30)
                         data = DefaultDelegate.build_agent_widget(self, network, node)
@@ -127,7 +140,27 @@ class NetworkNodeDelegate(DefaultDelegate):
         if hasattr(data, "chat_view") and hasattr(data, "expand_button"):
             visible = data.chat_view.visible
 
-            # Appears when new node
+            # Check if the subnetwork has been populated and update the chat_view network
+            # This is necessary for nodes like RunnableNATNode where the subnetwork
+            # is created during invocation, not during widget creation
+            if hasattr(node, "subnetwork"):
+                current_subnetwork = node.subnetwork
+                if current_subnetwork is not None and data.chat_view.network != current_subnetwork:
+                    # Subnetwork is now available, assign it to the chat view
+                    data.chat_view.network = current_subnetwork
+
+            # Auto-expand if this node is the only one at its level in the parent network
+            should_auto_expand = (
+                hasattr(network, "nodes")
+                and len([n for n in network.nodes if n.metadata.get("contribute_to_ui", True)]) == 1
+            )
+
+            # Apply auto-expand logic: show chat_view and hide body_frame when there's only 1 node at this level
+            if should_auto_expand and not visible:
+                data.chat_view.visible = True
+                data.body_frame.visible = False
+                visible = True
+
             subnodes_count = _get_subnodes_count(node)
             button_text = f"Collapse ({subnodes_count})" if visible else f"Expand ({subnodes_count})"
             data.expand_button.text = button_text

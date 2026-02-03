@@ -9,7 +9,7 @@
 from io import StringIO
 from langchain_core.tools import ArgsSchema, BaseTool
 from pydantic import BaseModel, Field, SkipValidation
-from typing import List, Optional, Annotated
+from typing import List, Optional, Type
 import sys
 import types
 import inspect
@@ -254,7 +254,7 @@ class CodeInterpreterTool(BaseTool):
         "Use multiple different tools to gather all the necessary information before using CodeInterpreter. "
         "Always call the callbacks as a test in the code to make sure there are no errors and callbacks can be executed. "
     )
-    args_schema = CodeInterpreterToolInput
+    args_schema: Type[CodeInterpreterToolInput] = CodeInterpreterToolInput
     ask_human_input: bool = False
     hide_items: Optional[List[str]] = None
     wait_fn: Optional[types.FunctionType] = None

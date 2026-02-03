@@ -1,0 +1,72 @@
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    temperature: 0.0
+    max_tokens: 16384
+
+functions:
+  get_kit_instructions:
+    _type: kit_fns/get_kit_instructions
+    verbose: true  # Enable verbose logging for development
+
+  search_kit_extensions:
+    _type: kit_fns/search_kit_extensions
+    verbose: true
+
+  get_kit_extension_details:
+    _type: kit_fns/get_kit_extension_details
+    verbose: true
+
+  get_kit_extension_dependencies:
+    _type: kit_fns/get_kit_extension_dependencies
+    verbose: true
+
+  get_kit_extension_apis:
+    _type: kit_fns/get_kit_extension_apis
+    verbose: true
+
+  get_kit_api_details:
+    _type: kit_fns/get_kit_api_details
+    verbose: true
+
+  search_kit_code_examples:
+    _type: kit_fns/search_kit_code_examples
+    verbose: true
+
+  search_kit_test_examples:
+    _type: kit_fns/search_kit_test_examples
+    verbose: true
+
+  search_kit_settings:
+    _type: kit_fns/search_kit_settings
+    verbose: true
+
+  search_kit_app_templates:
+    _type: kit_fns/search_kit_app_templates
+    verbose: true  # Enable verbose logging for development
+
+  get_kit_app_template_details:
+    _type: kit_fns/get_kit_app_template_details
+    verbose: true  # Enable verbose logging for development
+
+  search_kit_knowledge:
+    _type: kit_fns/search_kit_knowledge
+    verbose: true  # Enable verbose logging for development
+
+workflow:
+  _type: react_agent
+  llm_name: nim_llm
+  tool_names:
+    - get_kit_instructions
+    - search_kit_extensions
+    - get_kit_extension_details
+    - get_kit_extension_dependencies
+    - get_kit_extension_apis
+    - get_kit_api_details
+    - search_kit_code_examples
+    - search_kit_test_examples
+    - search_kit_settings
+    - search_kit_app_templates
+    - get_kit_app_template_details
+    - search_kit_knowledge

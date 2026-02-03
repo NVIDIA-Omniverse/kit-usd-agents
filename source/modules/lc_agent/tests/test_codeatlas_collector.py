@@ -164,7 +164,7 @@ def test_extract_types_from_docstring():
         param2 (str): Description of param2
     """
     types = collector.extract_types_from_docstring(docstring)
-    assert types == {"Args": "param1 (int): Description of param1"}
+    assert types == {"param1": "int", "param2": "str"}
 
 def test_extract_function_body():
     collector = CodeAtlasCollector("test", [])

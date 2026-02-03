@@ -1,0 +1,32 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: omni-ui-mcp
+  description: extract the teamplte for an exiting project
+  annotations:
+    gitlab.com/project-slug: omniverse/gen-ai/kit-lc-agent
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: omni-ui-mcp
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=omni-ui-mcp
+    backstage.io/source-template: default:template/kaizen-java-microservice-nvb-template
+    nvb.nvidia.com/project-expiration-timestamp: '0'
+  links:
+    - url: >-
+        https://ov.data.nvidiagrid.net/app/discover?sg_tenant=Global#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15h,to:now))&_a=(columns:!(),filters:!(),index:omniverse-devplat.logs.omni-devinfra-svc,interval:auto,query:(language:kuery,query:%22omni-ui-mcp%22),sort:!(!(time,desc)))
+      title: Logs on Kratos Kibana Dashboard
+    - url: >-
+        https://omni-devinfra-prometheus-nvks-blue.service.odp.nvidia.com/graph?g0.expr=jvm_memory_usage_bytes%7Bkubernetes_namespace%3D%22omni-ui-mcp%22%7D&g0.tab=1&g0.display_mode=lines&g0.show_exemplars=0&g0.range_input=1h
+      title: Metrics on Prometheus
+    - url: >-
+        https://app.lightstep.com/nvidia-staging/service-directory/omni-ui-mcp/deployments?time_window=minutes_60
+      title: Trace on Lightstep
+    - url: https://omni-ui-mcp.service.odp.nvidia.com/health
+      title: Health endpoint
+  tags:
+    - usd-agent
+    - kit-mcp
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/dfagnou-org
+  pic: user:default/dfagnou

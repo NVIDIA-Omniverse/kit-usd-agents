@@ -1,0 +1,33 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kit-dev-mcp
+  description: MCP for the Kit Documentation and API
+  annotations:
+    gitlab.com/project-slug: omniverse/gen-ai/mcp/kit-dev-mcp
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: kit-dev-mcp
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=kit-dev-mcp
+    backstage.io/source-template: default:template/kaizen-java-microservice-nvb-template
+    itss.nvidia.com/dns-name: kit-dev-mcp.nvidia.com
+    nvb.nvidia.com/project-expiration-timestamp: '0'
+  links:
+    - url: >-
+        https://ov.data.nvidiagrid.net/app/discover?sg_tenant=Global#/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15h,to:now))&_a=(columns:!(),filters:!(),index:omniverse-devplat.logs.omni-devinfra-svc,interval:auto,query:(language:kuery,query:%22kit-dev-mcp%22),sort:!(!(time,desc)))
+      title: Logs on Kratos Kibana Dashboard
+    - url: >-
+        https://omni-devinfra-prometheus-nvks-blue.service.odp.nvidia.com/graph?g0.expr=jvm_memory_usage_bytes%7Bkubernetes_namespace%3D%22kit-dev-mcp%22%7D&g0.tab=1&g0.display_mode=lines&g0.show_exemplars=0&g0.range_input=1h
+      title: Metrics on Prometheus
+    - url: >-
+        https://app.lightstep.com/nvidia-staging/service-directory/kit-dev-mcp/deployments?time_window=minutes_60
+      title: Trace on Lightstep
+    - url: https://kit-dev-mcp.service.odp.nvidia.com/health
+      title: Health endpoint
+  tags:
+    - java
+    - java-kaizen-framework
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/dfagnou-org
+  pic: user:default/dfagnou

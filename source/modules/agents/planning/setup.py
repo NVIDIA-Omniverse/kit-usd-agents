@@ -31,11 +31,11 @@ def req_file(filename, folder="."):
 install_requires = req_file("requirements.txt")
 
 setup(
-    name="omni_aiq_planning",
-    version="0.1.2",
+    name="omni_nat_planning",
+    version="0.1.4",
     author="NVIDIA",
     author_email="doyopk-org@exchange.nvidia.com",
-    description="Planning Agent plugin for AgentIQ",
+    description="Planning Agent plugin for NAT",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
     url="https://github.com/NVIDIA-Omniverse/kit-usd-agents",
@@ -43,7 +43,7 @@ setup(
     packages=find_packages(where="src"),
     include_package_data=True,
     package_data={
-        "omni_aiq_planning": [
+        "omni_nat_planning": [
             "nodes/systems/*.md",
         ],
     },
@@ -55,8 +55,8 @@ setup(
     ],
     python_requires=">=3.11",
     entry_points={
-        "aiq.components": [
-            "omni_aiq_planning = omni_aiq_planning.register",
+        "nat.components": [
+            "omni_nat_planning = omni_nat_planning.register",
         ],
     },
 ) 

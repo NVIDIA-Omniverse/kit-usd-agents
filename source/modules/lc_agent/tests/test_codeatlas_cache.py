@@ -25,7 +25,7 @@ def sample_cache():
     module_info2 = CodeAtlasModuleInfo(name="test_module2", full_name="test_module2", file_path="/path/to/test_module2.py", class_names=["TestClass2"])
     class_info2 = CodeAtlasClassInfo(name="TestClass2", full_name="test_module.TestClass2", module_name="test_module2")
 
-    module_info3 = CodeAtlasModuleInfo(name="test_module3", full_name="test_module3", file_path="/path/to/test_module3.py", equivelant_modules=["test_module", "test_module2"])
+    module_info3 = CodeAtlasModuleInfo(name="test_module3", full_name="test_module3", file_path="/path/to/test_module3.py", equivalent_modules=["test_module", "test_module2"])
 
     cache._modules["test_module"] = module_info
     cache._classes["test_module.TestClass"] = class_info

@@ -8,7 +8,7 @@
 ##
 
 from .runnable_node import RunnableNode
-from langchain import hub
+from langsmith import Client as LangSmithClient
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.base import RunnableLambda
 from typing import List
@@ -29,8 +29,8 @@ class RunnableNodeAgent(RunnableNode):
     tools: List = []
 
     def _get_chat_model(self, chat_model_name, chat_model_input, invoke_input, config):
-        from langchain.agents import AgentExecutor
-        from langchain.agents import create_structured_chat_agent
+        from langchain_classic.agents import AgentExecutor
+        from langchain_classic.agents import create_structured_chat_agent
 
         def convert_agent_in(chat_model_input: List[Union[AIMessage, HumanMessage, SystemMessage]], **kwargs):
             messages = chat_model_input[:]
@@ -55,7 +55,7 @@ class RunnableNodeAgent(RunnableNode):
 
         chat_model = super()._get_chat_model(chat_model_name, chat_model_input, invoke_input, config)
 
-        prompt = hub.pull("hwchase17/structured-chat-agent")
+        prompt = LangSmithClient().pull_prompt("hwchase17/structured-chat-agent")
 
         agent = create_structured_chat_agent(chat_model, self.tools, prompt)
         agent_executor = AgentExecutor(

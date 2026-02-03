@@ -11,7 +11,7 @@ from .default_modifier import DefaultModifier
 from .network_modifier import NetworkModifier
 from .runnable_node import AINodeMessageChunk
 from .runnable_node import RunnableNode
-from .utils.profiling_utils import ProfilingData, Profiler
+from .utils.profiling_utils import ProfilingData, Profiler, create_langsmith_traceable
 from .utils.pydantic import PrivateAttr
 from .uuid_utils import UUIDMixin
 from langchain_core.messages.base import BaseMessage
@@ -24,6 +24,84 @@ from typing_extensions import Self
 import contextvars
 import enum
 import time
+
+
+def _create_network_langsmith_traceable() -> Callable:
+    """
+    Create a langsmith traceable decorator configured for RunnableNetwork.
+
+    Groups all network-specific tracing configuration into one factory function.
+    """
+
+    def get_name(network: "RunnableNetwork") -> str:
+        """Get the trace name for a network."""
+        return network.name or type(network).__name__
+
+    def get_metadata(network: "RunnableNetwork") -> Dict[str, Any]:
+        """Get metadata for network tracing."""
+        return {
+            "network_type": type(network).__name__,
+            "network_uuid": network.uuid(),
+            "network_name": network.name,
+            "metadata": network.metadata,
+        }
+
+    def get_process_io(network: "RunnableNetwork") -> Callable[[Any], dict]:
+        """
+        Get process function for network tracing inputs/outputs.
+
+        Note: Both process_inputs and process_outputs use the same logic -
+        they return the leaf node outputs.
+        """
+
+        def _to_dict(value: Any) -> dict:
+            """Convert value to dict for LangSmith RunTree compatibility.
+
+            LangSmith's RunTree requires inputs/outputs to be dicts.
+            Pydantic v2 strictly enforces this validation.
+            """
+            if value is None:
+                return {}
+            if isinstance(value, dict):
+                return value
+            if isinstance(value, BaseMessage):
+                return {"type": type(value).__name__, "content": value.content}
+            if isinstance(value, list):
+                return {
+                    "items": [
+                        _to_dict(item) if not isinstance(item, (str, int, float, bool)) else item for item in value
+                    ]
+                }
+            if hasattr(value, "model_dump"):
+                return value.model_dump()
+            if hasattr(value, "__dict__"):
+                return {"type": type(value).__name__, **value.__dict__}
+            return {"value": str(value)}
+
+        def process_io(data: Any) -> dict:
+            # Get leaf outputs from network
+            leaf_nodes = network.get_leaf_nodes()
+            leaf_outputs = [node.outputs for node in leaf_nodes] if leaf_nodes else []
+            leaf_outputs = leaf_outputs[0] if len(leaf_outputs) == 1 else leaf_outputs
+
+            # For inputs, return leaf outputs if available, otherwise return original data
+            if leaf_outputs:
+                return _to_dict(leaf_outputs)
+
+            return _to_dict(data)
+
+        return process_io
+
+    return create_langsmith_traceable(
+        get_name=get_name,
+        get_metadata=get_metadata,
+        get_process_inputs=get_process_io,
+        get_process_outputs=get_process_io,
+    )
+
+
+# Create network-specific langsmith traceable decorator
+_traceable = _create_network_langsmith_traceable()
 
 
 _active_networks_var = contextvars.ContextVar("_active_networks")
@@ -185,6 +263,7 @@ class RunnableNetwork(RunnableSerializable[Input, Output], UUIDMixin):
             for network in reversed(stack):
                 yield network
 
+    @_traceable
     def invoke(
         self,
         input: Dict[str, Any] = {},
@@ -197,6 +276,7 @@ class RunnableNetwork(RunnableSerializable[Input, Output], UUIDMixin):
         with self:
             return self._invoke(input, config, **kwargs)
 
+    @_traceable
     async def ainvoke(
         self,
         input: Dict[str, Any] = {},
@@ -209,6 +289,7 @@ class RunnableNetwork(RunnableSerializable[Input, Output], UUIDMixin):
         with self:
             return await self._ainvoke(input, config, **kwargs)
 
+    @_traceable
     async def astream(
         self,
         input: Input = {},
@@ -874,23 +955,28 @@ class RunnableNetwork(RunnableSerializable[Input, Output], UUIDMixin):
         modifier_info[name][key] = value
 
     def __enter__(self):
-        # Get the current stack if it exists, or initialize a new one
-        stack = _active_networks_var.get(None)
-        if stack is None:
-            stack = []
-        stack.append(self)
-        # Set the new stack for the current context
-        _active_networks_var.set(stack)
+        # Get the current stack (immutable operation)
+        current_stack = _active_networks_var.get(None)
+
+        # Create a NEW list with the new network appended
+        # This ensures each context has its own list instance, preventing
+        # race conditions in concurrent async operations where multiple
+        # contexts could share and mutate the same list object.
+        new_stack = (current_stack or []) + [self]
+
+        # Set the new stack - this only affects the current context
+        _active_networks_var.set(new_stack)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        stack = _active_networks_var.get(None)
-        if stack is not None:
-            stack.pop()
-            # Set the possibly modified stack back, if there are still items,
-            # otherwise remove the variable
-            if stack:
-                _active_networks_var.set(stack)
+        current_stack = _active_networks_var.get(None)
+
+        if current_stack:
+            # Create a NEW list without the last element
+            # Use slicing which creates a new list, ensuring immutability
+            # and proper isolation between concurrent contexts.
+            if len(current_stack) > 1:
+                _active_networks_var.set(current_stack[:-1])
             else:
                 # This effectively clears the context variable for this context
                 _active_networks_var.set(None)
@@ -899,4 +985,4 @@ class RunnableNetwork(RunnableSerializable[Input, Output], UUIDMixin):
         return self.__enter__()
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.__exit__(exc_type, exc_val, exc_tb)
+        return self.__exit__(exc_type, exc_val, exc_tb)

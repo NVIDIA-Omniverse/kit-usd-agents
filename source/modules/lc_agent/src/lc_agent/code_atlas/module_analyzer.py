@@ -21,6 +21,10 @@ import glob
 import os
 import copy
 import toml
+from collections import namedtuple
+import re
+
+_ModuleObject = namedtuple('_ModuleObject', ['module_name', 'object_name'])
 
 def _replace_colons_outside_brackets(source):
     processed_lines = []
@@ -50,7 +54,7 @@ def _process_equivalent_module(existing_module: CodeAtlasModuleInfo, new_module_
     """Creates and saves a deep copy of a single module with the module name changed to the new module name into the modules dictionary and processes the classes in the module as well."""
     if not existing_module:
         return None
-    
+
     new_module = modules.get(new_module_name)
     if new_module is None:
         new_module = existing_module.model_copy(deep=True)
@@ -69,7 +73,7 @@ def _process_equivalent_module(existing_module: CodeAtlasModuleInfo, new_module_
 
 def _process_equivalent_class(existing_class: CodeAtlasClassInfo, new_module_name: str, new_class_name: str, classes: Dict[str, CodeAtlasClassInfo], methods: Dict[str, CodeAtlasMethodInfo]):
     """Creates and saves a deep copy of a single class into the classes dictionary and processes the methods in the class as well."""
-    if not existing_class: 
+    if not existing_class:
         return None
 
     new_class = existing_class.model_copy(deep=True)
@@ -77,7 +81,7 @@ def _process_equivalent_class(existing_class: CodeAtlasClassInfo, new_module_nam
     new_class.full_name = '.'.join(filter(None, [new_module_name, new_class_name]))
 
     classes[new_class.full_name] = new_class
-    
+
     # update the methods in the class as well
     for method_name in existing_class.methods:
         full_method_name = '.'.join(filter(None, [existing_class.full_name, method_name]))
@@ -89,14 +93,14 @@ def _process_equivalent_method(existing_method: CodeAtlasMethodInfo, new_module_
     """Creates and saves a deep copy of a single method into the methods dictionary."""
     if not existing_method:
         return None
-    
+
     new_method = existing_method.model_copy(deep=True)
     new_method.module_name = new_module_name
     new_method.full_name = '.'.join(filter(None, [new_module_name, new_class_name, new_method_name]))
 
     for arg in new_method.arguments:
         arg.parent_method = new_method.full_name
-    
+
     methods[new_method.full_name] = new_method
 
 class ModuleResolver:
@@ -159,25 +163,31 @@ class ModuleResolver:
 class ModuleAnalyzer:
     """Analyzes a given directory to collect all Python modules present."""
 
-    def __init__(self, starting_directory: str, visited_modules=None):
+    def __init__(self, starting_directory: str, visited_modules=None, excluded_modules=None):
         self.starting_directory = Path(starting_directory)
         if visited_modules is None:
             visited_modules = {}
         self.visited_modules: Dict[str, CodeAtlasModuleInfo] = copy.copy(visited_modules)
+        self.excluded_modules: Optional[List[str]] = excluded_modules
         self.found_modules: List[CodeAtlasModuleInfo] = []
         self.found_classes: List[CodeAtlasClassInfo] = []
         self.found_methods: List[CodeAtlasMethodInfo] = []
         self.root_modules: List[Tuple[str, Path]] = []
+        # maps an object to the list of objects that reference it
+        self.object_references: Dict[_ModuleObject, List[_ModuleObject]] = {}
+        # maps a module to the list of objects imported into it
+        self.module_objects: Dict[str, List[str]] = {}
 
     def analyze(self) -> List[CodeAtlasModuleInfo]:
         """Kick-starts the module analysis process and returns a list of found modules."""
         # Handling the case when the path includes a wildcard (*)
         starting_directories = glob.glob(str(self.starting_directory))
-
         for starting_directory in starting_directories:
             print("Scan", starting_directory)
-            for root, dirs, files in os.walk(starting_directory):
-                is_module = False
+            for root, dirs, files in os.walk(starting_directory, followlinks=True):
+                if self.excluded_modules and any(Path(root).relative_to(starting_directory).is_relative_to(Path(excluded_module)) for excluded_module in self.excluded_modules):
+                    continue
+                module_name = None
                 files_set = set(files)
                 for file in files:
                     # Process each '__init__.py' or '__init__.pyi' file to identify modules
@@ -185,17 +195,78 @@ class ModuleAnalyzer:
                         # Prefer .pyi files over .py if both are present
                         if file == "__init__.py" and "__init__.pyi" in files_set:
                             continue
-                        is_module = True
                         module_name = self.process_init_file(root, file)
                         break
 
-                if is_module:
-                    for file in files_set:
-                        if not file.endswith(".py") or file == "__init__.py":
-                            continue
-                        submodule_name = module_name + "." + file.split(".")[0]
-                        if submodule_name not in self.visited_modules:
-                            self.process_module(os.path.join(root, file), submodule_name, is_root=False)
+                for file in files_set:
+                    if not any(file.endswith(ext) for ext in [".py", ".pyi"]) or file == "__init__.py":
+                        continue
+                    submodule_name = (module_name if module_name is not None else self.module_name_from_path(root)) + "." + file.split(".")[0]
+                    full_path = os.path.join(root, file)
+                    if submodule_name not in self.visited_modules and not any(m.file_path == Path(full_path).relative_to(starting_directory).as_posix() for m in self.visited_modules.values()):
+                        self.process_module(full_path, submodule_name, is_root=False)
+
+        self._promote_publicly_exposed()
+
+    def _promote_publicly_exposed(self):
+        """Promote classes and methods that are publicly exposed to the higher-level extension module."""
+        classes = {c.full_name: c for c in self.found_classes}
+        methods = {m.full_name: m for m in self.found_methods}
+
+        for object_name in self.object_references.keys():
+            full_object_name = ".".join(object_name)
+            is_class = full_object_name in classes.keys()
+            is_method = full_object_name in methods.keys()
+            # go through objects that might need to be promoted
+            if not (is_class or is_method):
+                continue
+            # get the list of all objects that are referenced by the current object
+            stack = [object_name]
+            visited = set()
+            while len(stack) > 0:
+                current_object_name = stack.pop()
+                if current_object_name in visited:
+                    continue
+                visited.add(current_object_name)
+                stack += self.object_references.get(current_object_name, [])
+            visited.remove(object_name)
+            if len(visited) == 0:
+                continue
+            references = list(sorted(visited))
+            is_ancestor = object_name.module_name.startswith(references[0].module_name)
+
+            if is_ancestor:
+                new_name = f"{references[0].module_name}.{object_name.object_name}"
+                if is_class:
+                    existing_class = classes[full_object_name]
+                    # Update the full name and module name of all classes that are nested in the existing class
+                    for class_info in self.found_classes:
+                        if class_info.full_name.startswith(f"{existing_class.full_name}."):
+                            class_info.full_name = class_info.full_name.replace(existing_class.full_name, new_name)
+                            class_info.module_name = references[0].module_name
+                    # Update the full name and module name of all methods that are nested in the existing class
+                    for method_info in self.found_methods:
+                        if method_info.full_name.startswith(f"{existing_class.full_name}."):
+                            method_info.full_name = method_info.full_name.replace(existing_class.full_name, new_name)
+                            method_info.module_name = references[0].module_name
+                            for arg in method_info.arguments:
+                                arg.parent_method = method_info.full_name
+
+                    existing_class.full_name = new_name
+                    existing_class.module_name = references[0].module_name
+                elif is_method:
+                    existing_method = methods[full_object_name]
+                    existing_method.full_name = new_name
+                    existing_method.module_name = references[0].module_name
+                    for arg in existing_method.arguments:
+                        arg.parent_method = existing_method.full_name
+
+            for ref_module, _ in references:
+                module_info = self.visited_modules.get(ref_module)
+                if is_class:
+                    module_info.class_names.append(object_name.object_name)
+                elif is_method:
+                    module_info.function_names.append(object_name.object_name)
 
     def module_name_from_path(self, directory_path: str) -> str:
         """Generate a module's fully qualified name from its directory path."""
@@ -209,27 +280,59 @@ class ModuleAnalyzer:
         self.process_module(full_path, full_module_name, is_root=True)
         return full_module_name
 
+    def _detect_file_encoding(self, file_path: str) -> str:
+        """
+        Detects the file encoding by examining the first few bytes for BOM markers.
+
+        Args:
+            file_path: Path to the file to analyze
+
+        Returns:
+            encoding_name
+        """
+        with open(file_path, 'rb') as file:
+            # Read first 4 bytes to check for BOM
+            first_bytes = file.read(4)
+
+        # Check for various BOM signatures
+        if first_bytes.startswith(b'\xef\xbb\xbf'):
+            # UTF-8 BOM
+            return 'utf-8-sig'
+        elif first_bytes.startswith(b'\xff\xfe\x00\x00'):
+            # UTF-32 LE BOM
+            return 'utf-32-le'
+        elif first_bytes.startswith(b'\x00\x00\xfe\xff'):
+            # UTF-32 BE BOM
+            return 'utf-32-be'
+        elif first_bytes.startswith(b'\xff\xfe'):
+            # UTF-16 LE BOM
+            return 'utf-16-le'
+        elif first_bytes.startswith(b'\xfe\xff'):
+            # UTF-16 BE BOM
+            return 'utf-16-be'
+        else:
+            # No BOM detected, assume UTF-8
+            return 'utf-8'
+
     def process_module(self, full_path: str, full_module_name: str, is_root: bool = True):
         """Processes a single Python module to collect its information and any sub-module."""
         # Avoid processing the same module twice
         if full_module_name in self.visited_modules:
             return
-        
+
         # Record current module's information
-        root_module_name, root_module_path = next(((name, path) for name, path in self.root_modules if Path(full_path).is_relative_to(path)), (None, None))
+        relative_path = Path(full_path).relative_to(self.starting_directory)
+        root_module_name = next((name for name, path in self.root_modules if relative_path.is_relative_to(path)), None)
         is_root_module = is_root and root_module_name is None
-        
+
         module_info = CodeAtlasModuleInfo(
             name=full_module_name.split(".")[-1],
             full_name=full_module_name,
-            file_path=
-                Path(full_module_name).joinpath(os.path.basename(full_path)).as_posix()
-                if is_root_module
-                else Path(root_module_name).joinpath(Path(full_path).relative_to(root_module_path)).as_posix(),
+            file_path=relative_path.as_posix()
         )
 
         if is_root_module:
-            self.root_modules.append((full_module_name, Path(full_path).parent))
+            self.root_modules.append((full_module_name, relative_path.parent))
             path = Path(full_path)
             parts = full_module_name.split(".")
             if len(path.parent.parts) >= len(parts):
@@ -245,8 +348,9 @@ class ModuleAnalyzer:
         self.visited_modules[full_module_name] = module_info
         self.found_modules.append(module_info)
 
-        # Read module's source code
-        with open(full_path, "r", encoding="utf-8", errors="replace") as file:
+        # Read module's source code with proper encoding detection
+        encoding = self._detect_file_encoding(full_path)
+        with open(full_path, "r", encoding=encoding, errors="replace") as file:
             source = file.read()
         # Remove placeholder that interferes with AST parsing
         source = source.replace("None = 'none'", "")
@@ -254,109 +358,95 @@ class ModuleAnalyzer:
         source = source.replace("${ext_name}Extension", "ExtNameExtension")
         source = source.replace("${python_module}", "python_module")
         source = _replace_colons_outside_brackets(source)
-        parsed_source = ast.parse(source)
+        try:
+            parsed_source = ast.parse(source)
+        except SyntaxError as e:
+            print(f"Syntax error in {full_path}: {e}")
+            return
 
         collector = CodeAtlasCollector(full_module_name, source.splitlines(keepends=True))
         collector.visit(parsed_source)
 
         if collector.equivalent_modules:
-            module_info.equivelant_modules = collector.equivalent_modules
+            module_info.equivalent_modules += collector.equivalent_modules
 
-        for wildcard_import in collector.wildcarts_modules:
-            # resolved_name = ModuleResolver.get_full_module_name(wildcard_import, full_module_name, is_root)
-            resolved_path = ModuleResolver.get_module_path(wildcard_import, full_path, is_root)
-            if resolved_path:
-                # TODO: It should be a recursive call to process_module
-                with open(resolved_path, "r", encoding="utf-8", errors="replace") as file:
-                    source = file.read()
+        is_init_file = full_path.endswith("__init__.py") or full_path.endswith("__init__.pyi")
 
-                # Remove placeholder that interferes with AST parsing
-                source = source.replace("None = 'none'", "")
-                source = source.replace("None:", "NONE:")
-                source = source.replace("${ext_name}Extension", "ExtNameExtension")
-                source = source.replace("${python_module}", "python_module")
-                source = _replace_colons_outside_brackets(source)
-                parsed_source = ast.parse(source)
-
-                sub_collector = CodeAtlasCollector(full_module_name, source.splitlines(keepends=True))
-                sub_collector.visit(parsed_source)
-
-                collector.classes += sub_collector.classes
-                collector.methods += sub_collector.methods
-
-        resolver = ModuleResolver()
-        # Resolve full module names and paths for each collected import
-        for import_name in collector.collected_modules:
-            resolved_name = resolver.get_full_module_name(import_name, full_module_name, is_root)
+        def _process_collected_module(import_name: str, is_root: bool):
+            resolver = ModuleResolver()
+            # Fix for subpackage imports not being resolved correctly. Example:
+            # omni.foo
+            # __init__.py
+            # impl\
+            #   __init__.py
+            #   bar.py
+            # omni.foo.impl.bar should be resolved as omni.foo.impl.bar, not omni.foo.bar.
+            resolved_name = resolver.get_full_module_name(import_name, full_module_name, is_init_file)
             resolved_path = resolver.get_module_path(import_name, full_path, is_root)
             # Process further if the import corresponds to a module that has a found path
             if resolved_path:
                 self.process_module(resolved_path, resolved_name, is_root=False)
+                return resolved_name
+            return None
 
-        # Updated to include the class names in the module info
-        module_info.class_names = [class_info.name for class_info in collector.classes]
+        for wildcard_import in collector.wildcarts_modules:
+            resolved_name = _process_collected_module(wildcard_import, is_root)
+            if resolved_name:
+                module_info.equivalent_modules.append(resolved_name)
+
+        for import_name in collector.collected_modules:
+            _process_collected_module(import_name, is_root)
+
+        module_name_length = len(module_info.full_name.split("."))
+
+        # Updated to include the class and method names in the module info, exclude classes and methods that are nested in other classes
+        module_info.class_names = [class_info.name for class_info in collector.classes if len(class_info.full_name.split(".")) == module_name_length + 1]
+        module_info.function_names = [method_info.name for method_info in collector.methods if len(method_info.full_name.split(".")) == module_name_length + 1]
 
         # Store classes found in this module
         self.found_classes.extend(collector.classes)
         # Store methods found in this module
         self.found_methods.extend(collector.methods)
 
-        # process all publicly exposed classes and methods in the module if the module is a root module
-        if is_root_module:
-            self.process_publicly_exposed(parsed_source, full_module_name, module_info, collector.imports.keys())
+        self._collect_object_references(collector, module_info, is_init_file)
 
-    def process_publicly_exposed(self, parsed_source: ast.Module, full_module_name: str, module_info: CodeAtlasModuleInfo, imports: List[str]):
-        '''Processes all publicly exposed classes and methods in the module via imports and the __all__ variable, and creates copies of them in the higher-level extension module''' 
+    def _collect_object_references(self, collector: CodeAtlasCollector, module_info: CodeAtlasModuleInfo, is_init_file: bool):
+        """Collects the object references of the current module."""
+        module_object_map = {}
 
-        # Find elements assigned to the __all__ variable in the module
-        all_var_elements = None
-        for node in ast.walk(parsed_source):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "__all__":
-                all_var_elements = [ast.literal_eval(node) for node in node.value.elts]
-                break
-        
-        if all_var_elements:
-            elements = all_var_elements
-        elif imports:
-            elements = imports
-        else:
-            return
-
-        # create dictionaries of self.found_modules, self.found_classes, and self.found_methods to be more easily searchable for helper functions
-        current_modules = {module.full_name: module for module in self.found_modules}
-        current_classes = {class_info.full_name: class_info for class_info in self.found_classes}
-        current_methods = {method.full_name: method for method in self.found_methods}
- 
-        # list to hold the new classes and functions created from the __all__ variable in __init__.py
-        new_direct_class_names = []
-        new_direct_function_names = []
-    
-        # iterate through the __all__ variable's values, and for each value, find the corresponding method/class/module, and create a copy and add it in this higher-level extension module
-        for val in elements:
-            if not isinstance(val, str):
+        for equiv_module_name in module_info.equivalent_modules:
+            equiv_module_info = self.visited_modules.get(equiv_module_name)
+            if equiv_module_info is None:
                 continue
-            existing_class = next((c for c in self.found_classes if val == c.name), None)
-            if existing_class:
-                new_direct_class_names.append(val)
-                _process_equivalent_class(existing_class, full_module_name, val, current_classes, current_methods)
-            else:
-                existing_method = next((m for m in self.found_methods if val == m.name), None)
-                if existing_method:
-                    new_direct_function_names.append(val)
-                    _process_equivalent_method(existing_method, full_module_name, None, val, current_methods)
-                else:
-                    existing_module = next((m for m in self.found_modules if val == m.name), None)
-                    if existing_module:
-                        _process_equivalent_module(existing_module, f"{full_module_name}.{val}", current_modules, current_classes, current_methods)
-                    else:
-                        print(f"value in variable __all__ ({val}) not found in found_classes, found_methods, or found_modules of {full_module_name}")
-        
-        # add the new_direct_classes to the module_info
-        module_info.class_names += [class_name for class_name in new_direct_class_names if class_name not in module_info.class_names]
-        module_info.function_names += [function_name for function_name in new_direct_function_names if function_name not in module_info.function_names]
-        current_modules[full_module_name] = module_info
 
-        # update our self.found_* Lists with the new values created from the __all__ variable
-        self.found_modules = list(current_modules.values())
-        self.found_classes = list(current_classes.values())
-        self.found_methods = list(current_methods.values())
+            for class_name in equiv_module_info.class_names:
+                module_object_map[class_name] = _ModuleObject(equiv_module_name, class_name)
+            for function_name in equiv_module_info.function_names:
+                module_object_map[function_name] = _ModuleObject(equiv_module_name, function_name)
+
+            for object_name in self.module_objects.get(equiv_module_name, []):
+                module_object_map[object_name] = _ModuleObject(equiv_module_name, object_name)
+
+        for import_alias, import_full_name in collector.imports.items():
+            if import_full_name.startswith("."):
+                import_module_name, import_object_name = import_full_name.rsplit(".", 1)
+                resolved_module_name = ModuleResolver.get_full_module_name(import_module_name, module_info.full_name, is_init_file)
+                module_object_map[import_alias] = _ModuleObject(resolved_module_name, import_object_name)
+            #else:
+            #    module_object_map[(module_info.full_name, import_alias)] = (import_full_name, import_full_name)
+
+        if collector.all_attribute_list is not None:
+            new_module_object_map = {
+                object_name: mapped_object_name
+                for object_name, mapped_object_name in module_object_map.items()
+                if object_name in collector.all_attribute_list
+            }
+            module_object_map = new_module_object_map
+
+        for object_name, mapped_object_name in module_object_map.items():
+            object_list = self.object_references.get(mapped_object_name)
+            if object_list is not None:
+                object_list.append(_ModuleObject(module_info.full_name, object_name))
+            else:
+                self.object_references[mapped_object_name] = [_ModuleObject(module_info.full_name, object_name)]
+        self.module_objects[module_info.full_name] = list(module_object_map.keys())

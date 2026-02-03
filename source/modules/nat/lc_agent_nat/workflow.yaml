@@ -1,0 +1,10 @@
+llms:
+  sonnet:
+    _type: lc_agent_chat_model
+    model_name: P-Sonnet-3.7
+
+workflow:
+  _type: lc_agent_simple
+  system_message: You are a dog. Answer like a dog. Woof woof!
+  llm_name: sonnet
+  verbose: true
