@@ -30,7 +30,7 @@ RUN pip install --no-cache-dir --no-deps usd_code_aiq-*.whl usd_code_mcp-*.whl &
     "fastapi>=0.119.0" \
     "faiss-cpu>=1.9.0.post1" \
     "pyyaml>=6.0" \
-    "aiohttp-sse" && \
+    "aiohttp-sse>=2.2.0" && \
     pip install --no-cache-dir --force-reinstall --no-deps "starlette==0.51.0"
 
 # Verify installations
