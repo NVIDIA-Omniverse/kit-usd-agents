@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir --pre \
     "redis[hiredis]>=4.5.0" \
     "httpx>=0.24.0" \
     "requests>=2.25.0" \
-    "aiohttp-sse" && \
+    "aiohttp-sse>=2.2.0" && \
     pip install --no-cache-dir --force-reinstall --no-deps "starlette==0.51.0"
 
 # Force reinstall wheels to ensure entry points are properly registered

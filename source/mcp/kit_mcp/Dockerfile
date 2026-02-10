@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir --no-deps kit_fns-*.whl kit_mcp-*.whl && \
     "httpx>=0.24.0" \
     "requests>=2.25.0" \
     "redis[hiredis]>=4.5.0" \
-    "aiohttp-sse" && \
+    "aiohttp-sse>=2.2.0" && \
     pip install --no-cache-dir --force-reinstall --no-deps "starlette==0.51.0"
 
 # Verify installations
