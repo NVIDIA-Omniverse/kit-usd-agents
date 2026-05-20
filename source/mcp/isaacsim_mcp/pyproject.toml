@@ -1,0 +1,103 @@
+[tool.poetry]
+name = "isaacsim-mcp"
+version = "2.0.0"
+description = "Isaac Sim MCP server for NVIDIA Omniverse Isaac Sim development - exposes Isaac Sim AIQ functions via Model Context Protocol"
+authors = ["NVIDIA Omniverse"]
+readme = "README.md"
+homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+documentation = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
+keywords = ["isaac", "sim", "omniverse", "ai", "tools", "code-generation", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [{include = "isaacsim_mcp", from = "src"}]
+include = [
+    "workflows/config.yaml",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+# NAT dependencies - allow pre-releases
+nvidia-nat = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-langchain = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-opentelemetry = {version = ">=1.4.0rc3", allow-prereleases = true}
+nvidia-nat-mcp = {version = ">=1.4.0rc3", allow-prereleases = true}
+# Isaac Sim functions package
+isaacsim-fns = {path = "../../../source/aiq/isaacsim_fns", develop = true}
+# MCP server dependencies
+# Required by check_mcp_health.py
+aiohttp = ">=3.9.2,<4.0.0"
+# Configuration support
+pyyaml = ">=6.0"
+# LangChain dependencies
+langchain = ">=1.2.6"
+langchain-core = ">=1.2.22"
+langchain-community = ">=0.3.31"
+langchain-milvus = ">=0.3.3"
+langchain-nvidia-ai-endpoints = ">=1.0.2"
+langchain-tavily = ">=0.2.17"
+urllib3 = ">=2.6.3"
+# Transitive dependencies
+langgraph-checkpoint = ">=4.0.0"
+filelock = ">=3.20.3"
+marshmallow = ">=3.26.2"
+grpcio = ">=1.76.0"
+python-multipart = "0.0.22"
+# Security overrides for vulnerable transitive dependencies.
+# These are not directly imported by this package; they're pulled in via nvidia-nat /
+# maas-sdk / fastapi / langchain-*. Floors ensure the resolver picks patched versions.
+authlib = ">=1.6.9"
+cryptography = ">=46.0.5"
+litellm = ">=1.83.0"
+orjson = ">=3.11.6"
+protobuf = ">=6.33.5"
+pyjwt = ">=2.12.0"
+ragas = {version = ">=0.3.0rc1", allow-prereleases = true}
+starlette = ">=0.49.1,<0.51.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+pytest-asyncio = "^0.21.0"
+black = ">=26.3.1,<27.0.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
+
+# MCP server only - functions are now in isaacsim-fns package
+
+[tool.poetry.scripts]
+isaacsim-mcp = "isaacsim_mcp.__main__:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 120
+ignore = ["E501", "W503"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=isaacsim_mcp --cov-report=term-missing"

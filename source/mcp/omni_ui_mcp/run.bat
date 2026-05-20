@@ -46,6 +46,7 @@ set MCP_PORT=9901
 
 REM Display startup information
 echo Starting OmniUI MCP Server...
+echo Config: workflow/config.yaml
 echo Port: %MCP_PORT%
 echo Development mode: ENABLED
 echo.

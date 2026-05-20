@@ -2,7 +2,7 @@
 name = "omni-ui-fns"
 version = "0.6.0"
 description = "OmniUI functions for NVIDIA Omniverse - providing OmniUI class information, documentation, and code examples (NAT-compatible)"
-authors = ["Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>"]
+authors = ["NVIDIA Omniverse"]
 readme = "README.md"
 homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
 repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
@@ -104,3 +104,4 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=omni_ui_fns --cov-report=term-missing"
+asyncio_mode = "auto"

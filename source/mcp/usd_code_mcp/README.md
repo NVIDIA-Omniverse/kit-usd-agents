@@ -1,515 +1,99 @@
-
-
 # USD Code MCP Server
 
-A Model Context Protocol (MCP) server implementation providing comprehensive USD/OpenUSD API information and development tools, built using NAT (NeMo Agent Toolkit) 1.3+.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI coding assistants deep knowledge of the USD/OpenUSD API — modules, classes, methods, and code examples — powered by semantic search and NVIDIA AI reranking.
 
-## Overview
+Built on the [NVIDIA AIQ Toolkit](https://github.com/NVIDIA/GenerativeAIExamples) (formerly NeMo Agent Toolkit / NAT 1.3+).
 
-This MCP server provides intelligent assistance for USD/OpenUSD developers by offering access to the USD Atlas database, code examples, and knowledge retrieval. The server exposes 7 specialized tools for comprehensive USD development support.
+---
 
-## Features
+## 5-Minute Quickstart
 
-### Core API Functions
-
-- **list_usd_modules**: Lists all USD modules from the Atlas database
-- **list_usd_classes**: Returns all USD class names with optional module filtering
-- **get_usd_module_detail**: Provides detailed information about specific modules
-- **get_usd_class_detail**: Shows comprehensive class information including methods and documentation
-- **get_usd_method_detail**: Returns detailed method signatures, parameters, and documentation
-- **search_usd_code_examples**: Retrieves relevant USD code examples using semantic search with reranking
-- **search_usd_knowledge**: Searches USD documentation and knowledge base using semantic search
-
-### Additional Features
-
-- **Atlas Database**: Complete USD API coverage with class hierarchy and documentation
-- **Code Examples**: Semantic search through USD code examples with FAISS indexing
-- **Knowledge Base**: Comprehensive USD documentation with semantic search
-- **Fuzzy Matching**: Intelligent name matching for partial queries
-- **AIQ Integration**: Built using the AIQ toolkit for robust MCP server functionality
-- **Docker Support**: Complete containerization setup for easy deployment
-- **Usage Logging**: Built-in analytics and usage tracking
-- **Error Handling**: Comprehensive error handling and logging
-- **Reranking Support**: NVIDIA AI reranking for improved search results
-
-## Quick Start
-
-### TL;DR - Local Development
-
-**Windows:**
-```cmd
-setup-dev.bat    # Run once to set up environment
-run.bat    # Run to start server
-```
-
-**Linux/macOS:**
-```bash
-./setup-dev.sh  # Run once to set up environment
-./run.sh  # Run to start server
-```
-
-The server will be available at `http://localhost:9903`
+Get from zero to working USD tools in your IDE. Follow every step in order.
 
 ### Prerequisites
 
-- Python 3.11+
-- Poetry (for development)
-- Docker (for containerized deployment)
-- NVIDIA API Key (for embeddings and reranking via NVIDIA API)
-- OR: GPUs with NIM containers (for local embeddings and reranking)
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+- An NVIDIA API key (see Step 1 below)
+- [Git LFS](https://git-lfs.com/) installed — the FAISS indices and USD knowledge data under `source/aiq/*/data/` are LFS-tracked. `build-wheels.sh` auto-runs `git lfs install --local && git lfs pull` for you on the first build, so you only need the binary on PATH (`sudo apt-get install git-lfs` or `brew install git-lfs`). Without LFS, the wheel ends up ~13× smaller and the container silently fails at first tool call with `Extension data is not available` — auto-recovery in `build-wheels.sh` catches this.
+- The repo cloned: `git clone https://github.com/NVIDIA-Omniverse/kit-usd-agents.git`
 
----
+### Step 1: Get Your API Key
 
-## Deployment Options
+You need **one** key to use the cloud deployment (recommended for getting started).
 
-There are **two main deployment options** for embedding and reranking services:
+| Key | What It's For | Where to Get It |
+|-----|---------------|-----------------|
+| `NVIDIA_API_KEY` | Authenticates calls to NVIDIA's cloud endpoints for embeddings, reranking, and LLM inference | [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — sign in, click **Generate API Key**, copy the `nvapi-...` value |
 
-| Option | GPU Required | Best For |
-|--------|--------------|----------|
-| **NVIDIA API** | No | Getting started, cloud deployment |
-| **Local NIMs** | Yes (1-2 GPUs) | Production, data privacy, no rate limits |
+> **Note:** A second key (`NGC_API_KEY` from [org.ngc.nvidia.com/setup/api-key](https://org.ngc.nvidia.com/setup/api-key)) is only required if you plan to run embedder/reranker models locally via NVIDIA NIM containers — see [Deployment Options](#deployment-options) below. The cloud quickstart needs only `NVIDIA_API_KEY`.
 
----
-
-## Option 1: NVIDIA API Deployment (Easiest - No GPU Required)
-
-Uses NVIDIA's cloud endpoints for embeddings and reranking. Best for getting started quickly.
-
-### Step-by-Step Setup
-
-#### Step 1: Configure Environment
-
-1. Go to [build.nvidia.com](https://build.nvidia.com) and generate an API key
-2. Copy the environment template and add your key:
+### Step 2: Configure Your `.env`
 
 ```bash
-cd source/mcp
+cd kit-usd-agents/source/mcp
+
+# Create your .env file from the template
 cp .env.example .env
-# Edit .env and set NVIDIA_API_KEY=your_api_key_here
 ```
 
-> **Note**: For local development (not Docker), you can alternatively export the variable directly:
-> ```bash
-> export NVIDIA_API_KEY=your_api_key_here
-> ```
+Open `.env` and set:
 
-#### Step 2: Set Up Development Environment
-
-**Windows:**
-```cmd
-cd source\mcp\usd_code_mcp
-setup-dev.bat
+```env
+NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
 ```
 
-**Linux/macOS:**
-```bash
-cd source/mcp/usd_code_mcp
-./setup-dev.sh
-```
-
-This will:
-- Check for Python 3.11+ and Poetry installation
-- Install Poetry if not available
-- Configure Poetry to use local virtual environment
-- Install all project dependencies
-
-#### Step 3: Run the Server
-
-**Windows:**
-```cmd
-run.bat
-```
-
-**Linux/macOS:**
-```bash
-./run.sh
-```
-
-The server will be available at: `http://localhost:9903/mcp`
-
-### Docker Deployment (NVIDIA API)
-
-#### Step 1: Configure Environment
-
-Ensure your `.env` file is set up in the `source/mcp` directory:
+### Step 3: Build and Run the Docker Container
 
 ```bash
-cd source/mcp
-cp .env.example .env
-# Edit .env and set NVIDIA_API_KEY=nvapi-xxxxx
-```
+cd usd_code_mcp
 
-#### Step 2: Run with Docker Compose (Recommended)
+# Build the image
+./build-docker.sh        # Linux/macOS
+# build-docker.bat       # Windows
 
-```bash
-cd source/mcp
-docker compose -f docker-compose.ngc.yaml up usd-code-mcp --build
-```
-
-#### Alternative: Build and Run Individual Container
-
-```bash
-cd source/mcp/usd_code_mcp
-./build-docker.sh    # Linux/macOS
-# or
-build-docker.bat     # Windows
-
-# Run container (ensure .env is configured)
+# Run the server (note --env-file points to ../.env, one level up)
 docker run --rm -p 9903:9903 --env-file ../.env usd-code-mcp:latest
 ```
 
-The server will start on port 9903.
+> **`.env` location matters.** The `--env-file ../.env` flag is relative to your current directory. Run the `docker run` command from `source/mcp/usd_code_mcp/` (where you `cd`-ed in this step) so `../.env` resolves to `source/mcp/.env`. If you `cd` somewhere else, use an absolute path: `--env-file "$(git rev-parse --show-toplevel)/source/mcp/.env"`.
 
----
+### Step 4: Verify the Server is Running
 
-## Option 2: Local Deployment with Local Embedder/Reranker (GPU Required)
+The server speaks Streamable HTTP at `/mcp` (the canonical endpoint in NAT 1.25). There is **no separate `/health` GET endpoint**; the canonical liveness probe is an MCP `initialize` POST.
 
-Run embedder and reranker models locally using NVIDIA NIM containers. Better for production, data privacy, and avoiding API rate limits.
+> **Trailing slash:** older NAT 1.3 builds required `/mcp/`. NAT 1.25 returns `307 Temporary Redirect` from `/mcp/` to `/mcp`, so both work — but using `/mcp` directly avoids a redirect on every call. If you keep the trailing slash, pass `-L` to curl.
 
-### Prerequisites for Local Deployment
-
-- **1-2 NVIDIA GPUs** (or 1 GPU with sufficient VRAM for both NIMs)
-- **NGC API Key** for pulling NIM images
-- **Docker with NVIDIA Container Toolkit**
-- **NVIDIA API Key** (still needed for the LLM)
-
-### Step-by-Step Setup
-
-#### Step 1: Get Required API Keys
-
-1. **NVIDIA API Key**: Go to [build.nvidia.com](https://build.nvidia.com) and generate a key
-2. **NGC API Key**: Go to [ngc.nvidia.com](https://ngc.nvidia.com) and generate a key
-
-#### Step 2: Configure Environment
+In a new terminal:
 
 ```bash
-cd source/mcp
-cp .env.example .env
-# Edit .env and set both keys:
-# NVIDIA_API_KEY=nvapi-xxxxx
-# NGC_API_KEY=your_ngc_key
+# Easiest: use the included Python health check (already in the repo)
+python check_mcp_health.py
+
+# Or curl the MCP endpoint directly. The Accept header is required —
+# NAT 1.4 streams the response as text/event-stream and returns 406
+# without it.
+curl -s -X POST http://localhost:9903/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"health","version":"1.0"}}}'
 ```
 
-#### Step 3: Login to NGC Docker Registry
+A healthy server returns a JSON-RPC `result` payload listing the server's name and capabilities.
 
-```bash
-source .env  # Load environment variables
-docker login nvcr.io -u '$oauthtoken' -p $NGC_API_KEY
-```
+> **Troubleshooting:** If you get `connection refused`, make sure the Docker container is still running (`docker ps`). If the response has a JSON-RPC `error` mentioning auth, double-check `NVIDIA_API_KEY` in `.env`.
 
-#### Step 4: Build Wheels (Required for Docker)
+### Step 5: Connect Your IDE
 
-From the `source/mcp` directory:
+Pick your IDE; configs all point at the same URL: `http://localhost:9903/mcp`.
 
-**Linux/macOS:**
-```bash
-cd source/mcp
-./build-wheels.sh usd
-```
+> **MCP scoping note (Claude Code):** `claude mcp add ... -t http <url>` writes to `.claude.json` in your **current working directory**. The MCP is then only active when you launch Claude CLI from that directory. To register globally, pass `--scope user`. This same caveat applies to all the MCPs in this repo.
 
-**Windows:**
-```cmd
-cd source\mcp
-build-wheels.bat usd
-```
+<details>
+<summary><strong>Cursor</strong></summary>
 
-#### Step 5: Start All Services with Docker Compose
+Create `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` for global access):
 
-```bash
-cd source/mcp
-docker compose -f docker-compose.local.yaml up --build
-```
-
-This starts:
-- **Embedder NIM** on port 8001
-- **Reranker NIM** on port 8002
-- **USD Code MCP Server** on port 9903
-
-#### Step 6: Verify Services
-
-Wait 1-2 minutes for NIM containers to load models, then:
-
-```bash
-# Check embedder health
-curl http://localhost:8001/v1/health
-
-# Check reranker health
-curl http://localhost:8002/v1/health
-
-# Check MCP server
-curl http://localhost:9903/health
-```
-
-### Using Existing External Embedder/Reranker
-
-If you already have embedder and reranker services running elsewhere:
-
-```bash
-export KIT_EMBEDDER_BACKEND=local
-export KIT_LOCAL_EMBEDDER_URL=http://your-embedder-host:8000
-export KIT_RERANKER_BACKEND=local
-export KIT_LOCAL_RERANKER_URL=http://your-reranker-host:8000
-export NVIDIA_API_KEY=your_key  # Still needed for LLM
-
-# Then run the MCP server
-./run.sh
-# or
-docker run -p 9903:9903 \
-  -e NVIDIA_API_KEY=$NVIDIA_API_KEY \
-  -e KIT_EMBEDDER_BACKEND=local \
-  -e KIT_LOCAL_EMBEDDER_URL=$KIT_LOCAL_EMBEDDER_URL \
-  -e KIT_RERANKER_BACKEND=local \
-  -e KIT_LOCAL_RERANKER_URL=$KIT_LOCAL_RERANKER_URL \
-  usd-code-mcp:latest
-```
-
-See the **[Local Deployment Guide](../LOCAL_DEPLOYMENT.md)** for more details.
-
----
-
-## Configuration
-
-The server uses `workflow/config.yaml` for production and `workflow/local_config.yaml` for development:
-
-```yaml
-llms:
-  nim_llm:
-    _type: nim
-    model_name: meta/llama-3.1-70b-instruct
-    temperature: 0.0
-    max_tokens: 16384
-
-functions:
-  search_usd_code_examples:
-    _type: omni_aiq_usd_code/search_usd_code_examples
-    verbose: false
-    enable_rerank: true
-    rerank_k: 10
-
-  search_usd_knowledge:
-    _type: omni_aiq_usd_code/search_usd_knowledge
-    verbose: false
-    enable_rerank: true
-    rerank_k: 10
-
-  list_usd_modules:
-    _type: omni_aiq_usd_code/list_usd_modules
-    verbose: false
-
-  list_usd_classes:
-    _type: omni_aiq_usd_code/list_usd_classes
-    verbose: false
-
-  get_usd_module_detail:
-    _type: omni_aiq_usd_code/get_usd_module_detail
-    verbose: false
-
-  get_usd_class_detail:
-    _type: omni_aiq_usd_code/get_usd_class_detail
-    verbose: false
-
-  get_usd_method_detail:
-    _type: omni_aiq_usd_code/get_usd_method_detail
-    verbose: false
-```
-
-## Available Tools
-
-### list_usd_modules
-
-Lists all USD modules from the Atlas database.
-
-**Parameters**: None
-
-**Returns**:
 ```json
-{
-  "module_names": ["Usd", "UsdGeom", "UsdShade", ...],
-  "total_count": 30,
-  "description": "USD modules from Atlas data"
-}
-```
-
-### list_usd_classes
-
-Returns all USD class names, optionally filtered by module.
-
-**Parameters**:
-- `module_name` (string, optional): Filter classes by module name
-
-**Returns**:
-```json
-{
-  "class_full_names": ["UsdStage", "UsdPrim", "UsdAttribute", ...],
-  "total_count": 200,
-  "description": "USD classes from Atlas data"
-}
-```
-
-### get_usd_module_detail
-
-Provides detailed information about a specific USD module.
-
-**Parameters**:
-- `module_name` (string): Name of the module (supports partial matching)
-
-**Returns**: Module details including classes, functions, and documentation
-
-### get_usd_class_detail
-
-Shows comprehensive class information.
-
-**Parameters**:
-- `class_name` (string): Name of the class (supports partial matching)
-
-**Returns**: Detailed class information including methods, parent classes, and documentation
-
-### get_usd_method_detail
-
-Returns detailed method information.
-
-**Parameters**:
-- `method_name` (string): Name of the method (supports partial matching)
-
-**Returns**: Method signature, parameters, return type, and documentation
-
-### search_usd_code_examples
-
-Retrieves relevant USD code examples using semantic search with optional reranking.
-
-**Parameters**:
-- `query` (string): Natural language search query describing what you're looking for
-- `top_k` (integer, optional): Number of results to return (default: 5)
-
-**Returns**: Formatted markdown with relevant code examples and explanations
-
-**Example**:
-```
-search_usd_code_examples query="create a sphere primitive"
-search_usd_code_examples query="how to apply materials" top_k=3
-```
-
-### search_usd_knowledge
-
-Searches USD documentation and knowledge base using semantic search.
-
-**Parameters**:
-- `query` (string): Natural language search query
-- `top_k` (integer, optional): Number of results to return (default: 5)
-
-**Returns**: Formatted markdown with relevant documentation
-
-**Example**:
-```
-search_usd_knowledge query="what are variants in USD"
-search_usd_knowledge query="composition arcs explained"
-```
-
-## Usage Examples
-
-```
-# Get all available modules
-list_usd_modules
-
-# Get all USD classes
-list_usd_classes
-
-# Get classes from a specific module
-list_usd_classes module_name="UsdGeom"
-
-# Get detailed information about a module
-get_usd_module_detail module_name="UsdGeom"
-
-# Get detailed information about a class
-get_usd_class_detail class_name="UsdGeomMesh"
-
-# Look up method details
-get_usd_method_detail method_name="GetPointsAttr"
-
-# Search for code examples
-search_usd_code_examples query="create a stage and add primitives"
-
-# Search knowledge base
-search_usd_knowledge query="how do I use layer offsets"
-```
-
-## Architecture
-
-The project follows the AIQ toolkit patterns:
-
-```
-source/mcp/usd_code_mcp/
-├── VERSION.md                           # Version file
-├── README.md                            # This file
-├── pyproject.toml                       # Poetry configuration
-├── Dockerfile                           # Docker configuration
-├── check_mcp_health.py                  # Health check script
-├── setup-dev.sh / setup-dev.bat         # Development setup scripts
-├── run.sh / run.bat         # Local run scripts
-├── build-docker.sh / build-docker.bat   # Docker build scripts
-├── workflow/
-│   ├── config.yaml                      # Production configuration
-│   └── local_config.yaml                # Development configuration
-└── src/
-    └── usd_code_mcp/
-        ├── __init__.py                  # Package initialization
-        └── __main__.py                  # Entry point for running the server
-```
-
-The actual USD functions are in `source/aiq/usd_code_fns/`:
-
-```
-source/aiq/usd_code_fns/
-└── src/omni_aiq_usd_code/
-    ├── functions/                       # Function implementations
-    │   ├── list_usd_modules.py
-    │   ├── list_usd_classes.py
-    │   ├── get_usd_module_detail.py
-    │   ├── get_usd_class_detail.py
-    │   ├── get_usd_method_detail.py
-    │   ├── search_usd_code_examples.py
-    │   └── search_usd_knowledge.py
-    ├── register_*.py                    # AIQ function registrations
-    ├── services/                        # Core services
-    │   ├── usd_atlas.py                # Atlas database service
-    │   ├── retrieval.py                # FAISS retrieval service
-    │   ├── reranking.py                # Reranking service
-    │   └── feedback.py                 # Feedback service
-    └── utils/                          # Utility functions
-        ├── fuzzy_matching.py
-        └── usage_logging_decorator.py
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MCP_PORT` | Server port | 9903 |
-| `NVIDIA_API_KEY` | Required for LLM and NVIDIA API embeddings/reranking | - |
-| `NGC_API_KEY` | Required for pulling NIM images (local deployment only) | - |
-| `KIT_EMBEDDER_BACKEND` | Embedder backend: `nvidia_api` or `local` | `nvidia_api` |
-| `KIT_LOCAL_EMBEDDER_URL` | Local embedder URL (when backend=local) | - |
-| `KIT_RERANKER_BACKEND` | Reranker backend: `nvidia_api` or `local` | `nvidia_api` |
-| `KIT_LOCAL_RERANKER_URL` | Local reranker URL (when backend=local) | - |
-
-## Port Allocation
-
-To avoid conflicts when running multiple MCP servers:
-- **omni-ui-mcp**: Port 9901
-- **kit-mcp**: Port 9902
-- **usd-code-mcp**: Port 9903
-- **isaacsim-mcp**: Port 9904
-
-## Integration with Cursor IDE
-
-Create a `.cursor/mcp.json` file in your **project/workspace root**:
-
-```bash
-# Create the .cursor directory if it doesn't exist
-mkdir -p .cursor
-
-# Create the MCP configuration
-cat > .cursor/mcp.json << 'EOF'
 {
   "mcpServers": {
     "usd-code-mcp": {
@@ -517,58 +101,236 @@ cat > .cursor/mcp.json << 'EOF'
     }
   }
 }
-EOF
 ```
 
-After creating the file, **reload Cursor** (Cmd/Ctrl+Shift+P → "Developer: Reload Window").
+Reload Cursor: `Cmd/Ctrl+Shift+P` → **Developer: Reload Window**
 
-> **Note:** NAT 1.3+ uses streamable-http at `/mcp` instead of SSE at `/sse`.
+</details>
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+Add the MCP server via the CLI (project scope):
+
+```bash
+claude mcp add usd-code-mcp -t http http://localhost:9903/mcp
+```
+
+For user (global) scope:
+
+```bash
+claude mcp add usd-code-mcp --scope user -t http http://localhost:9903/mcp
+```
+
+Or add it directly to your `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "usd-code-mcp": {
+      "type": "http",
+      "url": "http://localhost:9903/mcp"
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Windsurf</strong></summary>
+
+Create `~/.windsurf/mcp.json` (or in your project's `.windsurf/` folder):
+
+```json
+{
+  "mcpServers": {
+    "usd-code-mcp": {
+      "url": "http://localhost:9903/mcp"
+    }
+  }
+}
+```
+
+Restart Windsurf to pick up the new server.
+
+</details>
+
+<details>
+<summary><strong>VS Code (Copilot)</strong></summary>
+
+Add to your `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "usd-code-mcp": {
+      "type": "http",
+      "url": "http://localhost:9903/mcp"
+    }
+  }
+}
+```
+
+</details>
+
+### Step 6: Verify Tools Appear
+
+In your IDE's AI chat, you should see **7 USD tools** available:
+
+| Tool | Description |
+|------|-------------|
+| `list_usd_modules` | Lists all available USD module names |
+| `list_usd_classes` | Returns USD class names, optionally filtered by module |
+| `get_usd_module_detail` | Provides detailed information about a specific USD module |
+| `get_usd_class_detail` | Returns comprehensive details about a specific USD class |
+| `get_usd_method_detail` | Returns method signatures and documentation |
+| `search_usd_code_examples` | Retrieves relevant USD code examples via semantic search |
+| `search_usd_knowledge` | Searches the USD knowledge base for conceptual information |
+
+Try asking your AI assistant: *"List all USD modules related to geometry"* — if you get results, you're all set.
+
+---
+
+## Architecture Overview
+
+```
+┌──────────────────────┐
+│  Your IDE             │
+│  (Cursor / Claude     │
+│   Code / Windsurf /   │
+│   VS Code Copilot)    │
+└────────┬─────────────┘
+         │ MCP (Streamable HTTP, POST /mcp/)
+         ▼
+┌──────────────────────┐
+│  USD Code MCP Server  │ ← This package
+│  (port 9903)          │
+└────────┬─────────────┘
+         │ AIQ Workflow
+         ▼
+┌──────────────────────┐
+│  RAG Pipeline         │
+│  ┌────────────────┐  │
+│  │ Embedder       │  │  ← NVIDIA cloud or local NIM
+│  │ Reranker       │  │  ← NVIDIA cloud or local NIM
+│  └────────────────┘  │
+└────────┬─────────────┘
+         │
+         ▼
+┌──────────────────────┐
+│  USD Atlas Database   │  ← Modules, classes, methods,
+│                       │    code examples
+└──────────────────────┘
+```
+
+The server is built on **NVIDIA AIQ Toolkit** (formerly NeMo Agent Toolkit / NAT), which handles workflow orchestration and the plugin system. As an MCP consumer, you don't need to understand AIQ internals — it manages the RAG (Retrieval-Augmented Generation) pipeline that powers the 7 USD tools. Workflow YAMLs (`workflow/config.yaml`, `workflow/local_config.yaml`) wire the embedder, reranker, and USD Atlas database into the MCP tool surface.
+
+---
+
+## Deployment Options
+
+### Option A: Cloud Endpoints (Recommended)
+
+Uses NVIDIA's hosted cloud endpoints for embeddings and reranking. This is what the quickstart above uses — best for getting started quickly.
+
+**Required environment variables:**
+
+```env
+NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+```
+
+### Option B: Local NIM Containers (Advanced, GPU required)
+
+Runs embedder and reranker models locally using NVIDIA NIM containers. Better for production, data privacy, and avoiding cloud rate limits.
+
+**Required environment variables:**
+
+```env
+NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+NGC_API_KEY=your_ngc_key_here
+KIT_EMBEDDER_BACKEND=local
+KIT_LOCAL_EMBEDDER_URL=http://localhost:8080
+KIT_RERANKER_BACKEND=local
+KIT_LOCAL_RERANKER_URL=http://localhost:8081
+```
+
+> **Where to get your NGC API key:** Sign in at [org.ngc.nvidia.com/setup/api-key](https://org.ngc.nvidia.com/setup/api-key) → **Generate API Key**. This key authenticates access to NVIDIA's NGC container registry for pulling NIM model images.
+
+For the full local-NIM setup including `docker login nvcr.io`, wheel building, and the `docker-compose` flow that brings up MCP + embedder + reranker together, see [`source/mcp/LOCAL_DEPLOYMENT.md`](../LOCAL_DEPLOYMENT.md). Linked NIM docs: [docs.nvidia.com/nim](https://docs.nvidia.com/nim/).
+
+---
+
+## Project Structure
+
+```
+source/mcp/usd_code_mcp/
+├── VERSION.md                 # Version information
+├── README.md                  # This file
+├── pyproject.toml             # Poetry configuration and dependencies
+├── Dockerfile                 # Docker image configuration
+├── check_mcp_health.py        # MCP-initialize-based health probe
+├── setup-dev.sh / .bat        # Development environment setup
+├── run.sh / run.bat           # Local run scripts (non-Docker)
+├── build-docker.sh / .bat     # Docker image build scripts
+├── workflow/
+│   ├── config.yaml            # AIQ workflow config (cloud endpoints)
+│   └── local_config.yaml      # AIQ workflow config (local NIM)
+└── src/
+    └── usd_code_mcp/          # Server source code
+```
+
+---
 
 ## Troubleshooting
 
-### Common Issues
+| Problem | Likely Cause | Fix |
+|---------|-------------|-----|
+| `connection refused` on port 9903 | Docker container not running | `docker ps` to check; restart the container if needed |
+| `404` on `GET /health` | No `/health` GET endpoint exists in this server | Use `python check_mcp_health.py` or POST an MCP `initialize` to `/mcp` (see Step 4) |
+| `307 Temporary Redirect` on POST `/mcp/` | NAT 1.25 canonicalises to `/mcp`. `curl -f` (without `-L`) treats 307 as success, so a healthcheck never exercises the endpoint. | Drop the trailing slash, or pass `-L` to curl. The repo's Dockerfile and compose healthchecks both use `curl -fL ... /mcp`. |
+| `401 Unauthorized` / auth error from cloud calls | Invalid or expired `NVIDIA_API_KEY` | Regenerate at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) and update `.env` |
+| `--env-file: file not found` | Wrong cwd when invoking `docker run` | Run from `source/mcp/usd_code_mcp/`, or use absolute path: `--env-file "$(git rev-parse --show-toplevel)/source/mcp/.env"` |
+| Docker build fails pulling base image | Network/proxy issues | Check connectivity; configure Docker proxy if behind corporate firewall |
+| Port 9903 already in use | Another process on that port | `lsof -i :9903` (Linux/macOS) or `netstat -aon \| findstr 9903` (Windows); stop the process or remap: `-p 9904:9903` |
+| Tools not appearing in IDE | MCP config not loaded or wrong URL | Verify with `check_mcp_health.py`, check IDE's MCP config URL (use `/mcp` — trailing slash works too via 307 redirect), reload the IDE |
+| Claude CLI: `usd-code-mcp` missing from `claude mcp list` | `-t http` registered the MCP at project scope (writes `.claude.json` in cwd) | Re-add with `--scope user` for global, or always launch Claude CLI from the project root where you registered |
+| Rate limiting errors from cloud endpoints | Heavy usage | Wait and retry; for sustained load, switch to local NIM (Option B) |
 
-**"aiq command not found" error:**
-- Make sure all dependencies are installed: `poetry install`
-- Activate the virtual environment: `poetry shell`
-- Check that aiqtoolkit is properly installed: `poetry show aiqtoolkit`
-
-**"NVIDIA_API_KEY not set" error:**
-- Set your NVIDIA API key: `export NVIDIA_API_KEY=your_key`
-- Or add it to your environment configuration
-
-**Port already in use:**
-- Check if another service is using port 9903: `netstat -an | grep 9903`
-- Set a different port: `export MCP_PORT=9905`
-
-**NIM containers fail to start (Local Deployment):**
-- Install NVIDIA Container Toolkit: `sudo apt-get install -y nvidia-container-toolkit`
-- Restart Docker: `sudo systemctl restart docker`
-
-**NIM containers show unhealthy status:**
-- NIMs take 1-2 minutes to load models
-- Check logs: `docker logs mcp-embedder` or `docker logs mcp-reranker`
-
-**GPU memory issues:**
-- Check GPU usage: `nvidia-smi`
-- Try using 2 GPUs (one per NIM) instead of single GPU mode
+---
 
 ## Development
 
-### Building
+### Running Locally (Without Docker)
 
 ```bash
-poetry build
+# Set up the development environment
+./setup-dev.sh        # Linux/macOS
+# setup-dev.bat       # Windows
+
+# Run the server
+./run.sh              # Linux/macOS
+# run.bat             # Windows
 ```
 
-### Testing
+### Configuration Files
 
-```bash
-poetry run pytest
+- `workflow/config.yaml` — Cloud-endpoint workflow
+- `workflow/local_config.yaml` — Local-NIM workflow
+
+### `.kit`-config-file path for headless dev
+
+Working over SSH or in a CI environment without a desktop session? The MCP itself is purely an HTTP server — `./run.sh` works headlessly. For Kit-app-side extension installation that this MCP helps users discover, the GUI flow (Window → Extensions → search → install → AUTOLOAD) is not the only option: extensions can be added directly to your `.kit` config file under `[dependencies]`. Example:
+
+```toml
+[dependencies]
+"omni.physxclashdetection.bundle" = { version = "110.1.7" }
 ```
+
+The next `./repo.sh build` will pull the bundle into `extscache` automatically. This is the documented developer-path alternative for headless / SSH workflows.
+
+---
 
 ## License
 
-Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
-
-See LICENSE file in the repository root for details.
+See the [LICENSE](../../../LICENSE) file in the root of this repository.

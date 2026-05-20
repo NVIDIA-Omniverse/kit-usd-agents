@@ -2,7 +2,7 @@
 name = "usd-code-aiq"
 version = "0.3.0"
 description = "USD Code functions for USD/OpenUSD development - providing USD code examples, documentation, and knowledge retrieval (NAT-compatible)"
-authors = ["Nuttapong Chentanez <nchentanez@nvidia.com>"]
+authors = ["NVIDIA Omniverse"]
 readme = "README.md"
 homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
 repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
@@ -101,3 +101,4 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=omni_aiq_usd_code --cov-report=term-missing"
+asyncio_mode = "auto"

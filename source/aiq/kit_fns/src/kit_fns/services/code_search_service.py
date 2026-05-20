@@ -92,9 +92,9 @@ class CodeSearchService:
                 faiss_path = CODE_EXAMPLES_FAISS_PATHS.get(mode)
                 if faiss_path and faiss_path.exists():
                     try:
-                        self.code_vectorstore = FAISS.load_local(
-                            str(faiss_path), self.embedder, allow_dangerous_deserialization=True
-                        )
+                        from ..utils.faiss_safe import load_faiss_safe
+
+                        self.code_vectorstore = load_faiss_safe(str(faiss_path), self.embedder)
                         logger.info(f"Successfully loaded code examples FAISS index from {faiss_path} (mode: {mode})")
                         code_faiss_loaded = True
                         break
@@ -104,9 +104,9 @@ class CodeSearchService:
             # Try legacy path if no mode-based database found
             if not code_faiss_loaded and LEGACY_CODE_EXAMPLES_FAISS_PATH.exists():
                 try:
-                    self.code_vectorstore = FAISS.load_local(
-                        str(LEGACY_CODE_EXAMPLES_FAISS_PATH), self.embedder, allow_dangerous_deserialization=True
-                    )
+                    from ..utils.faiss_safe import load_faiss_safe
+
+                    self.code_vectorstore = load_faiss_safe(str(LEGACY_CODE_EXAMPLES_FAISS_PATH), self.embedder)
                     logger.info(
                         f"Successfully loaded code examples FAISS index from legacy path: {LEGACY_CODE_EXAMPLES_FAISS_PATH}"
                     )
@@ -123,9 +123,9 @@ class CodeSearchService:
                 faiss_path = CODE_EXAMPLES_FAISS_PATHS.get(mode)
                 if faiss_path and faiss_path.exists():
                     try:
-                        self.test_vectorstore = FAISS.load_local(
-                            str(faiss_path), self.embedder, allow_dangerous_deserialization=True
-                        )
+                        from ..utils.faiss_safe import load_faiss_safe
+
+                        self.test_vectorstore = load_faiss_safe(str(faiss_path), self.embedder)
                         logger.info(f"Successfully loaded test examples FAISS index from {faiss_path} (mode: {mode})")
                         test_faiss_loaded = True
                         break

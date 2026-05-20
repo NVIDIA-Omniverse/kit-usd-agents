@@ -81,10 +81,19 @@ echo
 echo "Configuring Poetry to use local virtual environment..."
 poetry config virtualenvs.in-project true
 
-# Install dependencies
+# Install dependencies. If the shipped poetry.lock is older than the current
+# pyproject.toml, ``poetry install`` will refuse with a "pyproject.toml changed
+# significantly..." error. Auto-recover by running ``poetry lock`` once and
+# retrying — this avoids forcing the user through a two-step manual flow
+#.
 echo
 echo "Installing dependencies..."
-poetry install
+if ! poetry install; then
+    echo
+    echo "poetry install failed (likely a stale lock file). Refreshing lock and retrying..."
+    poetry lock
+    poetry install
+fi
 
 # Create local directories if they don't exist
 mkdir -p logs

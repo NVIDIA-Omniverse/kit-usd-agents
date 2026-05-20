@@ -41,7 +41,7 @@ def test_load_app_templates():
 
     if not templates:
         print("[FAIL] No templates loaded")
-        return False
+        assert False, "No templates loaded"
 
     print(f"[OK] Loaded {len(templates)} templates")
 
@@ -59,12 +59,10 @@ def test_load_app_templates():
                     print(f"    [OK] Field '{field}': {template_data[field][:50]}...")
                 else:
                     print(f"    [FAIL] Missing field '{field}'")
-                    return False
+                    assert False, f"Template '{template_id}' missing field '{field}'"
         else:
             print(f"  [FAIL] Template '{template_id}' not found")
-            return False
-
-    return True
+            assert False, f"Template '{template_id}' not found"
 
 
 def test_calculate_relevance_score():
@@ -104,7 +102,7 @@ def test_calculate_relevance_score():
             print(f"[FAIL] {description}: '{query}' -> score {score:.3f} (expected >= {expected_min_score})")
             all_passed = False
 
-    return all_passed
+    assert all_passed, "Some relevance score tests failed"
 
 
 async def test_search_basic():
@@ -403,8 +401,19 @@ def main():
     test_results = []
 
     # Sync tests
-    test_results.append(("Load App Templates", test_load_app_templates()))
-    test_results.append(("Calculate Relevance Score", test_calculate_relevance_score()))
+    try:
+        test_load_app_templates()
+        test_results.append(("Load App Templates", True))
+    except AssertionError as e:
+        print(f"[FAIL] Load app templates test failed: {e}")
+        test_results.append(("Load App Templates", False))
+
+    try:
+        test_calculate_relevance_score()
+        test_results.append(("Calculate Relevance Score", True))
+    except AssertionError as e:
+        print(f"[FAIL] Calculate relevance score test failed: {e}")
+        test_results.append(("Calculate Relevance Score", False))
 
     # Async tests
     async_results = asyncio.run(run_async_tests())

@@ -23,9 +23,14 @@ echo "USD Code MCP Server - Local Development"
 echo "========================================"
 echo
 
-# Check if virtual environment exists
-if [ ! -d ".venv" ]; then
-    echo "ERROR: Virtual environment not found"
+# Check if Poetry's virtual environment exists. The earlier hard-coded
+# ``[ -d .venv ]`` check could fail even after a successful setup-dev.sh
+# when Poetry's global ``virtualenvs.in-project`` was false at install
+# time, or when Poetry 2.x picked a different venv location. Ask Poetry
+# where the venv actually lives.
+VENV_PATH=$(poetry env info --path 2>/dev/null || true)
+if [ -z "$VENV_PATH" ] || [ ! -d "$VENV_PATH" ]; then
+    echo "ERROR: Poetry virtual environment not found"
     echo "Please run ./setup-dev.sh first to set up the development environment"
     exit 1
 fi

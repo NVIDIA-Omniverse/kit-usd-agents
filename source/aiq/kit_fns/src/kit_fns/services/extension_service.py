@@ -75,10 +75,10 @@ class ExtensionService:
             # Create embedder using factory
             self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
 
-            # Load FAISS index
-            self.vectorstore = FAISS.load_local(
-                str(self.faiss_db_path), self.embedder, allow_dangerous_deserialization=True
-            )
+            # Load FAISS index via faiss_safe (JSON-backed metadata)
+            from ..utils.faiss_safe import load_faiss_safe
+
+            self.vectorstore = load_faiss_safe(str(self.faiss_db_path), self.embedder)
 
             logger.info(f"Successfully loaded FAISS index from {self.faiss_db_path}")
 

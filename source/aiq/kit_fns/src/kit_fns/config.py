@@ -22,9 +22,14 @@ from typing import Optional
 # Get the package directory
 PACKAGE_DIR = Path(__file__).parent
 
-# Kit version (defined early since paths depend on it)
+# Kit version (defined early since paths depend on it).
+# Default tracks the version of the data shipped under src/kit_fns/data/<version>/.
+# Bump in lockstep with each new index rebuild — otherwise the runtime loads a
+# stale FAISS index even when fresh data is on disk (e.g. the 110.1 rebuild that
+# closed the clash-detection coverage gap was inert until this
+# default moved off of "110.0").
 ENV_KIT_VERSION = "MCP_KIT_VERSION"
-KIT_VERSION = os.environ.get(ENV_KIT_VERSION, "109.0")
+KIT_VERSION = os.environ.get(ENV_KIT_VERSION, "110.1")
 
 # Data paths - relative to package directory
 DATA_DIR = PACKAGE_DIR / "data"

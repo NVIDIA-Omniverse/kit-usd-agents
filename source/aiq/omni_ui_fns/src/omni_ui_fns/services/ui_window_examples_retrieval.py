@@ -58,10 +58,11 @@ class UIWindowExamplesRetriever:
 
         if faiss_index_path and os.path.exists(faiss_index_path):
             try:
-                self.vectordb = FAISS.load_local(
+                from ..utils.faiss_safe import load_faiss_safe
+
+                self.vectordb = load_faiss_safe(
                     faiss_index_path,
                     self.embedder,
-                    allow_dangerous_deserialization=True,
                 )
                 self.retriever = self.vectordb.as_retriever(
                     search_type="similarity",
@@ -95,7 +96,6 @@ class UIWindowExamplesRetriever:
         logger.info(f"[DEBUG] Using k={k} for UI window examples search")
 
         try:
-            # Use invoke() instead of deprecated get_relevant_documents()
             return self.retriever.invoke(query)
         except Exception as e:
             logger.error(f"UI window examples search failed: {e}")

@@ -20,9 +20,10 @@
 # Services:
 #   - Embedder NIM: http://localhost:8001 (GPU 0)
 #   - Reranker NIM: http://localhost:8002 (GPU 1)
-#   - OmniUI MCP:   http://localhost:9901
-#   - Kit MCP:      http://localhost:9902
-#   - USD Code MCP: http://localhost:9903
+#   - OmniUI MCP:      http://localhost:9901
+#   - Kit MCP:         http://localhost:9902
+#   - USD Code MCP:    http://localhost:9903
+#   - Isaac Sim MCP:   http://localhost:9904
 #
 # To use existing external embedder/reranker instead of local NIMs:
 #   1. Comment out or remove the 'embedder' and 'reranker' services below
@@ -109,7 +110,7 @@ services:
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -139,7 +140,7 @@ services:
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -169,7 +170,37 @@ services:
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Isaac Sim MCP Server - Port 9904
+  isaacsim-mcp:
+    build:
+      context: ./isaacsim_mcp
+      dockerfile: Dockerfile
+    image: isaacsim-mcp:local
+    container_name: isaacsim-mcp
+    ports:
+      - "9904:9904"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - MCP_PORT=9904
+      - KIT_EMBEDDER_BACKEND=local
+      - KIT_LOCAL_EMBEDDER_URL=http://embedder:8000
+      - KIT_RERANKER_BACKEND=local
+      - KIT_LOCAL_RERANKER_URL=http://reranker:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      embedder:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9904/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3

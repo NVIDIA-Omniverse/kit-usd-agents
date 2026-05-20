@@ -7,6 +7,11 @@ Get the MCP servers running locally **without Docker** in minutes. This guide co
 - **Python 3.11+** (Python 3.12 recommended)
 - **Poetry** package manager
 - **NVIDIA API Key** (get one at [build.nvidia.com](https://build.nvidia.com))
+- **[Git LFS](https://git-lfs.com/)** — the FAISS indices and extension metadata under `source/aiq/*/data/` are LFS-tracked. A plain `git clone` without LFS leaves ~135-byte pointer stubs in their place; the MCP server will start cleanly but search tools fail at first invocation with `Extension data is not available`. Install once on Ubuntu/Debian with `sudo apt-get install git-lfs` (or `brew install git-lfs` on macOS). The Docker-build path (`source/mcp/build-wheels.sh`) auto-recovers from pointer stubs; the pure-Python path below does not, so after cloning run from the repo root:
+  ```bash
+  git lfs install
+  git lfs pull
+  ```
 
 ## Step 1: Clone and Setup
 
@@ -111,6 +116,24 @@ run.bat
 
 The server will start at `http://localhost:9901/mcp`
 
+### Isaac Sim MCP
+
+**Linux/macOS:**
+```bash
+cd isaacsim_mcp
+./setup-dev.sh
+./run.sh
+```
+
+**Windows:**
+```cmd
+cd isaacsim_mcp
+setup-dev.bat
+run.bat
+```
+
+The server will start at `http://localhost:9904/mcp`
+
 ## Step 4: Connect Your AI Client
 
 ### Cursor IDE
@@ -131,12 +154,16 @@ The server will start at `http://localhost:9901/mcp`
     "usd-code-mcp": {
       "type": "usd-code-mcp",
       "url": "http://localhost:9903/mcp"
+    },
+    "isaac-sim-mcp": {
+      "type": "isaac-sim-mcp",
+      "url": "http://localhost:9904/mcp"
     }
   }
 }
 ```
 
-2. **Enable the tools:** Go to Cursor Settings → Tools and MCPs. You should see the 3 MCPs - toggle to enable them.
+2. **Enable the tools:** Go to Cursor Settings → Tools and MCPs. You should see the 4 MCPs - toggle to enable them.
 
 
 ### Claude Code CLI
@@ -147,6 +174,7 @@ Add the MCP servers using the `claude mcp add` command:
 claude mcp add --transport http omni-ui-mcp http://localhost:9901/mcp
 claude mcp add --transport http kit-mcp http://localhost:9902/mcp
 claude mcp add --transport http usd-code-mcp http://localhost:9903/mcp
+claude mcp add --transport http isaac-sim-mcp http://localhost:9904/mcp
 ```
 
 Test with Claude Code:
@@ -161,6 +189,7 @@ claude "Using the usd-code-mcp tools, list all USD modules available"
 | OmniUI MCP | 9901 | http://localhost:9901/mcp |
 | Kit MCP | 9902 | http://localhost:9902/mcp |
 | USD Code MCP | 9903 | http://localhost:9903/mcp |
+| Isaac Sim MCP | 9904 | http://localhost:9904/mcp |
 
 ## Troubleshooting
 

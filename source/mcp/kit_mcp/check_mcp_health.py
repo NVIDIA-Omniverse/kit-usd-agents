@@ -55,7 +55,12 @@ async def check_mcp_endpoint(port: int = 9902, timeout: int = 5) -> bool:
                     "clientInfo": {"name": "health-check", "version": "1.0.0"},
                 },
             }
-            async with session.post(url, json=mcp_init) as response:
+            # NAT 1.4 streamable-http rejects POST /mcp without the SSE Accept
+            # header (returns 406). The endpoint streams the response back as
+            # text/event-stream, so the client must advertise willingness to
+            # receive it.
+            headers = {"Accept": "application/json, text/event-stream"}
+            async with session.post(url, json=mcp_init, headers=headers) as response:
                 if response.status == 200:
                     # Check if we get a valid JSON-RPC response
                     try:
@@ -127,11 +132,13 @@ async def main() -> int:
     # Try primary /mcp/ endpoint first (NAT 1.3+)
     mcp_ok = await check_mcp_endpoint(port)
     if mcp_ok:
+        print(f"OK: MCP server healthy on port {port}")
         return 0
 
     # Fallback to describe endpoint for older versions
     describe_ok = await check_mcp_describe(port)
     if describe_ok:
+        print(f"OK: MCP server healthy on port {port} (describe endpoint)")
         return 0
 
     print("MCP server not responding properly", file=sys.stderr)

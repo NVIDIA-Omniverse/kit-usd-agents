@@ -24,10 +24,11 @@
 #   - Poetry (https://python-poetry.org/docs/#installation)
 #
 # Usage:
-#   ./build-wheels.sh        # Build all wheels
-#   ./build-wheels.sh kit    # Build only kit-mcp wheels
-#   ./build-wheels.sh omni   # Build only omni-ui-mcp wheels
-#   ./build-wheels.sh usd    # Build only usd-code-mcp wheels
+#   ./build-wheels.sh         # Build all wheels
+#   ./build-wheels.sh kit     # Build only kit-mcp wheels
+#   ./build-wheels.sh omni    # Build only omni-ui-mcp wheels
+#   ./build-wheels.sh usd     # Build only usd-code-mcp wheels
+#   ./build-wheels.sh isaac   # Build only isaacsim-mcp wheels
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,6 +74,116 @@ check_prerequisites() {
 
     POETRY_VERSION=$(poetry --version)
     echo_info "Poetry version: $POETRY_VERSION"
+
+    # Check git LFS — without this, *_fns data/ files are pointer stubs and the
+    # built wheel will be ~13x smaller than expected. Container will start, but
+    # search tools fail at first invocation with "Extension data is not available".
+    # Fail fast here so the
+    # operator gets an actionable error at build time, not a silent runtime fault.
+    check_git_lfs
+}
+
+# Probe a few canonical data files. Returns 0 if any are LFS pointer stubs
+# (size < 1 KB AND first line matches the LFS pointer signature), non-zero
+# otherwise.
+_lfs_probe_has_pointers() {
+    local pointer_marker='version https://git-lfs.github.com/spec/v1'
+    # One sentinel per *_fns package — partial LFS resolution (e.g. sparse
+    # checkout, interrupted pull) can leave one package's data stubbed while
+    # another's is real. Probe all four so we don't ship a broken OmniUI or
+    # USD-code wheel just because the Isaac/Kit probes happen to pass.
+    local probe_files=(
+        "$ROOT_DIR/source/aiq/isaacsim_fns/src/isaacsim_fns/data/6.0/extensions/extensions_database.json"
+        "$ROOT_DIR/source/aiq/isaacsim_fns/src/isaacsim_fns/data/6.0/extensions/extensions_faiss/index.faiss"
+        "$ROOT_DIR/source/aiq/kit_fns/src/kit_fns/data/110.0/knowledge/index.json"
+        "$ROOT_DIR/source/aiq/omni_ui_fns/src/omni_ui_fns/data/faiss_index_omni_ui/index.faiss"
+        "$ROOT_DIR/source/aiq/usd_code_fns/src/omni_aiq_usd_code/data/v25.11/code_rag/index.faiss"
+    )
+    LFS_POINTER_PATHS=()
+    for probe in "${probe_files[@]}"; do
+        if [ -f "$probe" ] && [ "$(stat -c%s "$probe" 2>/dev/null || stat -f%z "$probe" 2>/dev/null || echo 9999)" -lt 1024 ]; then
+            if head -c 50 "$probe" 2>/dev/null | grep -q "$pointer_marker"; then
+                LFS_POINTER_PATHS+=("$probe")
+            fi
+        fi
+    done
+    [ ${#LFS_POINTER_PATHS[@]} -gt 0 ]
+}
+
+# Detect LFS pointer files in the *_fns/data subtrees. If found, attempt
+# auto-recovery via ``git lfs install --local && git lfs pull``. Only fail
+# hard if that doesn't resolve them, since building wheels off pointer stubs
+# produces a 13x smaller wheel that silently breaks at runtime.
+check_git_lfs() {
+    if ! command -v git &> /dev/null; then
+        echo_warn "git is not installed; skipping LFS pointer check."
+        # Explicit 0 — bare ``return`` would propagate the most recent command's
+        # exit status, which under ``set -e`` could abort the script even
+        # though this skip is intentional.
+        return 0
+    fi
+    if ! command -v git-lfs &> /dev/null && ! git lfs version &> /dev/null; then
+        echo_error "Git LFS is required but not installed."
+        echo_info  "Install with one of:"
+        echo_info  "  Ubuntu/Debian: sudo apt-get install git-lfs"
+        echo_info  "  macOS (brew):  brew install git-lfs"
+        echo_info  "Then re-run this script — LFS objects will be auto-pulled."
+        exit 1
+    fi
+
+    # First pass: are pointer stubs present?
+    if ! _lfs_probe_has_pointers; then
+        echo_info "Git LFS check: data files resolved (no pointer stubs)."
+        return
+    fi
+
+    # Pointers present. Decide whether we can auto-fix.
+    local in_git_repo=0
+    if (cd "$ROOT_DIR" && git rev-parse --git-dir &> /dev/null); then
+        in_git_repo=1
+    fi
+
+    if [ "$in_git_repo" -eq 0 ]; then
+        echo_error "LFS pointer stubs detected but $ROOT_DIR is not a git working tree."
+        echo_error "Detected pointer files:"
+        for p in "${LFS_POINTER_PATHS[@]}"; do echo_error "  $p"; done
+        echo_error "Re-clone with git (not a tarball download), then re-run this script."
+        exit 1
+    fi
+
+    # Auto-recovery path.
+    echo_warn "Detected LFS pointer stubs in ${#LFS_POINTER_PATHS[@]} probed file(s):"
+    for p in "${LFS_POINTER_PATHS[@]}"; do echo_warn "  $p"; done
+    echo_info "Attempting auto-recovery (git lfs install --local && git lfs pull) ..."
+
+    if ! (cd "$ROOT_DIR" && git lfs install --local); then
+        echo_error "git lfs install --local failed (permissions? .git/config writeable?)."
+        echo_info  "Run manually from the repo root and retry:"
+        echo_info  "  git lfs install"
+        echo_info  "  git lfs pull"
+        exit 1
+    fi
+
+    if ! (cd "$ROOT_DIR" && git lfs pull); then
+        echo_error "git lfs pull failed (network? LFS auth? remote not configured for LFS?)."
+        echo_info  "Common causes:"
+        echo_info  "  - No network access to the LFS server (corporate proxy / VPN)"
+        echo_info  "  - 'origin' remote points at a fork that doesn't have LFS objects pushed"
+        echo_info  "  - LFS auth not configured for the remote (try: git lfs env)"
+        exit 1
+    fi
+
+    # Verify the recovery actually replaced the stubs.
+    if _lfs_probe_has_pointers; then
+        echo_error "git lfs pull ran but pointer stubs still present in:"
+        for p in "${LFS_POINTER_PATHS[@]}"; do echo_error "  $p"; done
+        echo_error "The LFS objects may not exist on the remote. Investigate with:"
+        echo_info  "  git lfs ls-files --debug | head"
+        echo_info  "  git lfs fetch --all"
+        exit 1
+    fi
+
+    echo_info "Git LFS auto-recovery succeeded — data files now resolved."
 }
 
 # Build a wheel package
@@ -153,6 +264,22 @@ build_usd_code_mcp() {
     echo_info "USD Code MCP wheels ready in: $SCRIPT_DIR/usd_code_mcp/dist/"
 }
 
+# Build isaacsim-mcp wheels
+build_isaacsim_mcp() {
+    echo_info "=== Building Isaac Sim MCP wheels ==="
+
+    # Build isaacsim_fns
+    build_wheel "$ROOT_DIR/source/aiq/isaacsim_fns" "isaacsim_fns"
+
+    # Build isaacsim_mcp (cleans dist/, so must be before copying isaacsim_fns)
+    build_wheel "$SCRIPT_DIR/isaacsim_mcp" "isaacsim_mcp"
+
+    # Copy isaacsim_fns to isaacsim_mcp dist (AFTER isaacsim_mcp build to avoid deletion)
+    copy_wheel "$ROOT_DIR/source/aiq/isaacsim_fns" "$SCRIPT_DIR/isaacsim_mcp/dist" "isaacsim_fns"
+
+    echo_info "Isaac Sim MCP wheels ready in: $SCRIPT_DIR/isaacsim_mcp/dist/"
+}
+
 # Main
 main() {
     check_prerequisites
@@ -167,13 +294,17 @@ main() {
         usd)
             build_usd_code_mcp
             ;;
+        isaac)
+            build_isaacsim_mcp
+            ;;
         all)
             build_kit_mcp
             build_omni_ui_mcp
             build_usd_code_mcp
+            build_isaacsim_mcp
             ;;
         *)
-            echo "Usage: $0 [kit|omni|usd|all]"
+            echo "Usage: $0 [kit|omni|usd|isaac|all]"
             exit 1
             ;;
     esac

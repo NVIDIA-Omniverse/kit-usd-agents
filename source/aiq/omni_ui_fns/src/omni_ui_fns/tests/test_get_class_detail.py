@@ -48,7 +48,7 @@ def test_atlas_service_availability():
         print("[FAIL] Atlas service is NOT available")
         print("[WARN] Tests will be limited without Atlas data")
 
-    return is_available
+    assert is_available, "Atlas service is not available"
 
 
 async def test_get_class_detail_none():

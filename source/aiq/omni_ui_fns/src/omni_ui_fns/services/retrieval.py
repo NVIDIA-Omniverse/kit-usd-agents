@@ -21,6 +21,7 @@ import os
 from typing import Any, Dict, Optional
 
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
 
 from ..config import DEFAULT_EMBEDDING_MODEL, DEFAULT_RAG_LENGTH_CODE, DEFAULT_RAG_TOP_K_CODE, DEFAULT_RERANK_CODE
 from .embedder_service import EmbedderFactory
@@ -104,19 +105,16 @@ class Retriever:
 
         if load_path and os.path.exists(load_path):
             try:
-                # Verify FAISS index integrity before loading
-                # Note: allow_dangerous_deserialization=True is required for FAISS pickle loading.
-                # Security is ensured through:
-                # 1. Checksum verification of index files before loading
-                # 2. Read-only file system access where possible
-                # 3. Index files are bundled with the package and not user-modifiable
+                # Load via faiss_safe (JSON-backed metadata) because pickle
+                # metadata is not safe to load.
                 if not self._verify_faiss_index_integrity(load_path):
                     raise ValueError(f"FAISS index integrity check failed for {load_path}")
 
-                self.vectordb = FAISS.load_local(
+                from ..utils.faiss_safe import load_faiss_safe
+
+                self.vectordb = load_faiss_safe(
                     load_path,
                     self.embedder,
-                    allow_dangerous_deserialization=True,
                 )
                 self.retriever = self.vectordb.as_retriever(
                     search_type="similarity",
@@ -142,11 +140,11 @@ class Retriever:
             True if verification passes, False otherwise
         """
         index_faiss = os.path.join(load_path, "index.faiss")
-        index_pkl = os.path.join(load_path, "index.pkl")
+        index_json = os.path.join(load_path, "index.json")
         checksum_file = os.path.join(load_path, "checksums.sha256")
 
         # Check required files exist
-        if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
+        if not os.path.exists(index_faiss) or not os.path.exists(index_json):
             logger.error(f"Missing required FAISS index files in {load_path}")
             return False
 
@@ -162,7 +160,7 @@ class Retriever:
                             if len(parts) >= 2:
                                 expected_checksums[parts[1]] = parts[0]
 
-                for filename in ["index.faiss", "index.pkl"]:
+                for filename in ["index.faiss", "index.json"]:
                     filepath = os.path.join(load_path, filename)
                     if filename in expected_checksums:
                         actual_checksum = self._compute_file_checksum(filepath)
@@ -215,7 +213,6 @@ class Retriever:
         logger.info(f"[DEBUG] Using k={k} for search")
 
         try:
-            # Use invoke() instead of deprecated get_relevant_documents()
             return self.retriever.invoke(query)
         except Exception as e:
             logger.error(f"Search failed: {e}")

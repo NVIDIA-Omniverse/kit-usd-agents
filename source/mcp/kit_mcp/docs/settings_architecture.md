@@ -429,22 +429,9 @@ results = await search_kit_settings(
 
 ## Usage Examples
 
-### 1. Running the Pipeline
+The settings database ships pre-built in the wheel; no pipeline regeneration is needed for normal use.
 
-```bash
-# Step 1: Scan extensions for settings
-cd source/mcp/kit_mcp/data_collection/settings_pipeline
-python3 scan_extension_settings.py
-
-# Step 2: Generate embeddings
-export NVIDIA_API_KEY='your-api-key'
-python3 generate_settings_embeddings.py
-
-# Step 3: Build FAISS database
-python3 build_settings_faiss_database.py
-```
-
-### 2. Querying the Database
+### Querying the Database
 
 ```python
 from langchain_community.vectorstores import FAISS
@@ -583,15 +570,9 @@ def scan_modified_extensions(since_timestamp):
 
 ```
 source/mcp/kit_mcp/
-├── data_collection/
-│   └── settings_pipeline/
-│       ├── scan_extension_settings.py      # Settings scanner
-│       ├── generate_settings_embeddings.py # Embedding generator
-│       ├── build_settings_faiss_database.py # FAISS builder
-│       └── setting_data/                   # Output directory
-│           ├── setting_summary.json        # Scanned settings
-│           ├── setting_summary_simple.json # Simplified lookup
-│           ├── setting_statistics.json     # Statistics
+├── setting_summary.json        # Scanned settings (pre-built and shipped in the wheel)
+├── setting_summary_simple.json # Simplified lookup
+├── setting_statistics.json     # Statistics
 │           ├── settings_embeddings.json    # Embeddings
 │           └── settings_faiss/            # FAISS database
 │               ├── index.faiss

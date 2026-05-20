@@ -15,8 +15,11 @@
 
 """Test the get_code_examples function and retrieval formatting."""
 
+import ast
 import asyncio
+import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -27,6 +30,10 @@ import pytest
 from omni_ui_fns.config import FAISS_CODE_INDEX_PATH
 from omni_ui_fns.functions.get_code_examples import get_code_examples
 from omni_ui_fns.services.retrieval import Retriever, get_rag_context_omni_ui_code
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def test_faiss_index_exists():
@@ -320,6 +327,128 @@ async def test_get_code_examples_async():
         raise
 
 
+def extract_code_from_result(result_text: str) -> list[str]:
+    """Extract Python code blocks from the formatted result text.
+
+    Args:
+        result_text: The formatted result string from get_code_examples
+
+    Returns:
+        List of code strings extracted from code blocks
+    """
+    # Pattern to match code blocks between triple backticks
+    code_blocks = []
+
+    # Match code between ```python...``` blocks
+    pattern = r"```python\n(.*?)\n```"
+    matches = re.findall(pattern, result_text, re.DOTALL)
+    code_blocks.extend(matches)
+
+    return code_blocks
+
+
+@pytest.mark.asyncio
+async def test_get_code_examples_returns_valid_python():
+    """Test that get_code_examples returns valid Python code from the FAISS database."""
+    print(f"\n{'='*60}")
+    print("TEST: Code Examples Python Validation")
+    print(f"{'='*60}")
+
+    if not FAISS_CODE_INDEX_PATH.exists():
+        pytest.skip("FAISS index not found, skipping Python validation test")
+
+    # Test queries - use common OmniUI operations that should be in the database
+    test_queries = [
+        "How to create a button?",
+        "How to create a search field?",
+        "How to style a widget?",
+    ]
+
+    all_passed = True
+    total_code_blocks = 0
+
+    # Get API key from environment
+    api_key = os.getenv("NVIDIA_API_KEY", "")
+
+    # Create embedding config
+    embedding_config = {
+        "model": "nvidia/nv-embedqa-e5-v5",
+        "endpoint": None,
+        "api_key": api_key,
+    }
+
+    for query in test_queries:
+        logger.info(f"\n{'='*80}")
+        logger.info(f"Testing query: {query}")
+        logger.info(f"{'='*80}")
+
+        # Call the actual function to retrieve real code from FAISS
+        result = await get_code_examples(
+            request=query,
+            rerank_k=3,
+            enable_rerank=False,
+            embedding_config=embedding_config,
+            reranking_config=None,
+        )
+
+        # Check if the function succeeded
+        if not result["success"]:
+            logger.warning(f"Query '{query}' failed: {result.get('error', 'Unknown error')}")
+            continue
+
+        if not result["result"] or "No relevant code examples found" in result["result"]:
+            logger.warning(f"No results found for query: {query}")
+            continue
+
+        # Extract code blocks from the result
+        code_blocks = extract_code_from_result(result["result"])
+
+        if not code_blocks:
+            logger.warning(f"No code blocks extracted for query: {query}")
+            continue
+
+        logger.info(f"Found {len(code_blocks)} code block(s) for query: {query}")
+
+        # Validate each code block is valid Python
+        for idx, code in enumerate(code_blocks):
+            total_code_blocks += 1
+            code_preview = code[:100].replace("\n", " ") + ("..." if len(code) > 100 else "")
+
+            try:
+                # Try to parse the code as Python AST
+                ast.parse(code)
+                logger.info(f"✓ Code block {idx + 1} is valid Python: {code_preview}")
+            except SyntaxError as e:
+                all_passed = False
+                logger.error(f"✗ Code block {idx + 1} contains invalid Python syntax!")
+                logger.error(f"  Error: {e}")
+                logger.error(f"  Code preview: {code_preview}")
+                pytest.fail(
+                    f"Query '{query}' returned invalid Python in code block {idx + 1}:\n"
+                    f"Error: {e}\n"
+                    f"Code:\n{code}"
+                )
+
+    # Final summary
+    logger.info(f"\n{'='*80}")
+    logger.info(f"Validation Summary")
+    logger.info(f"{'='*80}")
+    logger.info(f"Total queries tested: {len(test_queries)}")
+    logger.info(f"Total code blocks validated: {total_code_blocks}")
+    logger.info(f"All code blocks valid: {all_passed}")
+    logger.info(f"{'='*80}\n")
+
+    # Ensure we tested at least some code
+    assert total_code_blocks > 0, (
+        "No code blocks were tested. This might indicate:\n"
+        "1. FAISS database is not properly configured\n"
+        "2. No matching examples found for test queries\n"
+        "3. Code extraction pattern needs adjustment"
+    )
+
+    print(f"[OK] Python validation test passed! Validated {total_code_blocks} code blocks.")
+
+
 def run_all_tests():
     """Run all tests manually without pytest."""
     print("\n" + "=" * 80)
@@ -352,6 +481,12 @@ def run_all_tests():
         print("Running async function test...")
         print(f"{'='*60}")
         asyncio.run(test_get_code_examples_async())
+
+        # Test 6: Python validation
+        print(f"\n{'='*60}")
+        print("Running Python validation test...")
+        print(f"{'='*60}")
+        asyncio.run(test_get_code_examples_returns_valid_python())
 
         print("\n" + "=" * 80)
         print("[OK] ALL TESTS PASSED!")

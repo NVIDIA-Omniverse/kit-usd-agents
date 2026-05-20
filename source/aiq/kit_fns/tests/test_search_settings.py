@@ -46,7 +46,7 @@ def test_settings_service():
 
     if not settings_service.is_available():
         print("[FAIL] Settings service not available. Run the settings pipeline first.")
-        return False
+        assert False, "Settings service not available. Run the settings pipeline first."
 
     print("[OK] Settings service is available")
 
@@ -145,7 +145,7 @@ def test_settings_service():
         print("[FAIL] Did not handle invalid setting key properly")
         all_tests_passed = False
 
-    return all_tests_passed
+    assert all_tests_passed, "Some settings service tests failed"
 
 
 async def test_search_function():
@@ -262,7 +262,7 @@ async def test_search_function():
         print("[FAIL] Function did not complete properly")
         all_tests_passed = False
 
-    return all_tests_passed
+    assert all_tests_passed, "Some search function tests failed"
 
 
 def main():
@@ -281,11 +281,21 @@ def main():
 
     # Test Settings service
     print("\n[INFO] Running Settings Service tests...")
-    tests_passed.append(("Settings Service", test_settings_service()))
+    try:
+        test_settings_service()
+        tests_passed.append(("Settings Service", True))
+    except AssertionError as e:
+        print(f"[FAIL] Settings service test failed: {e}")
+        tests_passed.append(("Settings Service", False))
 
     # Test search function
     print("\n[INFO] Running Search Function tests...")
-    tests_passed.append(("Search Function", asyncio.run(test_search_function())))
+    try:
+        asyncio.run(test_search_function())
+        tests_passed.append(("Search Function", True))
+    except AssertionError as e:
+        print(f"[FAIL] Search function test failed: {e}")
+        tests_passed.append(("Search Function", False))
 
     # Print summary
     print_section("Test Summary")

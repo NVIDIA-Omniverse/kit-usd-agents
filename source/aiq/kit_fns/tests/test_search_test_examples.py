@@ -16,7 +16,9 @@
 
 """Test script for the search_test_examples functionality."""
 
+import ast
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -42,7 +44,7 @@ async def test_search_basic():
     all_passed = True
     for query in test_queries:
         print(f"\nSearching for: '{query}'")
-        result = await search_test_examples(query, top_k=3)
+        result = await search_test_examples(query, rerank_k=3)
 
         if not result["success"]:
             error_msg = result.get("error", "Unknown error")
@@ -93,7 +95,7 @@ async def test_search_validation():
     all_passed = True
     for query, description in test_cases:
         print(f"\nTesting {description}: '{query}'")
-        result = await search_test_examples(query, top_k=5)
+        result = await search_test_examples(query, rerank_k=5)
 
         if not result["success"]:
             if result.get("error") == "query cannot be empty":
@@ -107,7 +109,7 @@ async def test_search_validation():
 
     # Test invalid top_k
     print(f"\nTesting invalid top_k: 0")
-    result = await search_test_examples("test", top_k=0)
+    result = await search_test_examples("test", rerank_k=0)
 
     if not result["success"]:
         if result.get("error") == "top_k must be positive":
@@ -121,7 +123,7 @@ async def test_search_validation():
 
     # Test negative top_k
     print(f"\nTesting invalid top_k: -5")
-    result = await search_test_examples("test", top_k=-5)
+    result = await search_test_examples("test", rerank_k=-5)
 
     if not result["success"]:
         if result.get("error") == "top_k must be positive":
@@ -145,7 +147,7 @@ async def test_search_top_k():
     all_passed = True
     for top_k in test_cases:
         print(f"\nTesting top_k={top_k}")
-        result = await search_test_examples("test", top_k=top_k)
+        result = await search_test_examples("test", rerank_k=top_k)
 
         if not result["success"]:
             error_msg = result.get("error", "Unknown error")
@@ -188,7 +190,7 @@ async def test_search_no_results():
     all_passed = True
     for query in test_queries:
         print(f"\nSearching for unlikely query: '{query}'")
-        result = await search_test_examples(query, top_k=5)
+        result = await search_test_examples(query, rerank_k=5)
 
         if not result["success"]:
             error_msg = result.get("error", "Unknown error")
@@ -216,7 +218,7 @@ async def test_search_result_format():
     """Test the format of search results."""
     print_section("Testing Result Format")
 
-    result = await search_test_examples("test setup", top_k=5)
+    result = await search_test_examples("test setup", rerank_k=5)
 
     if not result["success"]:
         error_msg = result.get("error", "Unknown error")
@@ -290,7 +292,7 @@ async def test_search_specific_patterns():
         print(f"\nTest: {description}")
         print(f"  Query: '{query}'")
 
-        result = await search_test_examples(query, top_k=5)
+        result = await search_test_examples(query, rerank_k=5)
 
         if not result["success"]:
             error_msg = result.get("error", "Unknown error")
@@ -323,7 +325,7 @@ async def test_service_availability():
     """Test service availability handling."""
     print_section("Testing Service Availability")
 
-    result = await search_test_examples("test", top_k=5)
+    result = await search_test_examples("test", rerank_k=5)
 
     if not result["success"]:
         error_msg = result.get("error", "Unknown error")
@@ -339,6 +341,76 @@ async def test_service_availability():
         return True
 
 
+async def test_python_code_validation():
+    """Test that search_test_examples returns valid Python code from the FAISS database."""
+    print_section("Testing Python Code Validation")
+
+    # Test queries - use common test patterns that should be in the database
+    test_queries = [
+        "test async setup",
+        "test extension lifecycle",
+        "test stage creation",
+    ]
+
+    all_passed = True
+    total_code_blocks = 0
+
+    for query in test_queries:
+        print(f"\nTesting Python validation for: '{query}'")
+        result = await search_test_examples(query, rerank_k=3, enable_rerank=False)
+
+        if not result["success"]:
+            error_msg = result.get("error", "Unknown error")
+            if "Test search data is not available" in error_msg:
+                print(f"  [OK] Service not available (expected in test environment)")
+                return True
+            print(f"  [FAIL] Search failed: {error_msg}")
+            all_passed = False
+            continue
+
+        if not result["result"] or "No test examples found" in result["result"]:
+            print(f"  [OK] No results found for query")
+            continue
+
+        # Extract code blocks from the result
+        pattern = r"```python\n(.*?)\n```"
+        code_blocks = re.findall(pattern, result["result"], re.DOTALL)
+
+        if not code_blocks:
+            print(f"  [OK] No code blocks found in results")
+            continue
+
+        print(f"  Found {len(code_blocks)} code block(s)")
+
+        # Validate each code block is valid Python
+        for idx, code in enumerate(code_blocks):
+            total_code_blocks += 1
+            code_preview = code[:80].replace("\n", " ") + ("..." if len(code) > 80 else "")
+
+            try:
+                # Try to parse the code as Python AST
+                ast.parse(code)
+                print(f"    [OK] Code block {idx + 1} is valid Python")
+            except SyntaxError as e:
+                all_passed = False
+                print(f"    [FAIL] Code block {idx + 1} has invalid Python syntax!")
+                print(f"      Error: {e}")
+                print(f"      Preview: {code_preview}")
+
+    print(f"\n  Total code blocks validated: {total_code_blocks}")
+
+    if total_code_blocks > 0:
+        if all_passed:
+            print(f"  [OK] All code blocks contain valid Python syntax")
+        else:
+            print(f"  [FAIL] Some code blocks contain invalid Python syntax")
+    else:
+        print(f"  [OK] No code blocks to validate (service may be unavailable)")
+        all_passed = True
+
+    return all_passed
+
+
 async def run_async_tests():
     """Run all async tests."""
     tests = [
@@ -349,6 +421,7 @@ async def run_async_tests():
         ("No Results Scenarios", test_search_no_results),
         ("Result Format", test_search_result_format),
         ("Specific Test Pattern Searches", test_search_specific_patterns),
+        ("Python Code Validation", test_python_code_validation),
     ]
 
     results = []

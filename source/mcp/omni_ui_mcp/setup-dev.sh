@@ -58,10 +58,10 @@ if ! command -v poetry &> /dev/null; then
     echo "Poetry not found. Installing Poetry..."
     echo
     curl -sSL https://install.python-poetry.org | $PYTHON_CMD -
-    
+
     # Add Poetry to PATH for current session
     export PATH="$HOME/.local/bin:$PATH"
-    
+
     # Check if poetry is now available
     if ! command -v poetry &> /dev/null; then
         echo "ERROR: Failed to install Poetry or Poetry not in PATH"
@@ -69,7 +69,7 @@ if ! command -v poetry &> /dev/null; then
         echo "Or add ~/.local/bin to your PATH and restart this script"
         exit 1
     fi
-    
+
     echo
     echo "Poetry installed successfully!"
 fi
@@ -82,10 +82,19 @@ echo
 echo "Configuring Poetry to use local virtual environment..."
 poetry config virtualenvs.in-project true
 
-# Install dependencies
+# Install dependencies. If the shipped poetry.lock is older than the current
+# pyproject.toml, ``poetry install`` will refuse with a "pyproject.toml changed
+# significantly..." error. Auto-recover by running ``poetry lock`` once and
+# retrying — this avoids forcing the user through a two-step manual flow
+#.
 echo
 echo "Installing dependencies..."
-poetry install
+if ! poetry install; then
+    echo
+    echo "poetry install failed (likely a stale lock file). Refreshing lock and retrying..."
+    poetry lock
+    poetry install
+fi
 
 # Create local directories if they don't exist
 mkdir -p logs
@@ -104,5 +113,5 @@ echo
 echo "For development:"
 echo "- Use 'poetry shell' to activate the virtual environment"
 echo "- Use 'poetry run omni-ui-aiq' to run the server manually"
-echo "- Edit examples/local_config.yaml to customize configuration"
+echo "- Edit workflow/local_config.yaml to customize configuration"
 echo

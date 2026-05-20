@@ -14,65 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build script for USD Code MCP Docker container
+# Build Docker image for USD Code MCP Server.
 #
-# This script builds both the AIQ functions and MCP server wheels,
-# then builds the Docker image.
-#
-# Prerequisites:
-#   - Python 3.11+
-#   - Poetry
-#   - Docker
+# Thin wrapper: delegates wheel construction to the shared
+# ``../build-wheels.sh`` (which runs the Git LFS pointer-stub check and
+# auto-recovery), then runs ``docker build`` in this dir.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-AIQ_DIR="$ROOT_DIR/aiq/usd_code_fns"
+DOCKER_TAG="usd-code-mcp:latest"
 
 echo "Building USD Code MCP Docker container..."
 
-# Clean previous builds
-echo "Cleaning previous builds..."
-rm -rf dist/
-rm -rf build/
-mkdir -p dist/
-
-# Build the AIQ functions wheel first
-echo "Building usd_code_aiq wheel..."
-if [ -d "$AIQ_DIR" ]; then
-    cd "$AIQ_DIR"
-    poetry build
-    cp dist/*.whl "$SCRIPT_DIR/dist/"
-    cd "$SCRIPT_DIR"
-    echo "usd_code_aiq wheel copied to dist/"
-else
-    echo "ERROR: AIQ directory not found at $AIQ_DIR"
-    echo "Please ensure the usd_code_fns package exists."
-    exit 1
-fi
-
-# Build the MCP package
-echo "Building usd_code_mcp wheel..."
-poetry build
-
-# Check if both wheels exist
-if ! ls dist/usd_code_aiq-*.whl 1>/dev/null 2>&1; then
-    echo "ERROR: usd_code_aiq wheel not found in dist/"
-    exit 1
-fi
-
-if ! ls dist/usd_code_mcp-*.whl 1>/dev/null 2>&1; then
-    echo "ERROR: usd_code_mcp wheel not found in dist/"
-    exit 1
-fi
-
-echo "Wheels ready:"
-ls -la dist/*.whl
+# Build the AIQ + MCP wheels via the shared script (LFS-aware).
+bash "$SCRIPT_DIR/../build-wheels.sh" usd
 
 # Build Docker image
 echo ""
 echo "Building Docker image..."
-DOCKER_TAG="usd-code-mcp:latest"
+cd "$SCRIPT_DIR"
 docker build -t "$DOCKER_TAG" .
 
 echo ""

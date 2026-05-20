@@ -1,6 +1,6 @@
 # Kit USD Agents
 
-AI-powered development tools for NVIDIA Omniverse, including Chat USD and Model Context Protocol (MCP) servers for Kit, USD, and OmniUI development.
+AI-powered development tools for NVIDIA Omniverse, including Chat USD and Model Context Protocol (MCP) servers for Kit, USD, OmniUI, and Isaac Sim development.
 
 ## What's Included
 
@@ -19,14 +19,14 @@ Chat USD is an AI assistant that runs inside NVIDIA Omniverse Kit, enabling natu
 
 ### 2. MCP Servers
 
-Three standalone [Model Context Protocol](https://modelcontextprotocol.io/) servers that integrate with AI coding assistants like Claude, Cursor, and other MCP-compatible tools.
+Four standalone [Model Context Protocol](https://modelcontextprotocol.io/) servers that integrate with AI coding assistants like Claude, Cursor, and other MCP-compatible tools.
 
 #### USD Code MCP Server
-Provides USD/OpenUSD API assistance with 8 specialized tools:
+Provides USD/OpenUSD API assistance with 7 specialized tools:
 - Browse USD modules and classes
-- Get detailed API documentation
+- Get detailed class, module, and method API documentation
 - Search code examples with semantic search
-- Access USD knowledge base
+- Search USD knowledge base
 
 #### Kit MCP Server  
 Comprehensive Kit development assistance with 12 specialized tools:
@@ -36,10 +36,18 @@ Comprehensive Kit development assistance with 12 specialized tools:
 - Access Kit documentation and settings
 
 #### OmniUI MCP Server
-OmniUI development assistance with 7 specialized tools:
-- Browse UI classes and modules
-- Get widget documentation and examples
-- Search styling and scene system APIs
+OmniUI development assistance with 10 specialized tools:
+- Browse UI classes, modules, and methods
+- Get widget documentation, examples, and instructions
+- Search code examples and window-pattern examples
+- Look up styling docs and scene-system APIs
+
+#### Isaac Sim MCP Server
+Isaac Sim development assistance with 5 specialized tools:
+- Search Isaac Sim extensions and APIs
+- Find code examples with semantic search
+- Access Isaac Sim documentation and best practices
+- Search Isaac Sim configuration settings
 
 ## Getting Started
 
@@ -62,6 +70,7 @@ Each MCP server can be run locally with Docker or Python. See the individual ser
 - [USD Code MCP](source/mcp/usd_code_mcp/README.md)
 - [Kit MCP](source/mcp/kit_mcp/README.md)
 - [OmniUI MCP](source/mcp/omni_ui_mcp/README.md)
+- [Isaac Sim MCP](source/mcp/isaacsim_mcp/README.md)
 
 **Quick Start (Docker - Recommended):**
 ```bash

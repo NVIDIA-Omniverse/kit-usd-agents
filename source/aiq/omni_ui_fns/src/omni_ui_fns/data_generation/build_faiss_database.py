@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import List
 
 # Add the parent directory to the path to allow importing from omni_ui_fns
@@ -27,6 +28,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from omni_ui_fns.services.retrieval import create_embeddings
+
+# faiss_safe: convert the pickle emitted by save_local to JSON.
+# Opt-out with --no-convert-to-safe or FAISS_SAFE_SKIP_CONVERT=1.
+_ensure_safe = None
+_repo_root = next(
+    (p for p in Path(__file__).resolve().parents if (p / "tools" / "faiss_safe_convert.py").is_file()), None
+)
+if _repo_root is not None:
+    sys.path.insert(0, str(_repo_root / "tools"))
+    try:
+        from faiss_safe_convert import ensure_safe_after_save_local as _ensure_safe  # noqa: E402
+    except ImportError:
+        pass
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -122,6 +136,8 @@ def build_faiss_database(
         # Save the FAISS database
         os.makedirs(os.path.dirname(faiss_output_path), exist_ok=True)
         vectorstore.save_local(faiss_output_path)
+        if _ensure_safe is not None:
+            _ensure_safe(faiss_output_path)
 
         logger.info(f"Successfully saved FAISS database to {faiss_output_path}")
         logger.info(f"Database contains {len(documents)} entries")

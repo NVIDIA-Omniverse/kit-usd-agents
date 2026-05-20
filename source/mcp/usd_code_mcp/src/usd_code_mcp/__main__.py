@@ -26,6 +26,32 @@ from pathlib import Path
 from . import __version__
 
 
+def _print_backend_config_banner() -> None:
+    """Echo the resolved embedder/reranker backend config at startup.
+
+    Background: the LocalEmbedder/LocalReranker are constructed lazily on
+    the first MCP tool call, so the factory's own "Creating embedder..." and
+    "Using local embedder at..." log lines don't appear in ``docker logs``
+    until a tool fires. This banner prints the resolved env-var snapshot
+    eagerly so operators can verify backend selection immediately after
+    ``docker compose up``.
+    """
+    embedder_backend = os.environ.get("KIT_EMBEDDER_BACKEND", "nvidia_api")
+    embedder_url = os.environ.get("KIT_LOCAL_EMBEDDER_URL", "")
+    reranker_backend = os.environ.get("KIT_RERANKER_BACKEND", "nvidia_api")
+    reranker_url = os.environ.get("KIT_LOCAL_RERANKER_URL", "")
+
+    sep = "=" * 74
+    print(sep)
+    print(f"[mcp-startup] Embedder backend: {embedder_backend}")
+    if embedder_backend == "local" and embedder_url:
+        print(f"[mcp-startup] Using local embedder at {embedder_url}")
+    print(f"[mcp-startup] Reranker backend: {reranker_backend}")
+    if reranker_backend == "local" and reranker_url:
+        print(f"[mcp-startup] Using local reranker at {reranker_url}")
+    print(sep)
+
+
 def main():
     """Main entry point for the USD Code MCP server."""
     print(f"USD Code MCP v{__version__}")
@@ -98,6 +124,7 @@ def main():
     )
 
     print(f"Starting MCP server on port {port}...")
+    _print_backend_config_banner()
 
     try:
         # Use subprocess.run to execute the command and wait for it

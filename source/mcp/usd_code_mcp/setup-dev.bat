@@ -64,18 +64,44 @@ echo.
 echo Configuring Poetry to use local virtual environment...
 poetry config virtualenvs.in-project true
 
-REM Install dependencies
+REM Install dependencies. If the shipped poetry.lock is older than the current
+REM pyproject.toml (which happens any time a new dep lands without `poetry lock`
+REM being re-run on the maintainer side), `poetry install` will refuse with a
+REM "pyproject.toml changed significantly..." error. Auto-recover by running
+REM `poetry lock` once and retrying — same behavior as setup-dev.sh
+REM.
+REM
+REM Implementation note: cmd.exe expands %errorlevel% at PARSE time of an
+REM outer "if (...)" block, so nested ``if %errorlevel% neq 0`` checks
+REM inside the same block see the stale value from when the block was
+REM entered. Flatten the recovery flow with ``goto`` so each errorlevel
+REM check is at top level and re-evaluates correctly.
 echo.
 echo Installing dependencies...
 poetry install
+if not errorlevel 1 goto :install_done
 
-if %errorlevel% neq 0 (
-    echo.
-    echo ERROR: Failed to install dependencies
-    echo Please check your internet connection and try again
-    pause
-    exit /b 1
-)
+echo.
+echo poetry install failed ^(likely a stale lock file^). Refreshing lock and retrying...
+poetry lock
+if errorlevel 1 goto :lock_failed
+poetry install
+if errorlevel 1 goto :retry_failed
+goto :install_done
+
+:lock_failed
+echo ERROR: poetry lock failed
+pause
+exit /b 1
+
+:retry_failed
+echo.
+echo ERROR: Failed to install dependencies even after refreshing the lock
+echo Please check your internet connection and try again
+pause
+exit /b 1
+
+:install_done
 
 REM Create local directories if they don't exist
 if not exist "logs" mkdir logs

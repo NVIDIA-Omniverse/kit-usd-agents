@@ -24,15 +24,16 @@ from typing import Any, Dict, Optional
 # Get the package directory
 PACKAGE_DIR = Path(__file__).parent
 
-# Data paths - USD 25.02
-# Note: Version selection may be added in the future
-DATA_DIR = PACKAGE_DIR / "data" / "v25.02"
+# Data paths - USD version selection
+ENV_USD_VERSION = "MCP_USD_VERSION"
+USD_VERSION = os.environ.get(ENV_USD_VERSION, "v25.11")
+DATA_DIR = PACKAGE_DIR / "data" / USD_VERSION
 FAISS_CODE_INDEX_PATH = DATA_DIR / "code_rag"
 FAISS_KNOWLEDGE_INDEX_PATH = DATA_DIR / "knowledge_rag"
-USD_ATLAS_FILE_PATH = DATA_DIR / "usd_atlas_v25_02.json"
+USD_ATLAS_FILE_PATH = DATA_DIR / f"usd_atlas_{USD_VERSION.replace('.', '_')}.json"
 
-logging.info(f"Using USD 25.02 code RAG from: {FAISS_CODE_INDEX_PATH}")
-logging.info(f"Using USD 25.02 atlas from: {USD_ATLAS_FILE_PATH}")
+logging.info(f"Using USD {USD_VERSION} code RAG from: {FAISS_CODE_INDEX_PATH}")
+logging.info(f"Using USD {USD_VERSION} atlas from: {USD_ATLAS_FILE_PATH}")
 
 # API Configuration
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")

@@ -2,7 +2,7 @@
 name = "kit-fns"
 version = "0.6.0"
 description = "Kit functions for NVIDIA Omniverse Kit development - providing Kit extension information, APIs, code examples, and application templates (NAT-compatible)"
-authors = ["Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>"]
+authors = ["NVIDIA Omniverse"]
 readme = "README.md"
 homepage = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
 repository = "https://github.com/NVIDIA-Omniverse/kit-usd-agents"
@@ -108,3 +108,4 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=kit_fns --cov-report=term-missing"
+asyncio_mode = "auto"

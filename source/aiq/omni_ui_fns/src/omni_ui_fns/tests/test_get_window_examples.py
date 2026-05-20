@@ -61,7 +61,7 @@ def test_faiss_index_exists():
 
             # Check for required files
             index_file = faiss_index_path / "index.faiss"
-            pkl_file = faiss_index_path / "index.pkl"
+            pkl_file = faiss_index_path / "index.json"
 
             if index_file.exists():
                 print(f"[OK] index.faiss found")
@@ -69,9 +69,9 @@ def test_faiss_index_exists():
                 print(f"[FAIL] index.faiss NOT found")
 
             if pkl_file.exists():
-                print(f"[OK] index.pkl found")
+                print(f"[OK] index.json found")
             else:
-                print(f"[FAIL] index.pkl NOT found")
+                print(f"[FAIL] index.json NOT found")
     else:
         print(f"[FAIL] FAISS index NOT found at: {faiss_index_path}")
         print(f"[WARN] Tests will not be able to retrieve actual examples")

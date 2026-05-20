@@ -74,10 +74,11 @@ class KnowledgeRetriever:
 
         if load_path:
             try:
-                self.vectordb = FAISS.load_local(
+                from ..utils.faiss_safe import load_faiss_safe
+
+                self.vectordb = load_faiss_safe(
                     load_path,
                     self.embedder,
-                    allow_dangerous_deserialization=True,
                 )
                 self.retriever = self.vectordb.as_retriever(
                     search_type="similarity",

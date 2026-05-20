@@ -2026,7 +2026,7 @@ curl -X POST http://localhost:9901/message \
 
 For issues, feature requests, or contributions:
 - Repository: https://github.com/NVIDIA-Omniverse/kit-usd-agents
-- Team: Omniverse GenAI Team <doyopk-org@exchange.nvidia.com>
+- Team: NVIDIA Omniverse
 
 ---
 

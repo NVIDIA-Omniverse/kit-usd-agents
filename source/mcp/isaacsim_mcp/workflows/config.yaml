@@ -1,0 +1,37 @@
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    temperature: 0.0
+    max_tokens: 16384
+
+functions:
+  get_isaac_sim_instructions:
+    _type: isaacsim_fns/get_isaac_sim_instructions
+    verbose: false
+
+  search_isaac_sim_extensions:
+    _type: isaacsim_fns/search_isaac_sim_extensions
+    verbose: false
+
+  get_isaac_sim_extension_details:
+    _type: isaacsim_fns/get_isaac_sim_extension_details
+    verbose: false
+
+  search_isaac_sim_code_examples:
+    _type: isaacsim_fns/search_isaac_sim_code_examples
+    verbose: false
+
+  search_isaac_sim_settings:
+    _type: isaacsim_fns/search_isaac_sim_settings
+    verbose: false
+
+workflow:
+  _type: react_agent
+  llm_name: nim_llm
+  tool_names:
+    - get_isaac_sim_instructions
+    - search_isaac_sim_extensions
+    - get_isaac_sim_extension_details
+    - search_isaac_sim_code_examples
+    - search_isaac_sim_settings
