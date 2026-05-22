@@ -87,7 +87,7 @@ This system eliminates the need for AI models to navigate complex UI documentati
 - **Pydantic**: Input validation and schema definition
 - **Redis**: Distributed telemetry and usage tracking
 - **NVIDIA Embeddings**: nv-embedqa-e5-v5 for semantic understanding
-- **NVIDIA Reranking**: llama-3.2-nv-rerankqa-1b-v2 for relevance scoring
+- **NVIDIA Reranking**: llama-nemotron-rerank-1b-v2 for relevance scoring
 - **Python 3.11+**: Core implementation language
 
 ---
@@ -224,13 +224,13 @@ Comprehensive telemetry captures:
 
 **How It Works**:
 1. Receives top-k candidates from FAISS search (typically 90)
-2. Uses NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model to score relevance
+2. Uses NVIDIA's llama-nemotron-rerank-1b-v2 model to score relevance
 3. Returns top-n most relevant results (typically 10)
 
 **Configuration Options**:
 ```python
 {
-    "model": "nvidia/llama-3.2-nv-rerankqa-1b-v2",
+    "model": "nvidia/llama-nemotron-rerank-1b-v2",
     "endpoint": None,  # Uses NVIDIA API by default
     "api_key": "${NVIDIA_API_KEY}"
 }

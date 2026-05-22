@@ -68,7 +68,7 @@ async def search_test_examples(
     How it works:
     1. Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
     2. Performs semantic similarity search against pre-indexed Kit test examples
-    3. Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+    3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
     4. Returns formatted test examples with their metadata
 
     Args:

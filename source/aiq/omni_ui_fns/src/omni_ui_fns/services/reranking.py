@@ -160,7 +160,7 @@ class RerankerFactory:
     @staticmethod
     def create(
         api_key: Optional[str] = None,
-        model: str = DEFAULT_RERANK_MODEL,
+        model: Optional[str] = None,
         backend: Optional[str] = None,
         local_url: Optional[str] = None,
         endpoint_url: Optional[str] = None,
@@ -195,7 +195,7 @@ class RerankerFactory:
                 )
 
             logger.info(f"Using local reranker at {local_url}")
-            return LocalReranker(base_url=local_url, model=model)
+            return LocalReranker(base_url=local_url, model=model or DEFAULT_RERANK_MODEL)
 
         elif backend == "nvidia_api":
             # Use NVIDIA API reranker
@@ -209,7 +209,7 @@ class RerankerFactory:
             endpoint = endpoint_url or DEFAULT_RERANK_ENDPOINT
 
             logger.info("Using NVIDIA API reranker")
-            return Reranker(endpoint_url=endpoint, api_key=api_key, model=model)
+            return Reranker(endpoint_url=endpoint, api_key=api_key, model=model or DEFAULT_RERANK_MODEL)
 
         else:
             raise ValueError(f"Unknown reranker backend: {backend}. Must be 'nvidia_api' or 'local'")
@@ -217,7 +217,7 @@ class RerankerFactory:
     @staticmethod
     def get_instance(
         api_key: Optional[str] = None,
-        model: str = DEFAULT_RERANK_MODEL,
+        model: Optional[str] = None,
         backend: Optional[str] = None,
         local_url: Optional[str] = None,
         endpoint_url: Optional[str] = None,
@@ -269,7 +269,7 @@ def create_reranker_with_config(config: Optional[Dict[str, Any]] = None) -> Opti
 
     return RerankerFactory.create(
         api_key=config.get("api_key"),
-        model=config.get("model", DEFAULT_RERANK_MODEL),
+        model=config.get("model"),
         backend=config.get("backend"),
         local_url=config.get("local_url"),
         endpoint_url=config.get("endpoint"),

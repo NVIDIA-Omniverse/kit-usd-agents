@@ -33,10 +33,12 @@ functions:
   search_kit_code_examples:
     _type: kit_fns/search_kit_code_examples
     verbose: false
+    enable_rerank: true
 
   search_kit_test_examples:
     _type: kit_fns/search_kit_test_examples
     verbose: false
+    enable_rerank: true
 
   search_kit_settings:
     _type: kit_fns/search_kit_settings
@@ -53,6 +55,7 @@ functions:
   search_kit_knowledge:
     _type: kit_fns/search_kit_knowledge
     verbose: false
+    enable_rerank: true
 
 workflow:
   _type: react_agent

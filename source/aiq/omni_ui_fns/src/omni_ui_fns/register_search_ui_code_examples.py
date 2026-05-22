@@ -44,7 +44,7 @@ SEARCH_UI_CODE_EXAMPLES_DESCRIPTION = """Retrieves relevant code examples using 
 WHAT IT DOES:
 - Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
 - Performs semantic similarity search against pre-indexed OmniUI code examples
-- Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
 - Returns formatted code examples with their metadata and source code
 
 QUERY MATCHING:
@@ -93,9 +93,7 @@ class SearchUICodeExamplesConfig(FunctionBaseConfig, name="search_ui_code_exampl
     embedding_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for embedding service")
 
     # Reranking configuration
-    reranking_model: Optional[str] = Field(
-        default="nvidia/llama-3.2-nv-rerankqa-1b-v2", description="Reranking model to use"
-    )
+    reranking_model: Optional[str] = Field(default=None, description="Reranking model to use")
     reranking_endpoint: Optional[str] = Field(
         default=None, description="Reranking service endpoint (None for NVIDIA API)"
     )

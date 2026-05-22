@@ -14,7 +14,7 @@ functions:
     embedding_model: nvidia/nv-embedqa-e5-v5
     embedding_endpoint: null
     embedding_api_key: ${NVIDIA_API_KEY}
-    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_model: null
     reranking_endpoint: null
     reranking_api_key: ${NVIDIA_API_KEY}
 

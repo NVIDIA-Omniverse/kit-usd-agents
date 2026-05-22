@@ -1,0 +1,7 @@
+# Local secrets
+.env
+
+# Generated Python build artifacts
+*_mcp/build/
+*_mcp/dist/
+*_mcp/*.egg-info/

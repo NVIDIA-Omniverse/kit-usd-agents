@@ -62,7 +62,7 @@ services:
 
   # Reranker NIM - runs on GPU 1
   reranker:
-    image: nvcr.io/nim/nvidia/llama-3.2-nv-rerankqa-1b-v2:latest
+    image: nvcr.io/nim/nvidia/llama-nemotron-rerank-1b-v2:latest
     container_name: mcp-reranker
     environment:
       - NGC_API_KEY=${NGC_API_KEY}

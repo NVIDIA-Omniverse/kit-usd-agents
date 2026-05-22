@@ -554,7 +554,7 @@ result = await get_ui_class_instructions("omni.ui.TreeView")
 - `embedding_model` (str): Embedding model to use (default: "nvidia/nv-embedqa-e5-v5")
 - `embedding_endpoint` (str): Embedding service endpoint
 - `embedding_api_key` (str): API key for embedding service
-- `reranking_model` (str): Reranking model (default: "nvidia/llama-3.2-nv-rerankqa-1b-v2")
+- `reranking_model` (str): Reranking model (default: "nvidia/llama-nemotron-rerank-1b-v2")
 - `reranking_endpoint` (str): Reranking service endpoint
 - `reranking_api_key` (str): API key for reranking service
 
@@ -585,7 +585,7 @@ def build_search_ui():
 **How It Works**:
 1. Converts query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
 2. Performs semantic similarity search against pre-indexed code examples
-3. Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2
+3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2
 4. Returns formatted code examples with metadata
 
 **Query Matching Against**:
@@ -729,7 +729,7 @@ for class_name in extract_classes(examples):
 - **MCP Server Version**: 0.4.5
 - **AIQ Toolkit Version**: 1.1.0
 - **Embedding Model**: nvidia/nv-embedqa-e5-v5
-- **Reranking Model**: nvidia/llama-3.2-nv-rerankqa-1b-v2
+- **Reranking Model**: nvidia/llama-nemotron-rerank-1b-v2
 - **Atlas Data Version**: Latest from omni.ui framework
 
 ---
@@ -775,7 +775,7 @@ Semantic search capabilities for code examples:
 
 #### 3.3 Reranking Service
 Advanced relevance optimization:
-- **Model**: NVIDIA llama-3.2-nv-rerankqa-1b-v2
+- **Model**: NVIDIA llama-nemotron-rerank-1b-v2
 - **Purpose**: Re-scores initial search results for improved relevance
 - **Configuration**: Optional, can be disabled for faster responses
 - **Impact**: Typically improves result quality by 20-30%
@@ -1195,7 +1195,7 @@ embedding_config = {
 
 ```python
 reranking_config = {
-    'model': 'nvidia/llama-3.2-nv-rerankqa-1b-v2',  # Reranking model
+    'model': 'nvidia/llama-nemotron-rerank-1b-v2',  # Reranking model
     'endpoint': None,                                # Custom endpoint (None for NVIDIA API)
     'api_key': 'your_api_key'                       # API key for reranking service
 }
@@ -1457,7 +1457,7 @@ from omni_ui_mcp.services.reranking import Reranker
 reranker = Reranker(
     endpoint_url="https://api.endpoint",
     api_key="your_key",
-    model="nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    model="nvidia/llama-nemotron-rerank-1b-v2"
 )
 
 # Rerank passages
@@ -1487,7 +1487,7 @@ class GetOmniUICodeExampleConfig(BaseModel):
     embedding_model: str = "nvidia/nv-embedqa-e5-v5"
     embedding_endpoint: Optional[str] = None
     embedding_api_key: str = "${NVIDIA_API_KEY}"
-    reranking_model: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    reranking_model: str = "nvidia/llama-nemotron-rerank-1b-v2"
     reranking_endpoint: Optional[str] = None
     reranking_api_key: str = "${NVIDIA_API_KEY}"
 ```
@@ -1606,7 +1606,7 @@ The flagship feature of version 0.2.0, this function provides semantic search ca
 #### What It Does
 - Converts natural language queries to embeddings using NVIDIA's nv-embedqa-e5-v5 model
 - Performs semantic similarity search against 3,594 pre-indexed code examples
-- Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
 - Returns formatted code examples with metadata
 
 #### Key Features
@@ -1664,7 +1664,7 @@ graph LR
    - Converts text to 1024-dimensional vectors
 
 2. **Reranking Service**
-   - Model: `nvidia/llama-3.2-nv-rerankqa-1b-v2`
+   - Model: `nvidia/llama-nemotron-rerank-1b-v2`
    - Endpoint: NVIDIA AI Foundation or custom
    - Improves relevance of search results
 
@@ -1696,7 +1696,7 @@ Retrieves relevant OmniUI code examples using semantic vector search.
 | `embedding_model` | `str` | `nvidia/nv-embedqa-e5-v5` | Embedding model to use |
 | `embedding_endpoint` | `str` | `null` | Custom embedding endpoint (null for NVIDIA API) |
 | `embedding_api_key` | `str` | `${NVIDIA_API_KEY}` | API key for embedding service |
-| `reranking_model` | `str` | `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Reranking model to use |
+| `reranking_model` | `str` | `nvidia/llama-nemotron-rerank-1b-v2` | Reranking model to use |
 | `reranking_endpoint` | `str` | `null` | Custom reranking endpoint (null for NVIDIA API) |
 | `reranking_api_key` | `str` | `${NVIDIA_API_KEY}` | API key for reranking service |
 
@@ -1757,7 +1757,7 @@ functions:
     embedding_model: nvidia/nv-embedqa-e5-v5
     embedding_endpoint: null  # Use NVIDIA API
     embedding_api_key: ${NVIDIA_API_KEY}
-    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_model: nvidia/llama-nemotron-rerank-1b-v2
     reranking_endpoint: null  # Use NVIDIA API
     reranking_api_key: ${NVIDIA_API_KEY}
 

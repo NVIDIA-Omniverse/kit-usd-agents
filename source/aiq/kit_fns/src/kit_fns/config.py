@@ -70,8 +70,8 @@ DEFAULT_RERANK_KNOWLEDGE = 10
 KNOWLEDGE_INDEX_PATH = DATA_DIR / KIT_VERSION / "knowledge"
 
 # Reranking Configuration
-DEFAULT_RERANK_MODEL = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
-DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-3_2-nv-rerankqa-1b-v2/reranking"
+DEFAULT_RERANK_MODEL = "nvidia/llama-nemotron-rerank-1b-v2"
+DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking"
 
 # Embedding Configuration
 DEFAULT_EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"

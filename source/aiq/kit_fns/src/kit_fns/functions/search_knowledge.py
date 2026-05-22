@@ -75,7 +75,7 @@ async def search_kit_knowledge(
     How it works:
     1. Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
     2. Performs semantic similarity search against pre-indexed Kit documentation
-    3. Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+    3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
     4. Returns formatted documentation excerpts with titles and URLs
 
     Query matching: Your query is compared against the 'index_text' field of each document,

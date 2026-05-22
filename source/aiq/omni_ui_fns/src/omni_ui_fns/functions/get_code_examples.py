@@ -76,7 +76,7 @@ async def get_code_examples(
     How it works:
     1. Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
     2. Performs semantic similarity search against pre-indexed OmniUI code examples
-    3. Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+    3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
     4. Returns formatted code examples with their metadata
 
     Query matching: Your query is compared against OmniUI widget and component implementations,
@@ -127,8 +127,6 @@ async def get_code_examples(
     try:
         # Debug logging
         logger.info(f"[DEBUG] get_code_examples called with request: {request}")
-        logger.info(f"[DEBUG] embedding_config: {embedding_config}")
-        logger.info(f"[DEBUG] reranking_config: {reranking_config}")
         logger.info(f"[DEBUG] FAISS_CODE_INDEX_PATH: {FAISS_CODE_INDEX_PATH}")
         logger.info(f"[DEBUG] FAISS_CODE_INDEX_PATH exists: {FAISS_CODE_INDEX_PATH.exists()}")
 

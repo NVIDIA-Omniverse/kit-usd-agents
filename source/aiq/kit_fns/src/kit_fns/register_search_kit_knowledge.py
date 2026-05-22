@@ -37,7 +37,7 @@ SEARCH_KIT_KNOWLEDGE_DESCRIPTION = """Retrieves relevant Kit documentation and k
 WHAT IT DOES:
 - Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
 - Performs semantic similarity search against pre-indexed Kit documentation
-- Optionally reranks results using NVIDIA's llama-3.2-nv-rerankqa-1b-v2 model
+- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
 - Returns formatted documentation excerpts with titles and URLs
 
 QUERY MATCHING:
@@ -84,9 +84,9 @@ class SearchKitKnowledgeConfig(FunctionBaseConfig, name="search_kit_knowledge"):
     embedding_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for embedding service")
 
     # Reranking configuration
-    reranking_model: str = Field(default="nvidia/llama-3.2-nv-rerankqa-1b-v2", description="The reranking model to use")
-    reranking_endpoint: str = Field(
-        default="https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-3_2-nv-rerankqa-1b-v2/reranking",
+    reranking_model: Optional[str] = Field(default=None, description="The reranking model to use")
+    reranking_endpoint: Optional[str] = Field(
+        default=None,
         description="Custom reranking endpoint URL (optional)",
     )
     reranking_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for reranking service")

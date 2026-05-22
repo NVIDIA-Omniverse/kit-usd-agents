@@ -20,7 +20,7 @@ functions:
     embedding_endpoint: null  # null means use default NVIDIA endpoint
     embedding_api_key: ${NVIDIA_API_KEY}
     # Reranking configuration
-    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_model: null
     reranking_endpoint: null  # null means use default NVIDIA endpoint
     reranking_api_key: ${NVIDIA_API_KEY}
 
@@ -35,7 +35,7 @@ functions:
     embedding_endpoint: null  # null means use default NVIDIA endpoint
     embedding_api_key: ${NVIDIA_API_KEY}
     # Reranking configuration
-    reranking_model: nvidia/llama-3.2-nv-rerankqa-1b-v2
+    reranking_model: null
     reranking_endpoint: null  # null means use default NVIDIA endpoint
     reranking_api_key: ${NVIDIA_API_KEY}
 

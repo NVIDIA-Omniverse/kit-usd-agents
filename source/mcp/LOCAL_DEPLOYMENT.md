@@ -167,7 +167,7 @@ docker compose -f docker-compose.local.yaml up --build
 | Service | Port | Description |
 |---------|------|-------------|
 | Embedder NIM | 8001 | `nvidia/nv-embedqa-e5-v5` |
-| Reranker NIM | 8002 | `nvidia/llama-3.2-nv-rerankqa-1b-v2` |
+| Reranker NIM | 8002 | `nvidia/llama-nemotron-rerank-1b-v2` |
 | OmniUI MCP | 9901 | http://localhost:9901/mcp |
 | Kit MCP | 9902 | http://localhost:9902/mcp |
 | USD Code MCP | 9903 | http://localhost:9903/mcp |
@@ -333,7 +333,7 @@ Your reranker must expose `/v1/ranking`:
 ```json
 POST /v1/ranking
 {
-  "model": "nvidia/llama-3.2-nv-rerankqa-1b-v2",
+  "model": "nvidia/llama-nemotron-rerank-1b-v2",
   "query": {"text": "query"},
   "passages": [{"text": "passage1"}, {"text": "passage2"}]
 }

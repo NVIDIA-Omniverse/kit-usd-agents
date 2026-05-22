@@ -39,7 +39,7 @@ Semantic search capabilities for code examples:
 
 #### 3.3 Reranking Service
 Advanced relevance optimization:
-- **Model**: NVIDIA llama-3.2-nv-rerankqa-1b-v2
+- **Model**: NVIDIA llama-nemotron-rerank-1b-v2
 - **Purpose**: Re-scores initial search results for improved relevance
 - **Configuration**: Optional, can be disabled for faster responses
 - **Impact**: Typically improves result quality by 20-30%

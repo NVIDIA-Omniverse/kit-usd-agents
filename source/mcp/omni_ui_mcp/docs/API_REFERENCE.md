@@ -42,7 +42,7 @@ embedding_config = {
 
 ```python
 reranking_config = {
-    'model': 'nvidia/llama-3.2-nv-rerankqa-1b-v2',  # Reranking model
+    'model': 'nvidia/llama-nemotron-rerank-1b-v2',  # Reranking model
     'endpoint': None,                                # Custom endpoint (None for NVIDIA API)
     'api_key': 'your_api_key'                       # API key for reranking service
 }
@@ -304,7 +304,7 @@ from omni_ui_mcp.services.reranking import Reranker
 reranker = Reranker(
     endpoint_url="https://api.endpoint",
     api_key="your_key",
-    model="nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    model="nvidia/llama-nemotron-rerank-1b-v2"
 )
 
 # Rerank passages
@@ -334,7 +334,7 @@ class GetOmniUICodeExampleConfig(BaseModel):
     embedding_model: str = "nvidia/nv-embedqa-e5-v5"
     embedding_endpoint: Optional[str] = None
     embedding_api_key: str = "${NVIDIA_API_KEY}"
-    reranking_model: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2"
+    reranking_model: str = "nvidia/llama-nemotron-rerank-1b-v2"
     reranking_endpoint: Optional[str] = None
     reranking_api_key: str = "${NVIDIA_API_KEY}"
 ```
