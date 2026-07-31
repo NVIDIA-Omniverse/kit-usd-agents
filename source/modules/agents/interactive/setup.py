@@ -22,7 +22,7 @@ setup(
     description="Interactive base for module-guided assistants",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
-    url="https://gitlab-master.nvidia.com/omniverse/gen-ai/lc-agent",
+    url="https://github.com/NVIDIA-Omniverse/kit-usd-agents",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
