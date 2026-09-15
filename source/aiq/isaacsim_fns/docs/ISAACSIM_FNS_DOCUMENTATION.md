@@ -386,7 +386,7 @@ get_isaac_sim_instructions(["isaac_system", "robotics"])
 1. **extensions_faiss/**: Extension metadata embeddings
    - Isaac Sim extensions
    - Descriptions, features, categories
-   - NVIDIA NV-EmbedQA-E5-v5 embeddings
+   - NVIDIA Nemotron-3-Embed-1B embeddings
 
 2. **code_examples_faiss/**: Code example embeddings
    - Production code patterns

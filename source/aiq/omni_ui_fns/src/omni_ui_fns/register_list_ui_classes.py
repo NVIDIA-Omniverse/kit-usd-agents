@@ -37,28 +37,29 @@ class ListUIClassesInput(BaseModel):
 
 
 # Tool description
-LIST_UI_CLASSES_DESCRIPTION = """Return a list of all OmniUI class full names from the Atlas data.
+LIST_UI_CLASSES_DESCRIPTION = """Enumerate every omni.ui class known to the UI Atlas — flat alphabetical listing for discovery.
 
-WHAT IT DOES:
-- Retrieves all OmniUI class names from the comprehensive Atlas database
-- Returns class names for all OmniUI widgets and components
-- Provides total count of available classes
-- Sorts class names alphabetically for easy browsing
+WHEN TO USE THIS TOOL:
+- "Which OmniUI classes exist?"
+- You need to confirm a class name (Button, Label, TreeView, Window, …) before calling get_ui_class_detail.
+- Auditing the OmniUI widget / layout / style surface.
+
+ARGUMENTS:
+- (no arguments)
 
 RETURNS:
-A JSON string containing:
-- class_full_names: Sorted list of all OmniUI class full names (e.g., FilterButton, OptionsMenu, etc.)
-- total_count: Total number of classes
-- description: Brief description of the classes
+JSON with `class_full_names` (sorted), `total_count`, and a brief description. Covers widgets, layout components, style classes, and testing utilities.
 
 USAGE EXAMPLES:
 list_ui_classes
 
-This provides access to the complete OmniUI class hierarchy from Atlas data, including:
-- Widget classes (buttons, menus, filters, etc.)
-- Layout components
-- Style and customization classes
-- Testing utilities
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Full docstring / methods of a named class → use get_ui_class_detail.
+- Usage patterns for a class → use get_ui_class_instructions.
+- Classes grouped by module → use list_ui_modules or get_ui_module_detail.
+- Working code → use search_ui_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 

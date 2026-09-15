@@ -11,7 +11,7 @@ functions:
     verbose: false
     enable_rerank: true
     rerank_k: 10
-    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_model: nvidia/nemotron-3-embed-1b
     embedding_endpoint: null
     embedding_api_key: ${NVIDIA_API_KEY}
     reranking_model: null
@@ -23,7 +23,7 @@ functions:
     verbose: false
     top_k: 8
     format_type: formatted
-    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_model: nvidia/nemotron-3-embed-1b
     embedding_endpoint: null
     embedding_api_key: ${NVIDIA_API_KEY}
     faiss_index_path: null

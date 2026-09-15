@@ -146,93 +146,42 @@ class GetIsaacSimInstructionsInput(BaseModel):
 
 
 # Tool description
-GET_ISAAC_SIM_INSTRUCTIONS_DESCRIPTION = """Retrieve Isaac Sim system instructions and documentation for development.
+GET_ISAAC_SIM_INSTRUCTIONS_DESCRIPTION = """Router / preamble tool that loads Isaac Sim playbooks (robot setup, sensors, synthetic data, ROS 2, physics, OmniGraph, Isaac Lab, …) before a development task.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- You are about to start an Isaac Sim task and want the relevant guide loaded.
+- You need the canonical workflow for a domain (sensors, SDG, ROS 2, Isaac Lab).
+- Call with no argument to see all available instruction sets.
 
-PARAMETER:
-- instruction_sets: Instruction sets in ANY convenient format:
-  * Single instruction: "isaacsim_system"
-  * Native array: ["isaacsim_system", "robot_setup", "sensors"] ← WORKS DIRECTLY!
-  * JSON string: '["isaacsim_system", "physics", "ros_2"]'
-  * Comma-separated: "isaacsim_system, robot_setup, sensors"
-  * Empty/null: Lists all available instruction sets
+KEY INSTRUCTION SETS (full list returned when called with no argument):
+- "isaacsim_system", "what_is_isaac_sim", "workflows", "quick_install", "installation".
+- "robot_setup", "robot_simulation", "sensors", "synthetic_data_generation".
+- "physics", "ros_2", "omnigraph", "omniverse_and_usd", "isaac_lab", "digital_twin".
+- "importers_and_exporters", "asset_structure", "isaac_sim_assets", "browsers".
+- "development_tools", "debugging_profiling", "application_template", "templates".
+- "isaac_sim_conventions", "isaac_sim_performance_optimization_handbook", "release_notes", "glossary", "help_faq", … (and more).
 
-AVAILABLE INSTRUCTION SETS:
-- **isaacsim_system**: Introduction to Isaac Sim, design, simulation, sensors, and digital twins
-- **what_is_isaac_sim**: Introduction to Isaac Sim as an Omniverse robotics simulation app
-- **quick_install**: Short install steps for Linux and Windows
-- **installation**: Full installation options (workstation, container, cloud, Python)
-- **workflows**: GUI, Extensions, and Standalone Python workflows
-- **quick_tutorials**: Introductory and Robot Setup tutorials
-- **examples**: Interactive and standalone examples
-- **python_scripting_and_tutorials**: Python scripting (standalone/interactive), core API, tutorials
-- **robot_setup**: Robot Wizard, editors, assembler, and robot building tutorials
-- **robot_simulation**: Wheeled robots, manipulators, policy control, motion generation
-- **sensors**: Cameras, depth, RTX sensors, physics-based sensors, calibration
-- **synthetic_data_generation**: Replicator, perception/action data, grasping, MobilityGen
-- **physics**: PhysX, Newton, USD schemas, simulation flow
-- **ros_2**: ROS 2 bridge, installation, workspaces, tutorials
-- **omnigraph**: Visual programming for Replicators, ROS 2, sensors, controllers
-- **omniverse_and_usd**: USD basics, robot schema, USD tools, Omniverse commands
-- **isaac_lab**: Robot learning framework with RL/imitation learning
-- **digital_twin**: Warehouse logistics, Cortex robotics, mapping
-- **importers_and_exporters**: URDF, MJCF, CAD, ShapeNet import/export
-- **asset_structure**: Asset organization (base, parts, materials)
-- **isaac_sim_assets**: Available robots, sensors, props, environments
-- **browsers**: Content, Asset, Material, NVIDIA Asset, SimReady browsers
-- **gui_reference**: GUI overview, shortcuts, Create/Replicator menus, preferences
-- **user_interface_reference**: Menu bar, viewport, toolbar, stage, property panel
-- **keyboard_shortcuts_reference**: Viewport, gizmo, and common action shortcuts
-- **development_tools**: VS Code, Jupyter, Script Editor, Carb settings
-- **debugging_profiling**: Debug Drawing, VS Code debugging, Tracy profiling
-- **application_template**: Build custom apps from extension registry
-- **templates**: Extension Template Generator, VS Code templates
-- **adding_and_updating_extensions_guide**: Add/update extensions via registry
-- **api_documentation**: Isaac Sim and Omniverse API reference links
-- **isaac_sim_conventions**: Units, rotations, coordinate conventions
-- **isaac_sim_performance_optimization_handbook**: Physics/rendering/sensor tuning
-- **isaac_sim_benchmarks**: Performance KPIs and measurement
-- **reference_architecture_and_task_groupings**: Architecture and use case groupings
-- **release_notes**: Isaac Sim 6.0.0 release notes
-- **renaming_extensions_in_isaac_sim_4_5**: Deprecated-to-new extension name mapping
-- **glossary**: Omniverse and Isaac Sim term definitions
-- **help_faq**: FAQ, troubleshooting, developer resources
-- **licenses**: Licensing terms
-- **data_collection_usage**: Telemetry and data collection settings
-- **community_project_highlights**: Community projects and tools
-- **omniverse_feedback_and_forums**: Forums, Discord, feedback
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_instructions(instruction_sets=["isaacsim_system", "robot_setup"])
-✅ Single string: get_instructions(instruction_sets="isaacsim_system")
-✅ JSON string: get_instructions(instruction_sets='["isaacsim_system", "physics", "sensors"]')
-✅ Comma format: get_instructions(instruction_sets="isaacsim_system, robot_setup, sensors")
-✅ List all: get_instructions() or get_instructions(instruction_sets=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["isaacsim_system", "robot_setup"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- Single API call for multiple instruction sets
-- Combined documentation with clear sections
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- instruction_sets (str | list[str] | null): one or more set names; accepts single string, list, JSON-array string, or comma-separated string. Null lists all sets.
 
 RETURNS:
-- For single instruction set: Formatted documentation with use cases
-- For multiple sets: Combined documentation with section headers
-- For listing: All available instruction sets with descriptions
+Formatted documentation for the requested set(s) with use cases, or a directory listing when called with no argument.
 
-WHEN TO USE:
-- Load "isaacsim_system" when starting Isaac Sim development for framework fundamentals
-- Load "robot_setup" for robot building with Wizard, editors, and assembler
-- Load "robot_simulation" for robot control, motion, and policy-based examples
-- Load "sensors" for camera and sensor configuration
-- Load "synthetic_data_generation" for Replicator and data generation
-- Load "physics" for PhysX simulation setup
-- Load "ros_2" for ROS 2 integration and bridging
-- Load "omniverse_and_usd" for USD and Omniverse fundamentals
-- Call without parameters to see all available instructions"""
+USAGE EXAMPLES:
+get_isaac_sim_instructions "isaacsim_system"
+get_isaac_sim_instructions ["robot_setup", "sensors"]
+get_isaac_sim_instructions null
+
+CROSS-SERVER ROUTING:
+- For Universal Scene Description (USD) concepts and pxr API details → use the USD Code MCP's `search_usd_knowledge`.
+- For Omniverse UI (omni.ui) widget styling and window layouts → use the OmniUI MCP's `search_ui_code_examples`.
+- For general Kit runtime, lifecycle, and architecture → use the Kit MCP's `search_kit_knowledge`.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Runnable Isaac Sim code → use search_isaac_sim_code_examples.
+- Isaac Sim extension discovery → use search_isaac_sim_extensions.
+- Isaac Sim setting-path lookup → use search_isaac_sim_settings.
+- Extension metadata by ID → use get_isaac_sim_extension_details."""
 
 
 class GetIsaacSimInstructionsConfig(FunctionBaseConfig, name="get_isaac_sim_instructions"):

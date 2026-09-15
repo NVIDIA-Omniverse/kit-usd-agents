@@ -1,0 +1,278 @@
+# Default query-expansion glossary for Omniverse agent tools.
+#
+# Satisfies OmniverseKitMCPsImprove-SRD REQ-QE-1 (§3.3.1): 9-domain glossary
+# with ~200 abbreviation→expansion entries that fire in ``expand_query()``.
+#
+# Format: top-level keys are domain names (documentation only — not used
+# for routing at runtime); inner mapping is ``{abbreviation: [expansion_terms]}``.
+# Lookup is case-insensitive on the key. Expansion terms are appended to the
+# query in parentheses by ``query_expansion.expand`` when the abbreviation is
+# a whole-word match in the user query.
+#
+# Rules:
+# - Abbreviation keys are the exact form users type (usually uppercase or
+#   CamelCase). Lookup is case-insensitive, so both "Gf" and "GF" match.
+# - Expansion lists: first entry is the primary canonical term; the rest
+#   are synonyms / alternate phrasings the retriever should also see.
+# - Never include the abbreviation itself in its own expansion list.
+# - Avoid entries whose "abbreviation" is a common English word (e.g. "RGB"
+#   is fine because it's not a word; "CAM" is risky because "cam" appears
+#   in camera-related prose). When in doubt, err toward inclusion — the
+#   ``skip_redundant`` logic in expand() already avoids double-appending
+#   when the expansion terms are already in the query.
+
+# ---------------------------------------------------------------------------
+# 1. USD / pxr modules (~50)
+# ---------------------------------------------------------------------------
+usd_modules:
+  Gf: ["Graphics Foundation", "graphics foundation math types"]
+  Sdf: ["Scene Description Format", "SdfLayer SdfPath"]
+  Tf: ["Tool Foundations", "fundamental toolkit"]
+  Vt: ["Value Types", "Vt array"]
+  Pcp: ["prim cache", "prim composition"]
+  Plug: ["Plugin framework", "plugin registry"]
+  Ar: ["Asset Resolver", "asset resolution"]
+  Kind: ["Model Kind", "kind schema"]
+  Ndr: ["Node Definition Registry"]
+  Sdr: ["Shader Definition Registry"]
+  Pxr: ["Pixar USD root namespace"]
+  Trace: ["Pixar Trace profiler"]
+  Work: ["Work dispatcher", "task parallelism"]
+  Js: ["JS JSON parser library"]
+  UsdGeom: ["USD Geometry schema", "geometry schemas"]
+  UsdShade: ["USD Shading schema", "Materials", "Shaders"]
+  UsdPhysics: ["USD Physics schema", "physics schema"]
+  UsdSkel: ["USD Skeleton schema", "skeletal animation"]
+  UsdMedia: ["USD Media schema", "audio video"]
+  UsdProc: ["USD Procedural schema"]
+  UsdLux: ["USD Lux", "Lighting schema", "Lights"]
+  UsdRender: ["USD Render schema", "render settings"]
+  UsdRi: ["USD RenderMan schema"]
+  UsdVol: ["USD Volume schema", "volumes"]
+  UsdHydra: ["USD Hydra schema"]
+  UsdAppUtils: ["USD Application Utilities"]
+  Usdviewq: ["usdview Qt library"]
+  UsdUtils: ["USD Utilities"]
+  UsdMtlx: ["USD MaterialX", "MaterialX in USD"]
+  Hd: ["Hydra", "Hydra rendering"]
+  HdSt: ["Hydra Storm", "Storm renderer"]
+  HdRpr: ["Hydra render plugin"]
+  HdPrman: ["Hydra RenderMan"]
+  HdArnold: ["Hydra Arnold"]
+  HdCycles: ["Hydra Cycles"]
+  Hf: ["Hydra Foundations"]
+  Hio: ["Hydra I/O"]
+  Garch: ["Graphics Architecture"]
+  Glf: ["GL Foundation"]
+  CameraUtil: ["Camera Utilities"]
+  HdGp: ["Hydra Generative Plugin"]
+  HdMtlx: ["Hydra MaterialX"]
+  HdsiBlitEffects: ["Hydra scene index blit effects"]
+  Hdui: ["Hydra UI"]
+  HgiGL: ["Hydra Graphics Interface OpenGL"]
+  HgiMetal: ["Hydra Graphics Interface Metal"]
+  HgiVulkan: ["Hydra Graphics Interface Vulkan"]
+  HgiInterop: ["Hydra Graphics Interface Interop"]
+  LIVRPS: ["Local Inherits VariantSets References Payloads Specializes", "composition arc strength ordering"]
+  LIVERPS: ["Local Inherits Variantsets Extends References Payloads Specializes"]
+
+# ---------------------------------------------------------------------------
+# 2. Kit / omni namespace (~40)
+# ---------------------------------------------------------------------------
+kit:
+  KAT: ["kit-app-template", "Kit App Template"]
+  KIT: ["NVIDIA Omniverse Kit", "Kit SDK"]
+  OV: ["Omniverse"]
+  omni.ui: ["Omniverse UI widget framework"]
+  omni.kit: ["Omniverse Kit extensions"]
+  omni.usd: ["Omniverse USD bindings"]
+  carb: ["Carbonite", "Carbonite framework"]
+  IExt: ["Kit extension lifecycle interface", "on_startup on_shutdown"]
+  ext: ["Kit extension"]
+  OG: ["OmniGraph"]
+  OmniGraph: ["OG execution graph"]
+  RP: ["Replicator", "Omniverse Replicator"]
+  SDG: ["Synthetic Data Generation"]
+  SDK: ["Software Development Kit"]
+  TOML: ["Tom's Obvious Minimal Language config format"]
+  MDL: ["Material Definition Language"]
+  USDRT: ["USD Run Time", "Fabric scene graph"]
+  Fabric: ["Omniverse Fabric scene graph"]
+  Nucleus: ["Omniverse Nucleus server"]
+  NGC: ["NVIDIA GPU Cloud"]
+  NCC: ["NVIDIA Cloud Compute"]
+  MCP: ["Model Context Protocol"]
+  RAG: ["Retrieval Augmented Generation"]
+  BM25: ["Okapi BM25 lexical retrieval"]
+  FAISS: ["Facebook AI Similarity Search"]
+  FTS5: ["SQLite Full Text Search v5"]
+  RTX: ["NVIDIA RTX real-time ray tracing"]
+  NVCF: ["NVIDIA Cloud Functions"]
+  NIM: ["NVIDIA Inference Microservice"]
+  LC: ["LangChain"]
+  LCEL: ["LangChain Expression Language"]
+  OMPE: ["Omniverse Platform Engineering"]
+  OSRB: ["Open Source Review Board"]
+  GSG: ["Getting Started Guide"]
+  KitBaseEditor: ["Kit Base Editor app template"]
+
+# ---------------------------------------------------------------------------
+# 3. Rendering / CG (~40)
+# ---------------------------------------------------------------------------
+rendering:
+  PBR: ["Physically Based Rendering"]
+  BRDF: ["Bidirectional Reflectance Distribution Function"]
+  BSDF: ["Bidirectional Scattering Distribution Function"]
+  BSSRDF: ["Bidirectional Surface Scattering Reflectance Distribution Function"]
+  SSS: ["Subsurface Scattering"]
+  GI: ["Global Illumination"]
+  AO: ["Ambient Occlusion"]
+  DOF: ["Depth of Field"]
+  MSAA: ["Multi-Sample Anti-Aliasing"]
+  TAA: ["Temporal Anti-Aliasing"]
+  DLSS: ["Deep Learning Super Sampling"]
+  DLFG: ["DLSS Frame Generation"]
+  RTXDI: ["RTX Direct Illumination"]
+  RTXGI: ["RTX Global Illumination"]
+  HDR: ["High Dynamic Range"]
+  LDR: ["Low Dynamic Range"]
+  ACES: ["Academy Color Encoding System"]
+  OETF: ["Opto-Electronic Transfer Function"]
+  EOTF: ["Electro-Optical Transfer Function"]
+  LUT: ["Look-Up Table"]
+  sRGB: ["standard RGB color space"]
+  LPE: ["Light Path Expression"]
+  AOV: ["Arbitrary Output Variable"]
+  MRT: ["Multiple Render Targets"]
+  VBO: ["Vertex Buffer Object"]
+  IBO: ["Index Buffer Object"]
+  UBO: ["Uniform Buffer Object"]
+  SSBO: ["Shader Storage Buffer Object"]
+  SPIRV: ["SPIR-V shader intermediate representation"]
+  GLSL: ["OpenGL Shading Language"]
+  HLSL: ["High-Level Shading Language"]
+  MSL: ["Metal Shading Language"]
+  OSL: ["Open Shading Language"]
+  MaterialX: ["MaterialX shading standard"]
+  NanoVDB: ["GPU-friendly sparse volume grid"]
+  OpenVDB: ["Sparse volume data structure"]
+  UDIM: ["U-DIM texture tile convention"]
+  IBL: ["Image-Based Lighting"]
+  PBRT: ["Physically Based Ray Tracer"]
+  DXR: ["DirectX Raytracing"]
+  VRS: ["Variable Rate Shading"]
+
+# ---------------------------------------------------------------------------
+# 4. Physics / simulation (~20)
+# ---------------------------------------------------------------------------
+physics:
+  PhysX: ["NVIDIA PhysX simulation engine"]
+  TGS: ["Temporal Gauss-Seidel solver"]
+  PGS: ["Projected Gauss-Seidel solver"]
+  CCD: ["Continuous Collision Detection"]
+  BVH: ["Bounding Volume Hierarchy"]
+  COM: ["Center Of Mass"]
+  MOI: ["Moment Of Inertia"]
+  DOF: ["Degree Of Freedom"]
+  RB: ["Rigid Body"]
+  D6: ["D6 joint six-degree-of-freedom joint"]
+  URDF: ["Unified Robot Description Format"]
+  MJCF: ["MuJoCo XML Configuration Format"]
+  SDF: ["Signed Distance Field"]
+  TMStorage: ["Transform storage"]
+  IK: ["Inverse Kinematics"]
+  FK: ["Forward Kinematics"]
+  DAQ: ["Data Acquisition"]
+  MPC: ["Model Predictive Control"]
+  RL: ["Reinforcement Learning"]
+  Articulation: ["Physics articulation tree"]
+
+# ---------------------------------------------------------------------------
+# 5. Sensors / Replicator (~15)
+# ---------------------------------------------------------------------------
+sensors:
+  RGB: ["RGB color sensor"]
+  RGBD: ["RGB plus Depth sensor"]
+  LiDAR: ["Light Detection And Ranging"]
+  ToF: ["Time of Flight"]
+  IMU: ["Inertial Measurement Unit"]
+  GPS: ["Global Positioning System"]
+  GNSS: ["Global Navigation Satellite System"]
+  Ultrasonic: ["Ultrasonic sensor"]
+  Radar: ["Radar sensor"]
+  DGS: ["Domain Gap Synthesis"]
+  SimReady: ["SimReady simulation-ready asset specification"]
+  SimulationApp: ["Isaac Sim SimulationApp entry point"]
+  OmniLidar: ["Omniverse LiDAR sensor extension"]
+  OmniSensor: ["Omniverse sensor extension"]
+  Randomizer: ["Replicator randomizer node"]
+
+# ---------------------------------------------------------------------------
+# 6. UI widgets / styling (~15)
+# ---------------------------------------------------------------------------
+ui:
+  VStack: ["Vertical Stack layout"]
+  HStack: ["Horizontal Stack layout"]
+  ZStack: ["Z-order overlay stack"]
+  ComboBox: ["drop-down selector widget"]
+  TreeView: ["hierarchical tree widget"]
+  ListView: ["flat list widget"]
+  ToolBar: ["toolbar widget"]
+  MenuBar: ["menu bar widget"]
+  DPI: ["dots per inch HiDPI scaling"]
+  SizePolicy: ["widget size policy"]
+  StyleSheet: ["CSS-like style sheet"]
+  RasterPolicy: ["raster rendering policy"]
+  DockedWindow: ["docked window widget"]
+  ScrollingFrame: ["scrolling frame container"]
+  CollapsableFrame: ["collapsable frame container"]
+
+# ---------------------------------------------------------------------------
+# 7. AI / Agent stack (~15)
+# ---------------------------------------------------------------------------
+ai:
+  LLM: ["Large Language Model"]
+  VLM: ["Vision Language Model"]
+  RLHF: ["Reinforcement Learning from Human Feedback"]
+  SFT: ["Supervised Fine-Tuning"]
+  DPO: ["Direct Preference Optimization"]
+  MoE: ["Mixture of Experts"]
+  NeMo: ["NVIDIA NeMo framework"]
+  Triton: ["NVIDIA Triton Inference Server"]
+  TRT: ["TensorRT"]
+  CUDA: ["Compute Unified Device Architecture"]
+  cuDNN: ["CUDA Deep Neural Network library"]
+  JAX: ["JAX numerical computing library"]
+  PyTorch: ["PyTorch deep learning framework"]
+  LangChain: ["LangChain agent framework"]
+  RRF: ["Reciprocal Rank Fusion"]
+
+# ---------------------------------------------------------------------------
+# 8. Geometry / schema abbreviations (~10)
+# ---------------------------------------------------------------------------
+geometry:
+  Xform: ["USD transform prim", "Xformable"]
+  Xformable: ["USD transformable schema"]
+  NURBS: ["Non-Uniform Rational B-Spline"]
+  Prim: ["USD prim", "scene graph node"]
+  PrimPath: ["SdfPath prim path"]
+  SdfPath: ["USD scene description path"]
+  SdfLayer: ["USD layer"]
+  UsdStage: ["composed USD stage"]
+  UsdReferences: ["USD references composition arc"]
+  UsdVariants: ["USD variant set"]
+
+# ---------------------------------------------------------------------------
+# 9. General ecosystem (~10)
+# ---------------------------------------------------------------------------
+general:
+  NVIDIA: ["NVIDIA Corporation"]
+  IsaacSim: ["NVIDIA Isaac Sim", "robotics simulator"]
+  IsaacLab: ["NVIDIA Isaac Lab", "RL training framework"]
+  Cosmos: ["NVIDIA Cosmos world model"]
+  WRAPP: ["Warehouse of Reusable Assets and Programs"]
+  Mega: ["Omniverse Mega simulation runtime"]
+  Carbonite: ["Omniverse Carbonite low-level runtime"]
+  Codex: ["OpenAI Codex CLI"]
+  Cursor: ["Cursor AI-first editor"]
+  Anthropic: ["Anthropic AI"]

@@ -34,7 +34,7 @@ setup(
     name="omni_nat_planning",
     version="0.1.4",
     author="NVIDIA",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="Planning Agent plugin for NAT",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",

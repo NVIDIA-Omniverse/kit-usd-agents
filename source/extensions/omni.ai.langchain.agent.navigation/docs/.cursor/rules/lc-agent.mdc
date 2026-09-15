@@ -3379,7 +3379,7 @@ This example demonstrates the basic usage of LC Agent's retrieval system.
 It shows how to set up and use embeddings-based question answering (EmbedQA)
 for semantic search over a knowledge base.
 
-The example uses NVIDIA's nv-embedqa-e5-v5 model for generating embeddings
+The example uses NVIDIA's nemotron-3-embed-1b model for generating embeddings
 and performing semantic similarity search.
 
 Key components:
@@ -3394,7 +3394,7 @@ from lc_agent import get_retriever_registry
 # Register all available retrievers with specific configuration
 # - model: NVIDIA's E5 model optimized for question answering
 # - top_k: Number of results to return for each query
-register_all(model="nvdev/nvidia/nv-embedqa-e5-v5", top_k=5)
+register_all(model="nvidia/nemotron-3-embed-1b", top_k=5)
 
 # Get the embedqa retriever from the registry
 # This retriever uses embeddings to find semantically similar content

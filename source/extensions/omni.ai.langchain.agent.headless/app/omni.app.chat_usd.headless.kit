@@ -2,7 +2,7 @@
 title = "Chat USD Headless For Kit"
 description = "Kit Extensions to work with ChatUSD"
 repository = ""
-version = "1.2.0"
+version = "1.2.1"
 
 # That makes it browsable in UI with "app" filter
 keywords = ["app"]
@@ -16,6 +16,8 @@ keywords = ["app"]
 [settings]
 # Fast shutdown by default
 app.fastShutdown = true
+# The headless app does not load UsdRt, which the Fabric scene delegate requires.
+app.useFabricSceneDelegate = false
 
 [settings.app.exts]
 # Append local extension folders

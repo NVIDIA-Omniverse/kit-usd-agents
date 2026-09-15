@@ -7,6 +7,8 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 from contextlib import ExitStack, contextmanager
 from typing import Callable, Dict, List, Optional, T, Tuple, Type, TypeVar
 

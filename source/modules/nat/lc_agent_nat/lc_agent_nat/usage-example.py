@@ -12,11 +12,11 @@ This script demonstrates how to use AgentIQ to create a simple workflow.
 """
 
 from nat.builder.workflow_builder import WorkflowBuilder
-from nat.data_models.config import AIQConfig
+from nat.data_models.config import Config
 from nat.llm.nim_llm import NIMModelConfig
 from nat.runtime.loader import PluginTypes
 from nat.runtime.loader import discover_and_register_plugins
-from nat.data_models.api_server import AIQChatRequest
+from nat.data_models.api_server import ChatRequest
 from lc_agent_nat import SimpleFunctionConfig
 import asyncio
 import sys
@@ -43,8 +43,8 @@ async def main():
             verbose=True,
         )
 
-        # Create an AIQ configuration
-        config = AIQConfig(
+        # Create a NAT configuration
+        config = Config(
             llms={"nim_llm": nim_config},
             workflow=workflow_config,
         )
@@ -54,7 +54,7 @@ async def main():
             print("Building workflow...")
             workflow = builder.build()
 
-            message = AIQChatRequest.from_string("Who are you?")
+            message = ChatRequest.from_string("Who are you?")
 
             print("Executing workflow with input: 'Who are you?'")
             async with workflow.run(message) as runner:

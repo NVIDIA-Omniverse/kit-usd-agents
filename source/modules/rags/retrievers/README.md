@@ -33,6 +33,6 @@ The package includes the following retrievers:
 
 The package includes pre-built data files for the FAISS retriever:
 
-- `faiss_index_embedqa_3346`: Pre-built FAISS index for the EmbedQA-3346 dataset.
-- `faiss_index_ai-embed-qa-4_ousd_sdgqa`: Pre-built FAISS index for the QA dataset.
-- `faiss_index_ai-embed-qa-4_code06262024`: Pre-built FAISS index for the USD Code dataset.
+- `faiss_usd_code_3346`: Pre-built FAISS index for the EmbedQA-3346 dataset.
+- `faiss_usd_knowledge_sdgqa`: Pre-built FAISS index for the QA dataset.
+- `faiss_usd_code_06262024`: Pre-built FAISS index for the USD Code dataset.

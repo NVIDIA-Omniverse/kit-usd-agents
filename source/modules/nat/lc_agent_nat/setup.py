@@ -32,9 +32,9 @@ install_requires = req_file("requirements.txt")
 
 setup(
     name="lc_agent_nat",
-    version="0.2.3",
+    version="0.2.5",
     author="NVIDIA",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="LC Agent plugin for NAT (NVIDIA AgentIQ Toolkit)",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

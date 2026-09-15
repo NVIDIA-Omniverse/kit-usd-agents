@@ -30,6 +30,11 @@ from .utils.usage_logging_decorator import log_tool_usage
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
+
 # Input schema for zero argument function
 class ListUSDModulesInput(BaseModel):
     """Input schema for list_usd_modules (no arguments)."""
@@ -38,23 +43,28 @@ class ListUSDModulesInput(BaseModel):
 
 
 # Tool description
-LIST_USD_MODULES_DESCRIPTION = """Return a list of all USD modules from the USD Atlas data.
+LIST_USD_MODULES_DESCRIPTION = """Enumerate every pxr.* module known to the USD Atlas — useful for discovering what USD modules exist.
 
-WHAT IT DOES:
-- Retrieves comprehensive information about all USD modules
-- Includes module names, full names, file paths
-- Shows which classes and functions belong to each module
-- Provides summary statistics about modules
+WHEN TO USE THIS TOOL:
+- "Which pxr modules are available?"
+- You need to confirm a module name (Sdf, Usd, UsdGeom, UsdShade, …) before calling get_usd_module_detail.
+- Producing a sitemap of USD APIs.
+
+ARGUMENTS:
+- (no arguments)
 
 RETURNS:
-A JSON string containing all USD module information including:
-- Module names and full names
-- File paths for each module
-- Lists of classes and functions in each module
-- Summary statistics (total modules, classes, functions)
+JSON containing module names, full names, file paths, the classes and functions belonging to each module, and summary statistics (total modules / classes / functions).
 
 USAGE EXAMPLES:
 list_usd_modules
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Full details for a named module → use get_usd_module_detail.
+- Enumerate classes, not modules → use list_usd_classes.
+- Conceptual / how-to questions → use search_usd_knowledge.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 
@@ -89,10 +99,10 @@ async def register_list_usd_modules(config: ListUSDModulesConfig, builder: Build
             if result["success"]:
                 return result["result"]
             else:
-                return f"ERROR: {result['error']}"
+                return f"ERROR: {_sanitize_log(result['error'], cap=500)}"
 
         except Exception as e:
-            return f"ERROR: Failed to retrieve USD modules - {str(e)}"
+            return f"ERROR: Failed to retrieve USD modules - {_sanitize_log(str(e), cap=500)}"
 
     # Pass input_schema for zero argument function
     function_info = FunctionInfo.from_fn(

@@ -33,13 +33,13 @@ Central data service managing the comprehensive OmniUI knowledge base:
 #### 3.2 Retrieval Service (Vector Search)
 Semantic search capabilities for code examples:
 - **Index**: FAISS vector database with pre-indexed code examples
-- **Embeddings**: NVIDIA nv-embedqa-e5-v5 model for query vectorization
+- **Embeddings**: NVIDIA nemotron-3-embed-1b model for query vectorization
 - **Similarity Search**: Cosine similarity for relevance matching
 - **Performance**: Sub-second query response times
 
 #### 3.3 Reranking Service
 Advanced relevance optimization:
-- **Model**: NVIDIA llama-nemotron-rerank-1b-v2
+- **Model**: NVIDIA llama-nemotron-rerank-vl-1b-v2
 - **Purpose**: Re-scores initial search results for improved relevance
 - **Configuration**: Optional, can be disabled for faster responses
 - **Impact**: Typically improves result quality by 20-30%

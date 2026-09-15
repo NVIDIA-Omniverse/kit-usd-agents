@@ -55,6 +55,7 @@ class ExtensionService:
         self.faiss_db_path = Path(faiss_db_path) if faiss_db_path else FAISS_DB_PATH
         self.vectorstore = None
         self.embedder = None
+        self._hybrid = None  # ovgenai-retrieval HybridRetriever if enabled
         self._initialize_faiss()
 
         # Fallback to Atlas data if FAISS not available
@@ -73,12 +74,17 @@ class ExtensionService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
+            self.embedder = EmbedderFactory.create(model="nvidia/nemotron-3-embed-1b")
 
             # Load FAISS index via faiss_safe (JSON-backed metadata)
             from ..utils.faiss_safe import load_faiss_safe
 
             self.vectorstore = load_faiss_safe(str(self.faiss_db_path), self.embedder)
+
+            # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+            from ..utils.hybrid_shim import maybe_load_hybrid
+
+            self._hybrid = maybe_load_hybrid(str(self.faiss_db_path), self.embedder, top_k=20)
 
             logger.info(f"Successfully loaded FAISS index from {self.faiss_db_path}")
 
@@ -86,6 +92,7 @@ class ExtensionService:
             logger.error(f"Failed to load FAISS index: {e}")
             self.vectorstore = None
             self.embedder = None
+            self._hybrid = None
 
     def is_available(self) -> bool:
         """Check if extension data is available."""
@@ -106,13 +113,19 @@ class ExtensionService:
 
         results = []
 
-        # Use FAISS semantic search if available
-        if self.vectorstore:
+        # Use FAISS semantic search if available (hybrid when enabled)
+        if self.vectorstore or self._hybrid is not None:
             try:
-                # Perform similarity search
-                docs_with_scores = self.vectorstore.similarity_search_with_score(
-                    query, k=top_k * 2
-                )  # Get more for potential filtering
+                # Hybrid path takes precedence when enabled.
+                if self._hybrid is not None:
+                    from ..utils.hybrid_shim import hits_to_documents_with_scores
+
+                    docs_with_scores = hits_to_documents_with_scores(self._hybrid.retrieve(query, top_k=top_k))
+                else:
+                    # Perform similarity search
+                    docs_with_scores = self.vectorstore.similarity_search_with_score(
+                        query, k=top_k * 2
+                    )  # Get more for potential filtering
 
                 for doc, score in docs_with_scores:
                     metadata = doc.metadata

@@ -666,7 +666,7 @@ get_kit_instructions(["kit_system", "extensions"])
 1. **extensions_faiss/**: Extension metadata embeddings
    - 400+ Kit extensions
    - Descriptions, features, categories
-   - NVIDIA NV-EmbedQA-E5-v5 embeddings
+   - NVIDIA Nemotron-3-Embed-1B embeddings
 
 2. **code_examples_faiss/**: Code example embeddings
    - Production code patterns

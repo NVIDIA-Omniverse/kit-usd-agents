@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities module for Isaac Sim MCP tools."""
+"""Utilities module for Kit MCP tools.
 
-from .input_sanitization import sanitize_identifier, sanitize_query
-
-__all__ = ["sanitize_query", "sanitize_identifier"]
+``sanitize_query`` previously lived here as a local html-escaping
+re-implementation that silently corrupted queries containing ``& < >
+' "`` at embed time (audit finding R2). All call sites now import the
+canonical version directly from ``ovgenai_retrieval``; the local
+module has been removed.
+"""

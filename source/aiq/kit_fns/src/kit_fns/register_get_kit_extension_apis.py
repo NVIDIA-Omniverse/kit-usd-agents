@@ -78,37 +78,29 @@ class GetExtensionAPIsInput(BaseModel):
 
 
 # Tool description
-GET_KIT_EXTENSION_APIS_DESCRIPTION = """List all APIs provided by Kit extensions - SUPER FLEXIBLE INPUT!
+GET_KIT_EXTENSION_APIS_DESCRIPTION = """Enumerate the full public API surface (classes, functions, parameters) of one or more named Kit extensions.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- "What does extension X expose?"
+- You need to pick the right symbol from an extension before calling get_kit_api_details.
+- Auditing or comparing the APIs of several extensions.
 
-PARAMETER:
-- extension_ids: Extension IDs in ANY convenient format:
-  * Single ID: "omni.ui"
-  * Native array: ["omni.ui", "omni.ui.scene"] ← WORKS DIRECTLY!
-  * JSON string: '["omni.ui", "omni.ui.scene"]'
-  * Comma-separated: "omni.ui, omni.ui.scene"
-  * Empty/null: Lists all available API references
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_extension_apis(extension_ids=["omni.ui", "omni.ui.scene"])
-✅ Single string: get_extension_apis(extension_ids="omni.ui")
-✅ JSON string: get_extension_apis(extension_ids='["omni.ui", "omni.ui.scene"]')
-✅ Comma format: get_extension_apis(extension_ids="omni.ui, omni.ui.scene") 
-✅ List all: get_extension_apis() or get_extension_apis(extension_ids=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["omni.ui", "omni.ui.scene"] - no need to convert to strings!
+ARGUMENTS:
+- extension_ids (str | list[str] | null): extension ID(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all available references.
 
 RETURNS:
-Structured API listing with:
-- Classes and their methods
-- Functions and parameters
-- API reference format for detailed lookup
-- API count per extension
-- Error handling for missing extensions
+Structured API listing with classes and their methods, functions and parameters, `extension_id@symbol` references for follow-up lookup, and per-extension API counts.
 
-NEXT STEPS:
-- Use get_api_details with format 'extension_id@symbol' for complete documentation"""
+USAGE EXAMPLES:
+get_kit_extension_apis "omni.ui"
+get_kit_extension_apis ["omni.ui", "omni.ui.scene"]
+get_kit_extension_apis "omni.kit.window.console"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You want a single symbol's docstring and signature → use get_kit_api_details.
+- You want the extension's metadata (version, description, features) → use get_kit_extension_details.
+- You want the extension's dependency tree → use get_kit_extension_dependencies.
+- You don't know which extension to inspect → use search_kit_extensions first."""
 
 
 class GetExtensionAPIsConfig(FunctionBaseConfig, name="get_kit_extension_apis"):

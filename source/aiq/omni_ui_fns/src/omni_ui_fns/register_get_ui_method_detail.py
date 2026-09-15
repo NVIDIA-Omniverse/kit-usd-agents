@@ -99,38 +99,28 @@ class GetUIMethodDetailInput(BaseModel):
 
 
 # Tool description
-GET_UI_METHOD_DETAIL_DESCRIPTION = """Get detailed information about OmniUI methods - SUPER FLEXIBLE INPUT!
+GET_UI_METHOD_DETAIL_DESCRIPTION = """Inspect one or more omni.ui methods — signatures, parameters, return types, and docstrings.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- "What does ui.Button.clicked_fn / set_style / __init__ accept?"
+- Disambiguating overloaded constructors or lifecycle methods.
+- Batch-looking-up several methods at once.
 
-PARAMETER:
-- method_names: Method names in ANY convenient format:
-  * Single method string: "__init__"
-  * Native array: ["__init__", "clicked_fn", "set_value", "get_value"] ← WORKS DIRECTLY!
-  * JSON string: '["__init__", "clicked_fn", "set_value", "get_value"]'
-  * Comma-separated: "__init__, clicked_fn, set_value, get_value"
-  * Empty/null: Lists all available methods
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_ui_method_detail(method_names=["__init__", "clicked_fn"])
-✅ Single string: get_ui_method_detail(method_names="__init__")
-✅ JSON string: get_ui_method_detail(method_names='["__init__", "clicked_fn", "set_value", "get_value"]')
-✅ Comma format: get_ui_method_detail(method_names="__init__, clicked_fn, set_value, get_value")
-✅ List all: get_ui_method_detail() or get_ui_method_detail(method_names=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["__init__", "clicked_fn"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- 60-80% faster when fetching multiple methods
-- Single API call instead of multiple round-trips
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- method_names (str | list[str] | null): method name(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all available methods.
 
 RETURNS:
-- For single method: Standard JSON with method details
-- For multiple methods: Array with all method details plus metadata
-- Includes: signatures, parameters, return types, docstrings for each method
-- Error handling for invalid/missing methods"""
+For a single method: JSON with signature, parameters, return type, and docstring. For multiple methods: array of per-method details plus metadata.
+
+USAGE EXAMPLES:
+get_ui_method_detail "__init__"
+get_ui_method_detail ["clicked_fn", "set_value", "get_value"]
+get_ui_method_detail "set_style"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You want the full class API → use get_ui_class_detail.
+- You don't know the method → use search_ui_code_examples or get_ui_class_instructions.
+- Styling-specific method semantics → use get_ui_style_docs."""
 
 
 class GetUIMethodDetailConfig(FunctionBaseConfig, name="get_ui_method_detail"):

@@ -7,9 +7,16 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from pxr import Gf, Ndr, Sdf, Tf, Usd, UsdGeom, UsdShade
+from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdShade
+
+try:
+    from pxr import Ndr
+except ImportError:
+    Ndr = None  # Ndr was removed from pxr in Kit 110 / OpenUSD 25.xx
 
 
 def validate_shade_attributes(prim: Usd.Prim, attributes: Dict[str, UsdShade.AttributeType]) -> List[str]:

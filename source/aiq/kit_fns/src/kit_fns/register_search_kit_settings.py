@@ -18,6 +18,9 @@
 import logging
 from typing import Optional
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query
+from kit_fns.utils._retrieval_compat import truncate_text_with_guidance as _truncate_text
 from nat.builder.builder import Builder
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.builder.function_info import FunctionInfo
@@ -27,6 +30,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_settings import search_settings
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -47,59 +61,42 @@ class SearchKitSettingsInput(BaseModel):
 
 
 # Tool description
-SEARCH_KIT_SETTINGS_DESCRIPTION = """Search for NVIDIA Omniverse Kit configuration settings using semantic search across 1,000+ settings from 400+ extensions.
+SEARCH_KIT_SETTINGS_DESCRIPTION = """Look up a specific NVIDIA Omniverse Kit configuration setting path.
 
-WHAT IT DOES:
-- Searches through Kit's hierarchical settings system (Carbonite settings)
-- Uses semantic understanding to find relevant configuration options
-- Provides setting metadata including types, defaults, and documentation
-- Shows which extensions use each setting
-- Supports filtering by prefix and type
+USE THIS ONLY when you need the exact dotted-slash path of a Kit setting
+(e.g. /exts/omni.kit.viewport.window/enabled, /rtx/rendermode,
+/persistent/app/viewport/camMoveVelocity) or its type, default value,
+documentation, or owning extensions.
 
-SETTING PREFIXES:
-Kit settings follow a path-based structure with common prefixes:
-- /exts/: Extension-specific settings (e.g., /exts/omni.kit.viewport.window/enabled)
-- /app/: Application-level settings (e.g., /app/window/title)
-- /persistent/: Settings saved between sessions (e.g., /persistent/app/viewport/camMoveVelocity)
-- /rtx/: RTX rendering settings (e.g., /rtx/rendermode)
-- /renderer/: General renderer settings
-- /physics/: Physics simulation settings
+DO NOT use this tool for:
+- General Kit or Omniverse questions ("how does X work?", "how do I
+  implement Y?") — use search_kit_knowledge instead.
+- API, class, method, or code-example questions — use get_kit_api_details
+  or search_kit_code_examples instead.
+- Extension discovery or descriptions — use search_kit_extensions or
+  get_kit_extension_details instead.
 
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Setting paths and names
-- Documentation and descriptions
-- Extension names that use the settings
-- Setting types and categories
+If unsure whether the user wants a specific setting path or a general
+explanation, prefer search_kit_knowledge first; fall back to this tool
+only if the answer turns out to require a concrete setting path.
+
+SETTING PREFIXES you can filter by:
+- /exts/       extension-specific settings
+- /app/        application-level settings
+- /persistent/ settings saved between sessions
+- /rtx/        RTX rendering settings
 
 ARGUMENTS:
-- query (str): Natural language search query describing desired settings
-- top_k (int, optional): Number of results to return (default: 20)
-- prefix_filter (str, optional): Filter by setting prefix ('exts', 'app', 'persistent', 'rtx')
-- type_filter (str, optional): Filter by type ('bool', 'int', 'float', 'string', 'array', 'object')
+- query (str): name or purpose of the setting (e.g. "rtx rendermode",
+  "viewport camera velocity")
+- top_k (int, default 20): number of candidates to return
+- prefix_filter (str, optional): 'exts' | 'app' | 'persistent' | 'rtx'
+- type_filter  (str, optional): 'bool' | 'int' | 'float' | 'string' |
+  'array' | 'object'
 
 RETURNS:
-Formatted search results with:
-- Full setting paths
-- Data types and default values
-- Documentation (when available)
-- Extensions using each setting
-- Usage counts across codebase
-- Source file locations
-
-USAGE EXAMPLES:
-search_settings("viewport rendering settings")
-search_settings("enable debug mode", type_filter="bool")
-search_settings("window configuration", prefix_filter="app")
-search_settings("saved user preferences", prefix_filter="persistent")
-search_settings("ray tracing quality", prefix_filter="rtx")
-
-TIPS FOR BETTER RESULTS:
-- Use specific terminology (e.g., "viewport", "timeline", "grid", "fps")
-- Include setting purpose (e.g., "enable", "disable", "configure", "adjust")
-- Specify data types when known (e.g., "boolean flags", "integer limits")
-- Use prefix filters to narrow down to specific categories
-- Search for extension names to find their settings"""
+Matching setting paths with types, defaults, documentation, and owning
+extensions."""
 
 
 class SearchKitSettingsConfig(FunctionBaseConfig, name="search_kit_settings"):
@@ -137,7 +134,6 @@ async def register_search_kit_settings(config: SearchKitSettingsConfig, builder:
 
         try:
             # Sanitize user input before sending to external APIs
-            from kit_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
@@ -157,11 +153,26 @@ async def register_search_kit_settings(config: SearchKitSettingsConfig, builder:
                 )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                # R6: the hint is appended onto the returned string. Reserve
+                # its length inside the 12 000-char cap so the final body +
+                # hint together stay within the intended budget.
+                _hint = "[Results truncated. Use prefix_filter or type_filter to narrow your search.]"
+                _separator = "\n\n"
+                text, hint = _truncate_text(
+                    text,
+                    max(0, 12000 - len(_hint) - len(_separator)),
+                    _hint,
+                )
+                if hint:
+                    text = f"{text}{_separator}{hint}"
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

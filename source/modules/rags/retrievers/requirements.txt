@@ -1,4 +1,4 @@
 faiss-cpu
-langchain-nvidia-ai-endpoints
+langchain-nvidia-ai-endpoints>=1.4.3,<2.0.0
 langchain-community>=0.4.1,<0.5.0
 lc_agent

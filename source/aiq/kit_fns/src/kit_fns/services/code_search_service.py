@@ -67,6 +67,8 @@ class CodeSearchService:
         self.code_vectorstore = None  # For regular/production code
         self.test_vectorstore = None  # For test code
         self.embedder = None
+        self._hybrid_code = None  # ovgenai-retrieval HybridRetriever if enabled
+        self._hybrid_test = None
 
         # Initialize fallback data
         self.code_examples_data = None
@@ -84,7 +86,7 @@ class CodeSearchService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
+            self.embedder = EmbedderFactory.create(model="nvidia/nemotron-3-embed-1b")
 
             # Try to load regular code FAISS index (priority order: regular, all, legacy)
             code_faiss_loaded = False
@@ -117,6 +119,21 @@ class CodeSearchService:
             if not code_faiss_loaded:
                 logger.warning("No code examples FAISS database found")
 
+            # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+            if code_faiss_loaded:
+                try:
+                    from ..utils.hybrid_shim import maybe_load_hybrid
+
+                    for _path in [CODE_EXAMPLES_FAISS_PATHS.get(m) for m in ("regular", "all")] + [
+                        LEGACY_CODE_EXAMPLES_FAISS_PATH
+                    ]:
+                        if _path and _path.exists():
+                            self._hybrid_code = maybe_load_hybrid(str(_path), self.embedder, top_k=20)
+                            if self._hybrid_code is not None:
+                                break
+                except Exception as e:
+                    logger.warning(f"Hybrid code retriever init failed: {e}")
+
             # Try to load test examples FAISS index (priority order: tests, all, use code vectorstore)
             test_faiss_loaded = False
             for mode in ["tests", "all"]:
@@ -139,6 +156,21 @@ class CodeSearchService:
                     logger.info("Using code examples FAISS database for test searches")
                 else:
                     logger.warning("No test examples FAISS database found")
+
+            # Optional hybrid path for test retriever (falls back to code hybrid when no test bundle)
+            try:
+                from ..utils.hybrid_shim import maybe_load_hybrid
+
+                if test_faiss_loaded:
+                    for _path in [CODE_EXAMPLES_FAISS_PATHS.get(m) for m in ("tests", "all")]:
+                        if _path and _path.exists():
+                            self._hybrid_test = maybe_load_hybrid(str(_path), self.embedder, top_k=20)
+                            if self._hybrid_test is not None:
+                                break
+                if self._hybrid_test is None:
+                    self._hybrid_test = self._hybrid_code
+            except Exception as e:
+                logger.warning(f"Hybrid test retriever init failed: {e}")
 
         except Exception as e:
             logger.error(f"Failed to initialize FAISS: {e}")
@@ -349,11 +381,17 @@ class CodeSearchService:
 
         results = []
 
-        # Use FAISS semantic search if available
-        if self.code_vectorstore:
+        # Use FAISS semantic search if available (hybrid when enabled)
+        if self.code_vectorstore or self._hybrid_code is not None:
             try:
-                # Perform similarity search
-                docs_with_scores = self.code_vectorstore.similarity_search_with_score(query, k=top_k)
+                # Hybrid path takes precedence when enabled.
+                if self._hybrid_code is not None:
+                    from ..utils.hybrid_shim import hits_to_documents_with_scores
+
+                    docs_with_scores = hits_to_documents_with_scores(self._hybrid_code.retrieve(query, top_k=top_k))
+                else:
+                    # Perform similarity search
+                    docs_with_scores = self.code_vectorstore.similarity_search_with_score(query, k=top_k)
 
                 # Collect all candidate results first
                 candidate_results = []
@@ -446,11 +484,17 @@ class CodeSearchService:
 
         results = []
 
-        # Use FAISS semantic search if available
-        if self.test_vectorstore:
+        # Use FAISS semantic search if available (hybrid when enabled)
+        if self.test_vectorstore or self._hybrid_test is not None:
             try:
-                # Perform similarity search
-                docs_with_scores = self.test_vectorstore.similarity_search_with_score(query, k=top_k)
+                # Hybrid path takes precedence when enabled.
+                if self._hybrid_test is not None:
+                    from ..utils.hybrid_shim import hits_to_documents_with_scores
+
+                    docs_with_scores = hits_to_documents_with_scores(self._hybrid_test.retrieve(query, top_k=top_k))
+                else:
+                    # Perform similarity search
+                    docs_with_scores = self.test_vectorstore.similarity_search_with_score(query, k=top_k)
 
                 # Collect all candidate results first
                 candidate_results = []

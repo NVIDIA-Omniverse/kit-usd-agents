@@ -17,6 +17,7 @@
 Centralized telemetry service for OmniUI MCP using Redis Streams.
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -140,7 +141,7 @@ class TelemetryService:
                 "duration_ms": round(duration_ms, 2),
                 "success": success,
                 "request_metadata": anonymized_request,
-                "session_id": self._hash_session_id(session_id) if session_id else "unknown",
+                "session_id": (self._hash_session_id(session_id) if session_id else "unknown"),
             }
 
             if error:
@@ -161,7 +162,12 @@ class TelemetryService:
             return False
 
     @asynccontextmanager
-    async def track_call(self, function_name: str, request_data: Dict[str, Any], session_id: Optional[str] = None):
+    async def track_call(
+        self,
+        function_name: str,
+        request_data: Dict[str, Any],
+        session_id: Optional[str] = None,
+    ):
         """
         Context manager for tracking function calls with automatic timing.
 
@@ -296,8 +302,33 @@ class TelemetryService:
 # Global telemetry instance
 telemetry = TelemetryService()
 
+_telemetry_init_attempted = False
+
+# Bound Redis dial/ping so a bad host cannot block the MCP event loop indefinitely.
+_TELEMETRY_INIT_TIMEOUT_SEC = 15.0
+
 
 async def ensure_telemetry_initialized():
-    """Ensure telemetry service is initialized."""
-    if telemetry._redis_client is None:
-        await telemetry.initialize()
+    """Ensure telemetry service is initialized at most once per process.
+
+    When telemetry is disabled or Redis is unavailable, ``_redis_client`` stays
+    None; we still must not call ``initialize()`` on every tool invocation.
+    """
+    global _telemetry_init_attempted
+    if _telemetry_init_attempted:
+        return
+    _telemetry_init_attempted = True
+    try:
+        await asyncio.wait_for(telemetry.initialize(), timeout=_TELEMETRY_INIT_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        logger.error(
+            "Telemetry Redis initialization timed out after %.0fs; disabling telemetry",
+            _TELEMETRY_INIT_TIMEOUT_SEC,
+        )
+        telemetry._enabled = False
+        if telemetry._redis_client is not None:
+            try:
+                await telemetry._redis_client.close()
+            except Exception as close_exc:
+                logger.debug("Redis close after telemetry timeout: %s", close_exc)
+            telemetry._redis_client = None

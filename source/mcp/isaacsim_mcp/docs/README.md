@@ -136,7 +136,7 @@ Config → Settings (search_isaac_sim_settings)
 ### Semantic Search
 
 All search tools use semantic search powered by:
-- **NVIDIA Embeddings**: `nv-embedqa-e5-v5` model
+- **NVIDIA Embeddings**: `nemotron-3-embed-1b` model
 - **FAISS**: Vector similarity search
 - **LangChain**: Integration layer
 
@@ -158,10 +158,11 @@ get_isaac_sim_extension_details(["omni.isaac.core", "omni.isaac.sensor", "omni.i
 
 ### Versioned Data
 
-All data is versioned by Isaac Sim version (controlled by the `MCP_ISAACSIM_VERSION` env var, default `6.0`):
+All data is versioned by Isaac Sim version (controlled by the `MCP_ISAACSIM_VERSION` env var, default `6.1`):
 ```
 data/
 ├── 6.0/            # Isaac Sim 6.0
+├── 6.1/            # Isaac Sim 6.1 (default)
 └── ...             # Additional versions as needed
 ```
 
@@ -223,7 +224,7 @@ The data corpus ships pre-built in the wheel; users do not need to regenerate it
 - **NAT Framework (nvidia-nat >= 1.4.0)**: Function registration and MCP server
 - **LangChain**: Vector store and embedding integrations
 - **FAISS**: High-performance semantic search
-- **NVIDIA AI Endpoints**: Embedding generation (`nv-embedqa-e5-v5`)
+- **NVIDIA AI Endpoints**: Embedding generation (`nemotron-3-embed-1b`)
 - **Pydantic**: Input validation
 - **Redis** (optional): Telemetry and usage tracking
 - **Python 3.11+**: Core implementation

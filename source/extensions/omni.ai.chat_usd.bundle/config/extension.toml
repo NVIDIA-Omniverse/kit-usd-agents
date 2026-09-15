@@ -1,5 +1,5 @@
 [package]
-version = "2.0.24"
+version = "2.0.27"
 authors = ["Omniverse GenAI Team"]
 title = "Chat USD (Preview)"
 description = "Integration of the USD NIM & Agents into Kit"
@@ -13,7 +13,7 @@ icon = "data/icon.png"
 
 [dependencies]
 "omni.ai.langchain.agent.omni_ui" = { optional = true }
-"omni.ai.langchain.agent.usd_code" = { version = "2.0.14" }
+"omni.ai.langchain.agent.usd_code" = { version = "2.0.17" }
 "omni.ai.langchain.extra" = { optional = true }
 "omni.ai.langchain.widget.core" = { version = "3.0.0" }
 "omni.kit.clipboard" = {}
@@ -45,8 +45,8 @@ chat_usd_multishot = true
 
 chat_usd_developer_mode = true
 
-# Use an nvidia embedding model
-# nvidia_embedding_model = "nvidia/nv-embedqa-e5-v5"
+# Embedding model used by every bundled ChatUSD FAISS retriever.
+nvidia_embedding_model = "nvidia/nemotron-3-embed-1b"
 
 # the url of your custom chat model server
 # custom_chat_model = "http://127.0.0.1:9901/"

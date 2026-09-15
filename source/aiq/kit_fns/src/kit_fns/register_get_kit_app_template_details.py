@@ -107,72 +107,28 @@ class GetKitAppTemplateDetailsInput(BaseModel):
 
 
 # Tool description
-GET_KIT_APP_TEMPLATE_DETAILS_DESCRIPTION = """Retrieve complete Kit application template examples including documentation and configuration files.
+GET_KIT_APP_TEMPLATE_DETAILS_DESCRIPTION = """Fetch the full README and .kit configuration for one or more named kit-app-template projects.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- You already picked a template (kit_base_editor, usd_composer, usd_explorer, usd_viewer, streaming_configs) and want its complete docs.
+- Comparing two or three templates side-by-side.
+- Listing all available templates (pass null / no argument).
 
-PARAMETER:
-- template_ids: Template IDs in ANY convenient format:
-  * Single template: "kit_base_editor"
-  * Native array: ["kit_base_editor", "usd_viewer"] ← WORKS DIRECTLY!
-  * JSON string: '["kit_base_editor", "usd_viewer"]'
-  * Comma-separated: "kit_base_editor, usd_viewer"
-  * Empty/null: Lists all available templates
-
-AVAILABLE TEMPLATES:
-- **kit_base_editor**: Minimal starting point for 3D applications
-  - Basic UI, RTX rendering, material library
-  - 68 dependencies, streaming support
-  
-- **usd_composer**: Professional authoring application
-  - Full creation suite, animation, materials
-  - 147 dependencies, requires setup extension
-  
-- **usd_explorer**: Large-scale visualization
-  - Industrial environments, collaboration
-  - 104 dependencies, dual-mode UI
-  
-- **usd_viewer**: Streaming-optimized viewer
-  - Cloud deployment, bi-directional messaging
-  - 38 dependencies, headless operation
-  
-- **streaming_configs**: Configuration layers
-  - Default, GDN, and NVCF streaming setups
+ARGUMENTS:
+- template_ids (str | list[str] | null): template ID(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all available templates.
 
 RETURNS:
-- Complete README documentation
-- Full .kit configuration files
-- Detailed metadata and features
-- Use cases and implementation guidance
-- Dependency information
+Complete README markdown, full .kit configuration files, template metadata, features, use cases, and dependency information per template.
 
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_app_examples(template_ids=["kit_base_editor", "usd_viewer"])
-✅ Single string: get_app_examples(template_ids="kit_base_editor")
-✅ JSON string: get_app_examples(template_ids='["kit_base_editor", "usd_composer"]')
-✅ Comma format: get_app_examples(template_ids="kit_base_editor, usd_viewer, usd_explorer")
-✅ List all: get_app_examples() or get_app_examples(template_ids=null)
+USAGE EXAMPLES:
+get_kit_app_template_details "kit_base_editor"
+get_kit_app_template_details ["usd_composer", "usd_viewer"]
+get_kit_app_template_details "streaming_configs"
 
-💡 FOR AI MODELS: You can pass arrays directly like ["kit_base_editor", "usd_viewer"] - no conversion needed!
-
-WORKFLOW:
-1. Search for templates: search_app_examples("your use case")
-2. Get full details: get_app_examples("template_id")
-3. Review README and .kit configuration
-4. Use as starting point for your application
-
-BATCH PROCESSING BENEFITS:
-- Single API call for multiple templates
-- Combined documentation with clear sections
-- Efficient context window usage
-- Side-by-side comparison capability
-
-The templates provide production-ready starting points for:
-- Desktop applications
-- Cloud streaming services
-- Industrial visualization
-- Content creation tools
-- Collaborative platforms"""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You don't know which template to pick → use search_kit_app_templates first.
+- You want individual extensions, not a whole app → use search_kit_extensions / get_kit_extension_details.
+- General "how do I structure a Kit app?" → use search_kit_knowledge."""
 
 
 class GetKitAppTemplateDetailsConfig(FunctionBaseConfig, name="get_kit_app_template_details"):

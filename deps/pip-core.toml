@@ -1,5 +1,12 @@
 [[dependency]]
 # This file is used to install the pip dependencies for the core extension.
+# Cache-bust marker: 2026-09-02 retrieval model migration requiring
+# langchain-nvidia-ai-endpoints>=1.4.3 and langchain-core>=1.4.7. The latter
+# still requires the typing_extensions shim in
+# omni.ai.langchain.core 2.3.2 (omni.kit.pip_archive ships typing_extensions 4.12.2,
+# too old for langchain_protocol's PEP 728 TypedDict). Changing this file's hash
+# forces packman to re-install the local source/modules/* packages even though
+# pip-core.toml itself pins no versions on them.
 python = "../_build/target-deps/python"
 packages = [
     # Local packages - use ./ prefix to ensure pip uses local source, not external registry
@@ -14,14 +21,21 @@ packages = [
     # External dependencies
     "blobfile",
     "faiss-cpu==1.12.0",
-    "fastapi<0.120.0",
+    "fastapi==0.136.1",
     "jsonschema",
-    "langchain",
-    "langchain-nvidia-ai-endpoints",
+    "langchain>=0.3.28",
+    "langchain-core>=1.4.7,<2.0.0",
+    "langchain-nvidia-ai-endpoints>=1.4.3,<2.0.0",
+    "langchain-community>=0.3.27",
     "langchain-openai",
+    # LiteLLM 1.99 (required by NVIDIA NAT 1.8) supports OpenAI SDK 2.x.
+    "openai>=2.45.0,<3.0.0",
     "numpy",
-    "tiktoken",
+    "starlette>=1.6.0,<2.0.0",
+    "urllib3>=2.7.0",
     "uvicorn",
+    "lxml>=5.4.0",
+    "tiktoken",
 ]
 extra_args = ["--no-cache-dir", "--force-reinstall", "--upgrade", "--ignore-installed"]
 target = "../_build/target-deps/pip_core_prebundle"

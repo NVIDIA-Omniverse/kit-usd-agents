@@ -18,6 +18,8 @@
 import logging
 from typing import List, Optional
 
+from isaacsim_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from isaacsim_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.builder.function_info import FunctionInfo
@@ -27,6 +29,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_extensions import search_extensions
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,47 +57,35 @@ class SearchIsaacSimExtensionsInput(BaseModel):
 
 
 # Tool description
-SEARCH_ISAAC_SIM_EXTENSIONS_DESCRIPTION = """Search for Isaac Sim extensions using semantic search across 400+ available extensions.
+SEARCH_ISAAC_SIM_EXTENSIONS_DESCRIPTION = """Semantic search for Isaac Sim extensions — "is there an Isaac Sim extension that does X?"
 
-WHAT IT DOES:
-- Converts your query to embeddings for semantic understanding
-- Searches across Isaac Sim extension metadata, descriptions, and features
-- Ranks results by relevance to your specific needs
-- Supports category filtering for targeted searches
-- Returns extensions with descriptions, features, and dependencies
-
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Extension names and descriptions
-- Feature lists and capabilities
-- Category classifications
-- Dependency information
-- Use case descriptions
+WHEN TO USE THIS TOOL:
+- "Which extension handles ROS 2 / Replicator / manipulator control / lidar?"
+- Comparing candidate extensions before picking one for a robotics task.
+- Discovering less-well-known sensor / physics / RL extensions.
 
 ARGUMENTS:
-- query (str): Search query describing what you're looking for
-- top_k (int, optional): Number of results to return (default: 10)
+- query (str): natural-language description of the capability you need.
+- top_k (int, optional): number of results to return (default 10).
 
 RETURNS:
-Formatted search results with:
-- Extension names and IDs
-- Relevance scores
-- Brief descriptions
-- Key features (top 3)
-- Dependencies
-- Version information
+Ranked extensions with names, IDs, relevance scores, descriptions, top features, dependencies, and version info.
 
 USAGE EXAMPLES:
-search_extensions("window management tools", top_k=10)
-search_extensions("ui widgets and controls", top_k=5)
-search_extensions("physics simulation", top_k=10)
-search_extensions("viewport and camera", top_k=3)
+search_isaac_sim_extensions "ros 2 bridge"
+search_isaac_sim_extensions "manipulator motion generation"
+search_isaac_sim_extensions "replicator synthetic data"
 
-TIPS FOR BETTER RESULTS:
-- Use specific terminology (e.g., "viewport", "console", "manipulator")
-- Include functionality keywords (e.g., "window", "widget", "render", "physics")
-- Specify use cases (e.g., "debugging tools", "ui components", "scene editing")
-- Use category filters to narrow results to relevant domains"""
+COVERAGE CAVEAT:
+Coverage is limited to extensions shipped with Isaac Sim 4.5+. Older releases, vendor, or lab-only extensions may be missing — fall back to `search_isaac_sim_code_examples` or `get_isaac_sim_instructions` for conceptual questions.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You already know the extension ID → use get_isaac_sim_extension_details.
+- You want runnable code → use search_isaac_sim_code_examples.
+- Setting-path lookup → use search_isaac_sim_settings.
+- Kit (non-Isaac) extension discovery → use the Kit MCP's search_kit_extensions.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchIsaacSimExtensionsConfig(FunctionBaseConfig, name="search_isaac_sim_extensions"):
@@ -120,7 +121,6 @@ async def register_search_isaac_sim_extensions(config: SearchIsaacSimExtensionsC
 
         try:
             # Sanitize user input before sending to external APIs
-            from isaacsim_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
@@ -132,14 +132,17 @@ async def register_search_isaac_sim_extensions(config: SearchIsaacSimExtensionsC
 
             # Use config fields to modify behavior
             if verbose:
-                logger.debug(f"Searched extensions for query: '{input.query}', top_k: {input.top_k}")
+                logger.debug(f"Searched extensions for query: '{_sanitize_log(input.query)}', top_k: {input.top_k}")
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

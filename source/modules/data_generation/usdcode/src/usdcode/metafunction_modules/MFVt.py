@@ -7,6 +7,8 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 import os
 import random
 from typing import Callable, List, Optional, Sequence, Tuple, Union

@@ -6,53 +6,65 @@
 # You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 """Function to search for Kit code examples using semantic search."""
 
+import asyncio
 import logging
+import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..config import DEFAULT_RERANK_CODE
 from ..services.code_search_service import CodeSearchService
-from ..services.reranking import create_reranker_with_config
 from ..services.telemetry import ensure_telemetry_initialized, telemetry
 
 logger = logging.getLogger(__name__)
 
-# Global code search service instance
+# Default wall-clock bound for the blocking work (FAISS load + embedder HTTP +
+# optional reranker HTTP). Operators can override per-package via
+# KIT_CODE_SEARCH_TIMEOUT_SEC.
+_DEFAULT_CODE_SEARCH_TIMEOUT_SEC = 120.0
+
 _code_search_service = None
-_reranker = None
+
+
+def _code_search_timeout_sec() -> float:
+    raw = os.environ.get("KIT_CODE_SEARCH_TIMEOUT_SEC", "").strip()
+    if not raw:
+        return _DEFAULT_CODE_SEARCH_TIMEOUT_SEC
+    try:
+        v = float(raw)
+        return v if v > 0 else _DEFAULT_CODE_SEARCH_TIMEOUT_SEC
+    except ValueError:
+        return _DEFAULT_CODE_SEARCH_TIMEOUT_SEC
 
 
 def get_code_search_service() -> CodeSearchService:
-    """Get or create the global Code Search service instance.
-
-    Returns:
-        The Code Search service instance
-    """
+    """Get or create the global Code Search service instance."""
     global _code_search_service
     if _code_search_service is None:
         _code_search_service = CodeSearchService()
     return _code_search_service
 
 
-def _get_or_create_reranker(reranking_config: Optional[Dict[str, Any]] = None):
-    """Lazily create and return the reranker."""
-    global _reranker
+def _blocking_search(query: str, rerank_k: int) -> Dict[str, Any]:
+    """Run service construction, availability check, FAISS search in a worker thread.
 
-    if _reranker is None or reranking_config:
-        _reranker = create_reranker_with_config(reranking_config)
-        if _reranker:
-            logger.info("Reranker initialized for Kit code examples")
-
-    return _reranker
+    Reranking is now handled entirely inside the hybrid path (HybridRetriever +
+    OVAI_RERANK / OVAI_RERANK_BACKEND env vars) — see `LOCAL_DEPLOYMENT.md`.
+    The function-level legacy reranker arg was removed when services/reranking.py
+    was deleted.
+    """
+    try:
+        service = get_code_search_service()
+        if not service.is_available():
+            return {"outcome": "unavailable", "error": "Code search data is not available"}
+        results = service.search_code_examples(query, rerank_k=rerank_k)
+        return {"outcome": "ok", "results": results}
+    except Exception as e:
+        logger.exception("Code example search failed in worker thread")
+        return {"outcome": "error", "error": str(e)}
 
 
 async def search_code_examples(
@@ -63,49 +75,34 @@ async def search_code_examples(
 ) -> Dict[str, Any]:
     """Find relevant Kit code examples using semantic search and optional reranking.
 
-    This function performs a RAG (Retrieval-Augmented Generation) query against a curated database
-    of Kit code examples. It uses FAISS vector similarity search with NVIDIA embeddings, followed by
-    optional reranking for improved relevance.
-
-    How it works:
-    1. Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
-    2. Performs semantic similarity search against pre-indexed Kit code examples
-    3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
-    4. Returns formatted code examples with their metadata
-
-    Args:
-        query: Description of desired code functionality
-        rerank_k: Number of documents to keep after reranking (default: DEFAULT_RERANK_CODE)
-        enable_rerank: Whether to enable reranking of search results (default: True)
-        reranking_config: Optional configuration for reranking service
-
-    Returns:
-        Dictionary containing:
-        - success: bool indicating if the operation succeeded
-        - result: Formatted code examples with file paths and implementation details
-        - error: Error message if operation failed
+    Reranking is now controlled by env vars on the hybrid retriever
+    (``OVAI_RERANK`` / ``OVAI_RERANK_BACKEND``, with the legacy
+    ``KIT_RERANKER_BACKEND`` honored as a fallback) — see
+    ``LOCAL_DEPLOYMENT.md``. The ``enable_rerank`` and ``reranking_config``
+    function-level kwargs are kept for backward compatibility with workflow
+    configs but no longer flip rerank on/off per-call; an explicit
+    ``enable_rerank=False`` here logs a warning so the no-op isn't silent.
     """
-    # Initialize telemetry service
     await ensure_telemetry_initialized()
-
-    # Record start time for telemetry
     start_time = time.perf_counter()
-
-    # Prepare telemetry data
+    if not enable_rerank:
+        logger.warning(
+            "search_code_examples received enable_rerank=False; this kwarg is no "
+            "longer wired to the hybrid retriever. Set OVAI_RERANK=false (and "
+            "ensure no legacy *_RERANKER_BACKEND env var is set) to force-off."
+        )
     telemetry_data = {
         "query": query,
         "rerank_k": rerank_k,
         "enable_rerank": enable_rerank,
         "has_reranking_config": reranking_config is not None,
     }
-
     success = True
     error_msg = None
 
     try:
         logger.info(f"Searching Kit code examples with query: '{query}'")
 
-        # Validate inputs
         if not query or not query.strip():
             error_msg = "query cannot be empty"
             return {"success": False, "error": error_msg, "result": ""}
@@ -114,32 +111,44 @@ async def search_code_examples(
             error_msg = "rerank_k must be positive"
             return {"success": False, "error": error_msg, "result": ""}
 
-        code_search_service = get_code_search_service()
-
-        if not code_search_service.is_available():
-            error_msg = "Code search data is not available"
+        timeout_sec = _code_search_timeout_sec()
+        try:
+            block_result: Dict[str, Any] = await asyncio.wait_for(
+                asyncio.to_thread(_blocking_search, query.strip(), rerank_k),
+                timeout=timeout_sec,
+            )
+        except asyncio.TimeoutError:
+            error_msg = (
+                f"Code example search timed out after {timeout_sec:.0f}s "
+                "(includes first-time FAISS/embedder init, embedding HTTP, and optional reranker HTTP). "
+                "Check NVIDIA_API_KEY, network, KIT_EMBEDDER_BACKEND, KIT_RERANKER_BACKEND, "
+                "and KIT_CODE_SEARCH_TIMEOUT_SEC."
+            )
             logger.error(error_msg)
+            success = False
             return {"success": False, "error": error_msg, "result": ""}
 
-        start_time = time.time()
+        outcome = block_result.get("outcome")
+        if outcome == "unavailable":
+            error_msg = str(block_result.get("error", "Code search data is not available"))
+            logger.error(error_msg)
+            success = False
+            return {"success": False, "error": error_msg, "result": ""}
+        if outcome == "error":
+            error_msg = f"Error searching code examples: {block_result.get('error', 'unknown')}"
+            logger.error(error_msg)
+            success = False
+            return {"success": False, "error": error_msg, "result": ""}
 
-        # Get reranker only if reranking is enabled
-        reranker_to_use = _get_or_create_reranker(reranking_config) if enable_rerank else None
-
-        # Perform the search with reranking
-        search_results = code_search_service.search_code_examples(
-            query.strip(), reranker=reranker_to_use, rerank_k=rerank_k
-        )
+        search_results: List[Dict[str, Any]] = block_result.get("results") or []
 
         if not search_results:
             no_result_msg = f"No code examples found for query: '{query}'"
             logger.info(no_result_msg)
             return {"success": True, "result": no_result_msg, "error": None}
 
-        # Format the results
         result_lines = [f"# Kit Code Example Search Results for: '{query}'"]
         result_lines.append(f"\n**Found {len(search_results)} relevant examples:**\n")
-
         for i, example in enumerate(search_results, 1):
             result_lines.append(f"## Example {i}: {example.get('title', 'Untitled')}")
             result_lines.append(f"**File:** `{example.get('file_path', 'unknown')}`")
@@ -150,19 +159,13 @@ async def search_code_examples(
             result_lines.append(f"{example.get('description', 'No description available')}")
             result_lines.append(f"\n**Code:**")
             result_lines.append(f"```python\n{example.get('code', 'No code available')}\n```")
-
-            # Show tags
             tags = example.get("tags", [])
             if tags:
                 result_lines.append(f"\n**Tags:** {', '.join(tags)}")
-
             result_lines.append("\n---\n")
-
-        # Add usage tip
         result_lines.append("*Use get_api_details for complete API documentation of specific classes/methods.*")
 
         formatted_result = "\n".join(result_lines)
-
         logger.info(f"Successfully found {len(search_results)} code examples for query: '{query}'")
         return {"success": True, "result": formatted_result, "error": None}
 
@@ -173,11 +176,7 @@ async def search_code_examples(
         return {"success": False, "error": error_msg, "result": ""}
 
     finally:
-        # Calculate duration and capture telemetry
-        end_time = time.perf_counter()
-        duration_ms = (end_time - start_time) * 1000
-
-        # Capture telemetry data
+        duration_ms = (time.perf_counter() - start_time) * 1000
         await telemetry.capture_call(
             function_name="search_code_examples",
             request_data=telemetry_data,

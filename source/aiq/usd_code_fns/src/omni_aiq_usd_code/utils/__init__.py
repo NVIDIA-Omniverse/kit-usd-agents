@@ -13,9 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utility modules for the USD RAG MCP server."""
+"""Utility modules for the USD RAG MCP server.
 
-from .input_sanitization import sanitize_identifier, sanitize_query
+``sanitize_query`` previously lived here as a local html-escaping
+re-implementation that silently corrupted queries containing
+``& < > ' "`` at embed time (audit finding R2). All call sites now
+import the canonical version directly from ``ovgenai_retrieval``;
+the local sanitizer module has been removed. The re-exports below
+(input validation, patching, rate limiting) are unrelated and stay.
+"""
+
 from .input_validation import (
     InputValidationError,
     validate_integer_range,
@@ -37,6 +44,4 @@ __all__ = [
     "rate_limit",
     "get_rate_limiter",
     "check_rate_limit",
-    "sanitize_query",
-    "sanitize_identifier",
 ]

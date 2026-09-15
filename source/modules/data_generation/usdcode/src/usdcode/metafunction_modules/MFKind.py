@@ -7,6 +7,8 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 from typing import List, Optional
 
 from pxr import Kind, Sdf, Usd, UsdGeom

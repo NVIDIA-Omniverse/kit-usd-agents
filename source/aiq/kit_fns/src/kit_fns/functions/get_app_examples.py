@@ -17,6 +17,7 @@
 
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -25,6 +26,14 @@ from ..config import KIT_VERSION
 from ..services.telemetry import ensure_telemetry_initialized, telemetry
 
 logger = logging.getLogger(__name__)
+
+
+# template_id and filename are supplied by tool callers. Every real one is a
+# single flat path segment ("README.md", "omni.usd_composer.kit",
+# "kit_base_editor"), so anything else is refused up front instead of being
+# sanitized after the fact. This also rules out "..", "/" and control
+# characters, so no caller-controlled text can reach a path or a log line.
+_SAFE_SEGMENT_RE = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 
 
 def load_app_templates() -> Dict[str, Any]:
@@ -49,13 +58,25 @@ def load_template_file(template_id: str, filename: str) -> Optional[str]:
     Returns:
         File content or None if not found
     """
+    if not _SAFE_SEGMENT_RE.match(template_id or "") or not _SAFE_SEGMENT_RE.match(filename or ""):
+        logger.error("Refusing template request: identifier is not a plain path segment")
+        return None
+
     try:
-        file_path = Path(__file__).parent.parent / "data" / KIT_VERSION / "app_templates" / template_id / filename
+        base = (Path(__file__).parent.parent / "data" / KIT_VERSION / "app_templates").resolve()
+        file_path = (base / template_id / filename).resolve()
+        if not file_path.is_relative_to(base):
+            logger.error("Refusing template path outside the templates directory")
+            return None
         if file_path.exists():
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
     except Exception as e:
-        logger.error(f"Failed to load {filename} for {template_id}: {e}")
+        # Deliberately logs neither template_id nor filename: both are
+        # caller-controlled, and logging them is what S5145 flags. The
+        # exception class distinguishes missing from unreadable, and the
+        # allowlist above has already rejected anything unexpected.
+        logger.error("Failed to read template file (%s)", type(e).__name__)
     return None
 
 

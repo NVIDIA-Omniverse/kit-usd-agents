@@ -11,8 +11,51 @@ import_configs = ["${root}/_repo/deps/repo_kit_tools/kit-template/repo.toml"]
 name = "kit-usd-agents"
 
 [repo_build]
-post_build.commands = []
+# Bump typing_extensions/websockets in Kit's omni.kit.pip_archive to the versions
+# langchain-core 1.4.x / langgraph_sdk need (ChatUSD agent stack). pip_archive loads
+# first and shadows newer copies; idempotent + no-op once Kit ships them new enough.
+# See tools/patch_kit_pip_archive.py. Uses the repo packman Python (bare python3 is
+# not guaranteed on PATH in repo_build's subprocess env).
+post_build.commands = [
+    ["${root}/tools/packman/python${shell_ext}", "${root}/tools/patch_kit_pip_archive.py"],
+]
 licensing.enabled = false
+
+[repo_test]
+# Headless CI / datacenter GPUs (e.g. A40 on an older driver) can lag Kit's RTX
+# driver allow-list. The app tests validate that agent extensions load, not RTX
+# rendering, so don't fail on the renderer's driver-version warning. Real
+# extension/import errors still fail.
+stdout_fail_patterns.exclude = [
+    "*rtx driver verification failed*",
+    "*graphics driver is unsupported or has known issues*",
+]
+# The test job re-fetches a pristine Kit SDK via pull_kit_sdk (archive_post_unpack),
+# which restores the unpatched omni.kit.pip_archive (typing_extensions 4.12.2 /
+# websockets 12.0) -> langchain extension tests fail on extra_items / backoff. So
+# re-apply the pip_archive alignment after the SDK pull, before the suites run.
+archive_post_unpack_cmd = []
+archive_post_unpack_cmds = [
+    ["${test_root}/pull_kit_sdk${shell_ext}", "--registry=internal"],
+    ["${root}/tools/packman/python${shell_ext}", "${root}/tools/patch_kit_pip_archive.py"],
+]
+
+[repo_test.suites.alltests]
+kind = "glob_and_exec"
+path = "${test_root}"
+include = [
+    "tests-*${shell_ext}",
+]
+exclude = [
+    # Exclude full-app startup tests by default (matches kit-usd-agents, the sync
+    # source). They launch the app with a full RTX renderer, which fails on CI
+    # runners / datacenter GPUs that lack a new-enough driver (Kit 110 requires
+    # R550+). The ChatUSD agent stack is covered by the omni.ai.chat_usd.bundle
+    # and omni.ai.nat.agent.chat_usd extension tests, which run headless.
+    "tests-omni.app.*${shell_ext}",
+    # kit_inspector pulls deps not present in the public mirror.
+    "tests-omni.ai.nat.mcp.kit_inspector*${shell_ext}",
+]
 
 [repo_build.docker]
 enabled = false

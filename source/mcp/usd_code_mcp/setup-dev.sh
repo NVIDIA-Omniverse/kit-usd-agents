@@ -18,9 +18,11 @@
 # This script sets up the local development environment
 set -e  # Exit on any error
 
-echo "========================================"
+readonly DIVIDER="========================================"
+
+echo "$DIVIDER"
 echo "USD Code MCP Server - Development Setup"
-echo "========================================"
+echo "$DIVIDER"
 echo
 
 # Check if Python is available
@@ -56,7 +58,7 @@ if ! command -v poetry &> /dev/null; then
     echo
     echo "Poetry not found. Installing Poetry..."
     echo
-    curl -sSL https://install.python-poetry.org | $PYTHON_CMD -
+    curl --proto '=https' --tlsv1.2 -sSL https://install.python-poetry.org | $PYTHON_CMD -
     
     # Add Poetry to PATH for current session
     export PATH="$HOME/.local/bin:$PATH"
@@ -84,8 +86,7 @@ poetry config virtualenvs.in-project true
 # Install dependencies. If the shipped poetry.lock is older than the current
 # pyproject.toml, ``poetry install`` will refuse with a "pyproject.toml changed
 # significantly..." error. Auto-recover by running ``poetry lock`` once and
-# retrying — this avoids forcing the user through a two-step manual flow
-#.
+# retrying — this avoids forcing the user through a two-step manual flow.
 echo
 echo "Installing dependencies..."
 if ! poetry install; then
@@ -99,9 +100,9 @@ fi
 mkdir -p logs
 
 echo
-echo "========================================"
+echo "$DIVIDER"
 echo "Setup completed successfully!"
-echo "========================================"
+echo "$DIVIDER"
 echo
 echo "Next steps:"
 echo "1. Run './run.sh' to start the USD Code MCP server"

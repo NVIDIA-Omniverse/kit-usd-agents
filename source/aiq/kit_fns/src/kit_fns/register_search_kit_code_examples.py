@@ -17,6 +17,8 @@
 
 import logging
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
@@ -25,6 +27,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_code_examples import search_code_examples
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,49 +50,39 @@ class SearchKitCodeExamplesInput(BaseModel):
 
 
 # Tool description
-SEARCH_KIT_CODE_EXAMPLES_DESCRIPTION = """Find relevant Kit code examples using semantic search and optional reranking.
+SEARCH_KIT_CODE_EXAMPLES_DESCRIPTION = """Find copy-pastable Kit code snippets harvested from Kit SDK source, extensions, and samples.
 
-WHAT IT DOES:
-- Searches across curated Kit code examples and implementations
-- Uses semantic matching to find relevant code patterns
-- Optionally reranks results using NVIDIA's reranking model for improved relevance
-- Returns complete code examples with context and file paths
-- Includes implementation details and usage patterns
-
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Extension implementations and patterns
-- UI component creation examples
-- USD operation examples
-- Widget usage and styling patterns
-- Layout and container implementations
-- Event handling and callback patterns
+WHEN TO USE THIS TOOL:
+- "Show me how to implement X in Kit" where X is a concrete code pattern.
+- "Give me an example of a Kit extension lifecycle / callback / subscription."
+- Looking for boilerplate for omni.kit.app, omni.kit.window, or extension scaffolding.
 
 ARGUMENTS:
-- query (str): Description of desired code functionality
-- top_k (int, optional): Number of code examples to return (default: 10)
+- query (str): description of the desired code pattern.
+- top_k (int, optional): number of examples to return (default 10).
 
 RETURNS:
-Formatted code examples with:
-- Complete implementation code
-- File paths and line numbers
-- Extension IDs and context
-- Descriptions and use cases
-- Relevance scores
-- Associated tags
+Formatted code examples with implementation code, file paths, extension IDs, descriptions, relevance scores, and tags.
 
 USAGE EXAMPLES:
-search_code_examples("create window with buttons")
-search_code_examples("USD stage operations", top_k=5)
-search_code_examples("ui layout containers")
-search_code_examples("extension lifecycle management")
-search_code_examples("3d scene ui elements")
+search_kit_code_examples "create window with buttons"
+search_kit_code_examples "extension lifecycle management"
+search_kit_code_examples "subscribe to stage events"
 
-TIPS FOR BETTER RESULTS:
-- Use Kit-specific terminology (e.g., "extension", "omni.ui", "USD stage")
-- Include component types (e.g., "window", "button", "layout", "viewport")
-- Reference patterns (e.g., "lifecycle", "callback", "event handling")
-- Specify frameworks (e.g., "omni.ui", "omni.usd", "omni.kit")"""
+COVERAGE CAVEAT:
+Examples are harvested from Kit SDK builds; coverage tracks what ships in
+those SDKs and may lag very new or internal-only APIs. Fall back to
+`search_kit_knowledge` for conceptual answers when no example matches.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Conceptual "how does X work?" → use search_kit_knowledge.
+- API class/method signature lookup → use get_kit_api_details.
+- Test-authoring patterns → use search_kit_test_examples.
+- OmniUI widget/layout code → use the OmniUI MCP's search_ui_code_examples.
+- USD-API code (pxr.*) → use the USD Code MCP's search_usd_code_examples.
+- Isaac Sim robotics code → use the Isaac Sim MCP's search_isaac_sim_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchKitCodeExamplesConfig(FunctionBaseConfig, name="search_kit_code_examples"):
@@ -114,7 +117,6 @@ async def register_search_kit_code_examples(config: SearchKitCodeExamplesConfig,
 
         try:
             # Sanitize user input before sending to external APIs
-            from kit_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
@@ -125,14 +127,17 @@ async def register_search_kit_code_examples(config: SearchKitCodeExamplesConfig,
             )
 
             if verbose:
-                logger.debug(f"Searched code examples for: '{input.query}', top_k: {input.top_k}")
+                logger.debug(f"Searched code examples for: '{_sanitize_log(input.query)}', top_k: {input.top_k}")
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

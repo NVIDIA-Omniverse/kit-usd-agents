@@ -39,13 +39,13 @@ To use the LLM capabilities, you need to set up your NVIDIA API key. There are s
 
 1. Environment variable:
 ```
-set NVIDIA_API_KEY=your_api_key_here
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 2. Extension settings in `extension.toml`:
 ```toml
 [settings.exts."omni.ai.langchain.agent.headless"]
-nvidia_api_key = "your_api_key_here"
+nvidia_api_key = "REPLACE_WITH_NVIDIA_API_KEY"
 ```
 
 ### Custom Chat Models
@@ -68,7 +68,7 @@ To use the headless application, you can run it from the command line with the f
 - `--/exts/omni.ai.langchain.agent.headless/stage`: Path to the USD file to manipulate
 - `--/exts/omni.ai.langchain.agent.headless/prompt`: Natural language prompt describing the desired modifications
 - `--/exts/omni.ai.langchain.agent.headless/agent`: Agent type to use (default: "USD Code Interactive")
-- `--/exts/omni.ai.langchain.agent.headless/model`: AI model to use (default: "meta/llama-3.1-70b-instruct")
+- `--/exts/omni.ai.langchain.agent.headless/model`: AI model to use (default: "openai/gpt-oss-120b")
 
 ### Example
 

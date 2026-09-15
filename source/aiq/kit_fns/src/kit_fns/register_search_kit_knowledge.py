@@ -19,6 +19,8 @@ import logging
 import os
 from typing import Optional
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
@@ -28,46 +30,63 @@ from pydantic import Field
 from .functions.search_knowledge import search_kit_knowledge
 from .utils.usage_logging import get_usage_logger
 
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
+
 logger = logging.getLogger(__name__)
 
 
 # Tool description
-SEARCH_KIT_KNOWLEDGE_DESCRIPTION = """Retrieves relevant Kit documentation and knowledge using semantic vector search and optional reranking.
+SEARCH_KIT_KNOWLEDGE_DESCRIPTION = """PRIMARY tool for any question about NVIDIA Omniverse Kit or the broader
+Omniverse platform. Start here for concepts, architecture, workflows,
+how-to questions, API behavior, extension system, UI, USD integration,
+application lifecycle, rendering, testing, and anything of the form
+"how do I…?" or "what is…?".
 
-WHAT IT DOES:
-- Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
-- Performs semantic similarity search against pre-indexed Kit documentation
-- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
-- Returns formatted documentation excerpts with titles and URLs
+Prefer this tool over specialized Kit/Omniverse tools whenever the
+question is conceptual or explanatory. Only fall back to a specialized
+tool when the answer you need is a concrete artifact (setting path,
+class signature, code example, extension metadata).
 
-QUERY MATCHING:
-Your query is compared against the 'index_text' field of each document,
-which contains concise summaries of Kit concepts and documentation.
+KNOWLEDGE SOURCES:
+Indexed from the full Kit documentation site and related Omniverse
+knowledge bases (Kit docs, omniverse docs, extension guides, USD
+documentation, survival guide).
 
-KNOWLEDGE DOMAINS COVERED:
-- Kit framework architecture and extension system
-- UI development with omni.ui
-- USD integration and scene manipulation
-- Testing frameworks and patterns
-- Application lifecycle and settings
+SEARCH METHOD:
+Semantic vector search (nemotron-3-embed-1b) with optional reranking
+(llama-nemotron-rerank-vl-1b-v2).
 
 ARGUMENTS:
-- request (str): Your query about Kit concepts, workflows, or documentation
+- request (str): natural-language question
 
 RETURNS:
-Formatted documentation excerpts with titles, content, and source URLs, or error message
+Formatted documentation excerpts with titles, content, and source URLs.
 
 USAGE EXAMPLES:
 search_kit_knowledge "How does extension lifecycle work?"
-search_kit_knowledge "Kit viewport rendering"
+search_kit_knowledge "How do I implement mesh light sampling?"
+search_kit_knowledge "What is the difference between omni.ui and omni.kit.widget?"
+search_kit_knowledge "How does RTX integrate with viewport rendering?"
+search_kit_knowledge "What are Carbonite settings?"
 search_kit_knowledge "omni.ui styling patterns"
 
-TIPS FOR BETTER RESULTS:
-- Use specific Kit concepts (e.g., "extension lifecycle", "viewport rendering")
-- Include relevant domains (e.g., "UI", "settings", "testing")
-- Ask about workflows, patterns, or implementation details
-- Use Kit module names when relevant (e.g., "omni.ui", "omni.kit")
-"""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Looking up a specific setting path (e.g. /rtx/rendermode): use
+  search_kit_settings.
+- Finding a class signature, method, or API reference:
+  use get_kit_api_details.
+- Finding sample code to copy: use search_kit_code_examples.
+- Discovering an extension: use search_kit_extensions or
+  get_kit_extension_details."""
 
 
 class SearchKitKnowledgeConfig(FunctionBaseConfig, name="search_kit_knowledge"):
@@ -79,14 +98,18 @@ class SearchKitKnowledgeConfig(FunctionBaseConfig, name="search_kit_knowledge"):
     rerank_k: int = Field(default=10, description="Number of documents to keep after reranking")
 
     # Embedding configuration
-    embedding_model: str = Field(default="nvidia/nv-embedqa-e5-v5", description="The embedding model to use for search")
+    embedding_model: str = Field(
+        default="nvidia/nemotron-3-embed-1b", description="The embedding model to use for search"
+    )
     embedding_endpoint: str = Field(default="", description="Custom embedding endpoint URL (optional)")
     embedding_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for embedding service")
 
     # Reranking configuration
-    reranking_model: Optional[str] = Field(default=None, description="The reranking model to use")
-    reranking_endpoint: Optional[str] = Field(
-        default=None,
+    reranking_model: str = Field(
+        default="nvidia/llama-nemotron-rerank-vl-1b-v2", description="The reranking model to use"
+    )
+    reranking_endpoint: str = Field(
+        default="https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-vl-1b-v2/reranking",
         description="Custom reranking endpoint URL (optional)",
     )
     reranking_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for reranking service")
@@ -117,7 +140,6 @@ async def register_search_kit_knowledge(config: SearchKitKnowledgeConfig, builde
 
         try:
             # Sanitize user input before sending to external APIs
-            from kit_fns.utils.input_sanitization import sanitize_query
 
             sanitized_request = sanitize_query(request)
 
@@ -153,11 +175,14 @@ async def register_search_kit_knowledge(config: SearchKitKnowledgeConfig, builde
                 )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

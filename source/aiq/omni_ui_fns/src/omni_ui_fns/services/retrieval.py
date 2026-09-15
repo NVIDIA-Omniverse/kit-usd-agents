@@ -102,6 +102,7 @@ class Retriever:
         self.top_k = top_k
         self.vectordb = None
         self.retriever = None
+        self._hybrid = None  # ovgenai-retrieval HybridRetriever if enabled
 
         if load_path and os.path.exists(load_path):
             try:
@@ -120,6 +121,11 @@ class Retriever:
                     search_type="similarity",
                     search_kwargs={"k": top_k},
                 )
+
+                # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+                from ..utils.hybrid_shim import maybe_load_hybrid
+
+                self._hybrid = maybe_load_hybrid(load_path, self.embedder, top_k=top_k)
                 logger.info(f"Successfully loaded FAISS index from {load_path}")
             except Exception as e:
                 logger.error(f"Failed to load FAISS index from {load_path}: {e}")
@@ -204,11 +210,21 @@ class Retriever:
         """
         logger.info(f"[DEBUG] Retriever.search called with query: {query}, top_k: {top_k}")
 
+        k = top_k if top_k is not None else self.top_k
+
+        # Hybrid path — opt-in via OVAI_RETRIEVAL_MODE=hybrid.
+        if getattr(self, "_hybrid", None) is not None:
+            from ..utils.hybrid_shim import hits_to_documents
+
+            try:
+                return hits_to_documents(self._hybrid.retrieve(query, top_k=k))
+            except Exception as e:
+                logger.error(f"Hybrid search failed, falling back to semantic: {e}")
+
         if not self.retriever:
             logger.error("Retriever not initialized")
             return []
 
-        k = top_k if top_k is not None else self.top_k
         self.retriever.search_kwargs = {"k": k}
         logger.info(f"[DEBUG] Using k={k} for search")
 

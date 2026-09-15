@@ -15,8 +15,9 @@
 
 """Registration wrapper for get_usd_method_detail function."""
 
+import json
 import logging
-from typing import Optional
+from typing import List, Optional, Union
 
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
@@ -31,51 +32,80 @@ from .utils.usage_logging_decorator import log_tool_usage
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
+
+def _parse_method_names_input(method_names: Union[str, List[str]]) -> str:
+    """Normalize native arrays, JSON-array strings, and comma strings."""
+    if isinstance(method_names, list):
+        if not method_names:
+            raise ValueError("method_names array cannot be empty")
+        for i, item in enumerate(method_names):
+            if not isinstance(item, str):
+                raise ValueError(
+                    f"All items in method_names array must be strings, got {type(item).__name__} at index {i}"
+                )
+            if not item.strip():
+                raise ValueError(f"Empty string at index {i} in method_names array")
+        return ",".join(item.strip() for item in method_names)
+
+    if not isinstance(method_names, str):
+        raise ValueError(f"method_names must be a string or array, got {type(method_names).__name__}")
+
+    value = method_names.strip()
+    if not value:
+        raise ValueError("method_names cannot be empty")
+    if value.startswith("[") and value.endswith("]"):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON array format: {e}") from e
+        return _parse_method_names_input(parsed)
+    return value
+
+
 # Define input schema for multiple arguments
 class GetUSDMethodDetailInput(BaseModel):
     """Input parameters for USD method detail retrieval."""
 
-    method_names: str = Field(
-        description="Comma-separated list of USD method names to look up (e.g., 'GetPrim,CreatePrim')"
+    method_names: Union[str, List[str]] = Field(
+        description="USD method names as a single string, native array, JSON-array string, or comma-separated string"
     )
     class_name: Optional[str] = Field(
-        default="", description="Optional class name to narrow down the search for all methods"
+        default="",
+        description="Optional class name to narrow down the search for all methods",
     )
+
+    model_config = {"extra": "forbid"}
 
 
 # Tool description
-GET_USD_METHOD_DETAIL_DESCRIPTION = """Return detailed information about specific USD methods, including docstring, arguments, and return types.
+GET_USD_METHOD_DETAIL_DESCRIPTION = """Inspect one or more pxr.* methods — signature, arguments, return type, and docstring; optionally scoped to a class.
 
-WHAT IT DOES:
-- Retrieves comprehensive details about one or more USD methods
-- Shows method signatures, arguments, and return types
-- Provides method docstrings
-- Can search within a specific class or across all classes
-- Supports searching in ancestor classes if method not found in specified class
+WHEN TO USE THIS TOOL:
+- "What does UsdStage.GetPrimAtPath take and return?"
+- Disambiguating overloaded or inherited methods.
+- Batch-looking-up several methods on the same class.
 
 ARGUMENTS:
-- method_names (str): Comma-separated list of USD method names to look up
-- class_name (Optional[str]): Optional class name to narrow down the search
+- method_names (str | list[str]): method names (fuzzy-matched; accepts a native list, JSON-array string, or comma-separated string).
+- class_name (str, optional): class to scope the search to (searches class + ancestors).
 
 RETURNS:
-JSON string with detailed information about the USD methods including:
-- Method full name and signature
-- Docstring documentation
-- Arguments with their types
-- Return type information
-- Class the method belongs to
-- Whether the method is inherited from a parent class
+JSON per method with full name, signature, docstring, arguments (with types), return type, the owning class, and whether the method is inherited. Up to 5 best matches per query.
 
 USAGE EXAMPLES:
 get_usd_method_detail {"method_names": "GetPrim"}
+get_usd_method_detail {"method_names": ["GetPrim","CreatePrim"], "class_name": "UsdStage"}
 get_usd_method_detail {"method_names": "GetPrim,CreatePrim", "class_name": "UsdStage"}
 get_usd_method_detail {"method_names": "Clear,IsValid", "class_name": "Attribute"}
 
-TIPS:
-- Method names support fuzzy matching
-- If a class_name is provided, it will search that class and its ancestors
-- Multiple methods can be queried at once using comma separation
-- The tool shows up to 5 best matches for each method query
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You want the whole class API → use get_usd_class_detail.
+- You don't know the class / method name → use search_usd_knowledge or list_usd_classes.
+- You want working code → use search_usd_code_examples.
 """
 
 
@@ -101,19 +131,20 @@ async def register_get_usd_method_detail(config: GetUSDMethodDetailConfig, build
     async def get_usd_method_detail_wrapper(input: GetUSDMethodDetailInput) -> str:
         """Multiple arguments - schema required."""
         try:
-            result = await get_usd_method_detail(method_names=input.method_names, class_name=input.class_name)
+            method_names = _parse_method_names_input(input.method_names)
+            result = await get_usd_method_detail(method_names=method_names, class_name=input.class_name or "")
 
             # Use config fields to modify behavior
             if verbose:
-                logger.debug(f"Retrieved method details for: {input.method_names}")
+                logger.debug(f"Retrieved method details for: {_sanitize_log(method_names)}")
 
             if result["success"]:
                 return result["result"]
             else:
-                return f"ERROR: {result['error']}"
+                return f"ERROR: {_sanitize_log(result['error'], cap=500)}"
 
         except Exception as e:
-            return f"ERROR: Failed to retrieve method details - {str(e)}"
+            return f"ERROR: Failed to retrieve method details - {_sanitize_log(str(e), cap=500)}"
 
     # Pass input_schema for multiple argument function
     function_info = FunctionInfo.from_fn(

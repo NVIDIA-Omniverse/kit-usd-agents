@@ -10,8 +10,8 @@
 #   - NVIDIA API key for LLM access
 #
 # Usage:
-#   export NGC_API_KEY=your_ngc_api_key
-#   export NVIDIA_API_KEY=your_nvidia_api_key
+#   export NGC_API_KEY=REPLACE_WITH_NGC_API_KEY
+#   export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 #   docker compose -f docker-compose.local.yaml up --build
 #
 # To run specific services only:
@@ -39,7 +39,7 @@ services:
 
   # Embedder NIM - runs on GPU 0
   embedder:
-    image: nvcr.io/nim/nvidia/nv-embedqa-e5-v5:latest
+    image: nvcr.io/nim/nvidia/nemotron-3-embed-1b:latest
     container_name: mcp-embedder
     environment:
       - NGC_API_KEY=${NGC_API_KEY}
@@ -62,7 +62,7 @@ services:
 
   # Reranker NIM - runs on GPU 1
   reranker:
-    image: nvcr.io/nim/nvidia/llama-nemotron-rerank-1b-v2:latest
+    image: nvcr.io/nim/nvidia/llama-nemotron-rerank-vl-1b-v2:latest
     container_name: mcp-reranker
     environment:
       - NGC_API_KEY=${NGC_API_KEY}
@@ -104,13 +104,23 @@ services:
       - KIT_RERANKER_BACKEND=local
       - KIT_LOCAL_RERANKER_URL=http://reranker:8000
       - PYTHONUNBUFFERED=1
+      # ovgenai-retrieval (hybrid) — mirror docker-compose.ngc.yaml.
+      # OVAI_RERANK=false is the validated-safe default. Users with a
+      # healthy local NIM reranker container (which this compose sets
+      # up) may set OVAI_RERANK=true in their .env to opt into rerank.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     depends_on:
       embedder:
         condition: service_healthy
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -134,13 +144,23 @@ services:
       - KIT_RERANKER_BACKEND=local
       - KIT_LOCAL_RERANKER_URL=http://reranker:8000
       - PYTHONUNBUFFERED=1
+      # ovgenai-retrieval (hybrid) — mirror docker-compose.ngc.yaml.
+      # OVAI_RERANK=false is the validated-safe default. Users with a
+      # healthy local NIM reranker container (which this compose sets
+      # up) may set OVAI_RERANK=true in their .env to opt into rerank.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     depends_on:
       embedder:
         condition: service_healthy
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -164,13 +184,23 @@ services:
       - KIT_RERANKER_BACKEND=local
       - KIT_LOCAL_RERANKER_URL=http://reranker:8000
       - PYTHONUNBUFFERED=1
+      # ovgenai-retrieval (hybrid) — mirror docker-compose.ngc.yaml.
+      # OVAI_RERANK=false is the validated-safe default. Users with a
+      # healthy local NIM reranker container (which this compose sets
+      # up) may set OVAI_RERANK=true in their .env to opt into rerank.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     depends_on:
       embedder:
         condition: service_healthy
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -194,13 +224,23 @@ services:
       - KIT_RERANKER_BACKEND=local
       - KIT_LOCAL_RERANKER_URL=http://reranker:8000
       - PYTHONUNBUFFERED=1
+      # ovgenai-retrieval (hybrid) — mirror docker-compose.ngc.yaml.
+      # OVAI_RERANK=false is the validated-safe default. Users with a
+      # healthy local NIM reranker container (which this compose sets
+      # up) may set OVAI_RERANK=true in their .env to opt into rerank.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     depends_on:
       embedder:
         condition: service_healthy
       reranker:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9904/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9904/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3

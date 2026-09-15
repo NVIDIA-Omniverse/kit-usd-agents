@@ -18,6 +18,8 @@
 import logging
 from typing import Optional
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query as _sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
@@ -26,6 +28,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_app_examples import search_app_examples
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,52 +71,32 @@ class SearchKitAppTemplatesInput(BaseModel):
 
 
 # Tool description
-SEARCH_KIT_APP_TEMPLATES_DESCRIPTION = """Search for Kit application templates using semantic search to find the right starting point for your project.
+SEARCH_KIT_APP_TEMPLATES_DESCRIPTION = """Match a project description against the kit-app-template catalog to find the right application starting point.
 
-🔍 INTELLIGENT SEARCH: Matches against descriptions, use cases, features, and categories
+WHEN TO USE THIS TOOL:
+- "I want to build a Kit app that does X — which template should I start from?"
+- Comparing USD Composer vs Explorer vs Viewer vs Base Editor for a use case.
+- Looking for streaming / authoring / visualization starter kits.
 
-PARAMETERS:
-- query: Natural language search query describing your needs
-- top_k: Number of results to return (default: 5)
-- category_filter: Optional category to narrow search
-
-SEARCH EXAMPLES:
-✓ "I need to visualize a large factory" → USD Explorer
-✓ "streaming application for cloud" → USD Viewer
-✓ "professional content creation" → USD Composer
-✓ "simple 3D editor" → Kit Base Editor
-✓ "collaborative design review" → Templates with collaboration
-
-CATEGORIES:
-- **editor**: Interactive 3D editing applications
-- **authoring**: Professional content creation tools
-- **visualization**: Large-scale viewing and exploration
-- **streaming**: Cloud-optimized streaming applications
-- **configuration**: Streaming configuration layers
+ARGUMENTS:
+- query (str): natural-language description of the project/use case.
+- top_k (int, optional): number of templates to return (default 5).
+- category_filter (str, optional): 'editor' | 'authoring' | 'visualization' | 'streaming' | 'configuration'.
 
 RETURNS:
-- Ranked list of matching templates with relevance scores
-- Brief description and key features for each match
-- Template IDs for retrieving full details
-- Use case summaries to help selection
+Ranked templates with relevance scores, short descriptions, key features, and template IDs. Follow up with get_kit_app_template_details for the full README + .kit file.
 
-USAGE WORKFLOW:
-1. Search for templates: search_app_examples("factory visualization")
-2. Review results and scores
-3. Get full details: get_app_examples("usd_explorer")
-4. Access complete README and .kit configuration
+USAGE EXAMPLES:
+search_kit_app_templates "large factory visualization"
+search_kit_app_templates "streaming cloud viewer"
+search_kit_app_templates "content authoring tool"
 
-SEARCH TIPS:
-- Use specific keywords for better matches
-- Combine terms like "large scale industrial"
-- Filter by category for focused results
-- Check streaming support in results
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You already know the template ID and want the full README / .kit file → use get_kit_app_template_details.
+- General "how do I build a Kit app?" question → use search_kit_knowledge.
+- Looking for individual extensions rather than a whole app → use search_kit_extensions.
 
-The search uses intelligent matching to understand:
-- Technical requirements (streaming, collaboration)
-- Scale needs (large environments, many assets)
-- Use case patterns (authoring, viewing, editing)
-- Industry terms (factory, warehouse, industrial)"""
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchKitAppTemplatesConfig(FunctionBaseConfig, name="search_kit_app_templates"):
@@ -135,20 +128,28 @@ async def register_search_kit_app_templates(config: SearchKitAppTemplatesConfig,
         success = True
 
         try:
+            # Sanitize user input before sending to external APIs
+            sanitized_query = _sanitize_query(input.query)
+
             # Call the async function directly
             result = await search_app_examples(
-                query=input.query, top_k=input.top_k, category_filter=input.category_filter
+                query=sanitized_query, top_k=input.top_k, category_filter=input.category_filter
             )
 
             if verbose:
-                logger.debug(f"Search for '{input.query}' returned {result.get('total_found', 0)} results")
+                logger.debug(
+                    f"Search for '{_sanitize_log(input.query)}' returned {result.get('total_found', 0)} results"
+                )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

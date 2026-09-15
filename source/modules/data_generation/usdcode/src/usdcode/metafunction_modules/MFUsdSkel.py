@@ -7,6 +7,8 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from pxr import Gf, Sdf, Tf, Usd, UsdGeom, UsdSkel, Vt

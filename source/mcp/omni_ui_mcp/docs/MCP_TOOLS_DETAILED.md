@@ -388,10 +388,10 @@ result = await get_ui_class_instructions("omni.ui.TreeView")
 **Configuration Parameters** (set in config.yaml):
 - `rerank_k` (int): Number of documents to keep after reranking (default: 10)
 - `enable_rerank` (bool): Whether to enable reranking (default: true)
-- `embedding_model` (str): Embedding model to use (default: "nvidia/nv-embedqa-e5-v5")
+- `embedding_model` (str): Embedding model to use (default: "nvidia/nemotron-3-embed-1b")
 - `embedding_endpoint` (str): Embedding service endpoint
 - `embedding_api_key` (str): API key for embedding service
-- `reranking_model` (str): Reranking model (default: "nvidia/llama-nemotron-rerank-1b-v2")
+- `reranking_model` (str): Reranking model (default: "nvidia/llama-nemotron-rerank-vl-1b-v2")
 - `reranking_endpoint` (str): Reranking service endpoint
 - `reranking_api_key` (str): API key for reranking service
 
@@ -420,9 +420,9 @@ def build_search_ui():
 ```
 
 **How It Works**:
-1. Converts query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
+1. Converts query to embeddings using NVIDIA's nemotron-3-embed-1b model
 2. Performs semantic similarity search against pre-indexed code examples
-3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2
+3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-vl-1b-v2
 4. Returns formatted code examples with metadata
 
 **Query Matching Against**:
@@ -565,6 +565,6 @@ for class_name in extract_classes(examples):
 
 - **MCP Server Version**: 0.4.5
 - **AIQ Toolkit Version**: 1.1.0
-- **Embedding Model**: nvidia/nv-embedqa-e5-v5
-- **Reranking Model**: nvidia/llama-nemotron-rerank-1b-v2
+- **Embedding Model**: nvidia/nemotron-3-embed-1b
+- **Reranking Model**: nvidia/llama-nemotron-rerank-vl-1b-v2
 - **Atlas Data Version**: Latest from omni.ui framework

@@ -7,9 +7,16 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pxr import Gf, Ndr, Sdf, Sdr, Usd, UsdShade
+from pxr import Gf, Sdf, Sdr, Usd, UsdShade
+
+try:
+    from pxr import Ndr
+except ImportError:
+    Ndr = None  # Ndr was removed from pxr in Kit 110 / OpenUSD 25.xx
 
 
 def optimize_shader_connections(shaderNode: Sdr.ShaderNode, nodeContext: Sdr.NodeContext) -> bool:

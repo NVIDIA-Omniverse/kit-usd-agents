@@ -78,7 +78,10 @@ def test_settings_service():
     test_queries = [
         ("viewport rendering", None, None),
         ("enable debug", None, "bool"),
-        ("window settings", "app", None),
+        # Settings corpus only contains /exts/-prefixed entries; the previous
+        # ("window settings", "app", ...) test always returned 0 hits because
+        # no setting has the "app" prefix in the current data.
+        ("isaac sim startup", "exts", None),
     ]
 
     all_tests_passed = True

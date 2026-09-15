@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovgenai-retrieval"
+version = "0.2.0"
+description = "Shared hybrid-retrieval library for Omniverse agent tools"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "NVIDIA Omniverse GenAI" }]
+keywords = ["rag", "retrieval", "faiss", "bm25", "omniverse", "mcp"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "faiss-cpu>=1.7",
+    "numpy>=1.24",
+    "rank_bm25>=0.2.2",
+    "pyyaml>=6.0",
+    "langchain-nvidia-ai-endpoints>=1.4.3,<2",
+]
+
+[project.optional-dependencies]
+rerank = ["sentence-transformers>=2.2"]
+tantivy = ["tantivy>=0.21"]
+whoosh = ["whoosh>=2.7"]
+legacy = ["langchain-community>=0.3"]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "langchain-community>=0.3"]
+all = ["sentence-transformers>=2.2", "tantivy>=0.21", "whoosh>=2.7", "langchain-community>=0.3"]
+
+[project.urls]
+Homepage = "https://github.com/NVIDIA-dev/ovgenai-retrieval"
+Issues = "https://github.com/NVIDIA-dev/ovgenai-retrieval/issues"
+
+[project.scripts]
+ovgenai-upgrade-bundle = "ovgenai_retrieval.upgrade:main"
+ovgenai-reindex-bundle = "ovgenai_retrieval.reindex:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"ovgenai_retrieval" = ["glossaries/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "integration: tests that hit real external services (e.g., NVIDIA hosted embedder). Auto-skip without NVIDIA_API_KEY.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

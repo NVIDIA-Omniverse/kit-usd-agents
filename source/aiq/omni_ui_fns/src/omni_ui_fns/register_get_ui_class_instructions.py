@@ -114,57 +114,30 @@ class GetUIClassInstructionsInput(BaseModel):
 
 
 # Tool description
-GET_UI_CLASS_INSTRUCTIONS_DESCRIPTION = """Retrieve OmniUI class instructions - SUPER FLEXIBLE INPUT!
+GET_UI_CLASS_INSTRUCTIONS_DESCRIPTION = """Opinionated usage guidance for a named omni.ui class — how to instantiate it, style it, and common patterns. Also exposes category listings for discovery.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- "How am I supposed to use ui.Button / ui.Window / ui.scene.Line?"
+- Browsing categories (widgets, containers, layouts, shapes, windows, scene, etc.).
+- After get_ui_class_detail, when you want the "here is how to actually wire this up" guidance.
 
-PARAMETER:
-- class_names: Class names in ANY convenient format:
-  * Single class string: "Button" or "TreeView"
-  * Native array: ["Button", "Label", "TreeView"] ← WORKS DIRECTLY!
-  * JSON string: '["Button", "Label", "TreeView"]'
-  * Comma-separated: "Button, Label, TreeView"
-  * Scene classes: "scene.Line", "scene.Rectangle", "omni.ui.scene.Line"
-  * Empty/null: Lists all categories
-
-🎯 SPECIAL COMMANDS (string only):
-- "categories": List all available categories
-- "category:widgets": List all classes in widgets category
-- "category:scene": List all 3D scene UI classes
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_ui_class_instructions(class_names=["Button", "TreeView"])
-✅ Single string: get_ui_class_instructions(class_names="Button")
-✅ JSON string: get_ui_class_instructions(class_names='["Button", "Label", "TreeView"]')
-✅ Comma format: get_ui_class_instructions(class_names="Button, Label, TreeView")
-✅ List categories: get_ui_class_instructions() or get_ui_class_instructions(class_names="categories")
-✅ Category listing: get_ui_class_instructions(class_names="category:widgets")
-
-💡 FOR AI MODELS: You can pass arrays directly like ["Button", "TreeView"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- 75% faster when fetching multiple classes
-- Single API call instead of multiple round-trips
-- Efficient context window usage
-- Maximum compatibility with all AI models
-
-CLASS CATEGORIES AVAILABLE:
-- **models** (3): AbstractValueModel, AbstractItemModel, AbstractItemDelegate
-- **shapes** (12): Rectangle, Circle, Triangle, Line, etc. + Free variants
-- **widgets** (11): Button, Label, TreeView, CheckBox, ComboBox, etc.
-- **containers** (7): Frame, ScrollingFrame, HStack, VStack, ZStack, etc.
-- **layouts** (3): VGrid, HGrid, Placer
-- **inputs** (7): FloatSlider, IntSlider, FloatDrag, IntDrag, etc.
-- **windows** (6): Window, MainWindow, Menu, MenuBar, Tooltip, Separator
-- **scene** (9): All omni.ui.scene 3D UI components
-- **units** (3): Pixel, Percent, Fraction
-- **system** (1): Style
+ARGUMENTS:
+- class_names (str | list[str] | null): class name(s) to look up; accepts single string, list, JSON-array string, or comma-separated string. Also accepts the special commands "categories" and "category:<name>" (e.g. "category:widgets", "category:scene"). Null lists all categories.
 
 RETURNS:
-- For single class: Formatted class documentation with examples
-- For multiple classes: Combined documentation with headers
-- For categories/listings: Structured category and class information
-- Includes: Class usage, styling, properties, and code examples"""
+For class names: formatted documentation with usage, styling, properties, and code examples. For category commands: structured category / class listings.
+
+USAGE EXAMPLES:
+get_ui_class_instructions "Button"
+get_ui_class_instructions ["Button", "TreeView"]
+get_ui_class_instructions "category:widgets"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Raw class signature / method list → use get_ui_class_detail.
+- Free-form "show me a widget example" → use search_ui_code_examples.
+- Full window / dialog layouts → use search_ui_window_examples.
+- Styling rules (colors, shades, fonts) → use get_ui_style_docs.
+- Top-level OmniUI playbook → use get_ui_instructions."""
 
 
 class GetUIClassInstructionsConfig(FunctionBaseConfig, name="get_ui_class_instructions"):

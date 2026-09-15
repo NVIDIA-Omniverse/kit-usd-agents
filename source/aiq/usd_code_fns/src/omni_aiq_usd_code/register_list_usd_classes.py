@@ -30,6 +30,11 @@ from .utils.usage_logging_decorator import log_tool_usage
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
+
 # Define input schema for zero-argument function
 class ListUSDClassesInput(BaseModel):
     """Empty input for zero-argument function."""
@@ -38,21 +43,28 @@ class ListUSDClassesInput(BaseModel):
 
 
 # Tool description
-LIST_USD_CLASSES_DESCRIPTION = """Return a list of all USD class full names from the USD Atlas data.
+LIST_USD_CLASSES_DESCRIPTION = """Enumerate every pxr.* class known to the USD Atlas — a flat alphabetical listing for discovery.
 
-WHAT IT DOES:
-- Retrieves all USD class names from the USD Atlas
-- Returns a simplified list of full class names
-- Provides total count of available classes
-- Sorts class names alphabetically for easy browsing
+WHEN TO USE THIS TOOL:
+- "What classes does USD expose?"
+- You need to confirm a class name (e.g. UsdStage, UsdPrim, UsdGeomMesh) before calling get_usd_class_detail.
+- Browsing / auditing the USD class surface.
+
+ARGUMENTS:
+- (no arguments)
 
 RETURNS:
-A JSON string containing:
-- class_full_names: Sorted list of all USD class full names
-- total_count: Total number of USD classes
+JSON with `class_full_names` (sorted list of full class names) and `total_count`.
 
 USAGE EXAMPLES:
 list_usd_classes
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Full docstring / methods of a specific class → use get_usd_class_detail.
+- Classes grouped by module → use list_usd_modules or get_usd_module_detail.
+- Conceptual questions → use search_usd_knowledge.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 
@@ -87,10 +99,10 @@ async def register_list_usd_classes(config: ListUSDClassesConfig, builder: Build
             if result["success"]:
                 return result["result"]
             else:
-                return f"ERROR: {result['error']}"
+                return f"ERROR: {_sanitize_log(result['error'], cap=500)}"
 
         except Exception as e:
-            return f"ERROR: Failed to retrieve USD classes - {str(e)}"
+            return f"ERROR: Failed to retrieve USD classes - {_sanitize_log(str(e), cap=500)}"
 
     # Pass input_schema for zero argument function
     function_info = FunctionInfo.from_fn(

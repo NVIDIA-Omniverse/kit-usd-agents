@@ -6,6 +6,15 @@ Built on the [NVIDIA AIQ Toolkit](https://github.com/NVIDIA/GenerativeAIExamples
 
 ---
 
+## What's new (Apr 2026)
+
+- **MCP protocol bumped to `2025-11-25`** (G-8, G-9): NAT 1.4+ accepts the new spec date end-to-end.
+- **Hybrid retrieval is now the default** (`OVAI_RETRIEVAL_MODE=hybrid`): RRF fusion of BM25 lexical + dense semantic with optional cross-encoder reranking.
+- **Query expansion active on every search** — 215+ term glossary + auto-generated USD v25.02/v25.11 glossary expand abbreviations (SSS, PBR, LIVRPS, Gf, Sdf, ...) before retrieval (REQ-QE-1..6).
+- **BM25 sidecar migrated from `bm25.pkl` to `bm25.json`** (G-7, pickle-safety hardening) — new `bm25_safe` schema is JSON-only.
+- **Result guardrails wired into every search tool** (G-1, REQ-RG-1/2/3): `sanitize_query` on input, deterministic "No relevant documentation found for this query." sentinel for empty results, and `search_isaac_sim_settings` caps output at 12000 chars with a `prefix_filter`/`type_filter` hint.
+- **Tool descriptions refreshed (Phase 14, 34 tools)** — every tool now has PRIMARY / WHEN-TO-USE / ARGUMENTS / RETURNS / USAGE EXAMPLES / WHEN-TO-USE-A-DIFFERENT-TOOL-INSTEAD / abbreviation-tip sections.
+
 ## 5-Minute Quickstart
 
 Get from zero to working Isaac Sim tools in your IDE. Follow every step in order.
@@ -27,7 +36,7 @@ Get from zero to working Isaac Sim tools in your IDE. Follow every step in order
 
 | Key | What It's For | Where to Get It |
 |-----|---------------|-----------------|
-| `NVIDIA_API_KEY` | Authenticates calls to NVIDIA's cloud endpoints for embeddings, reranking, and LLM inference | [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — sign in, click **Generate API Key**, copy the `nvapi-...` value |
+| `NVIDIA_API_KEY` | Authenticates calls to NVIDIA's cloud endpoints for embeddings, reranking, and LLM inference | [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — sign in, click **Generate API Key**, paste it in place of `REPLACE_WITH_NVIDIA_API_KEY` |
 
 > **Note:** A second key (`NGC_API_KEY` from [org.ngc.nvidia.com/setup/api-key](https://org.ngc.nvidia.com/setup/api-key)) is only required for local NIM deployment — see [Deployment Options](#deployment-options).
 
@@ -41,7 +50,7 @@ cp .env.example .env
 Open `.env` and set:
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ### Step 3: Build and Run the Docker Container
@@ -81,7 +90,7 @@ python check_mcp_health.py
 curl -s -X POST http://localhost:9904/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"health","version":"1.0"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"health","version":"1.0"}}}'
 ```
 
 A healthy server returns a JSON-RPC `result` payload listing the server's name and capabilities.
@@ -223,14 +232,14 @@ Try asking: *"Find me an Isaac Sim extension for cameras"* — if you get the `i
 ### Option A: Cloud Endpoints (Recommended)
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ### Option B: Local NIM Containers (Advanced, GPU required)
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
-NGC_API_KEY=your_ngc_key_here
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
+NGC_API_KEY=REPLACE_WITH_NGC_API_KEY
 KIT_EMBEDDER_BACKEND=local
 KIT_LOCAL_EMBEDDER_URL=http://localhost:8080
 KIT_RERANKER_BACKEND=local
@@ -250,17 +259,29 @@ KIT_LOCAL_RERANKER_URL=http://localhost:8081
 | `307 Temporary Redirect` on `/mcp/` | NAT 1.25 canonicalizes to `/mcp` (no trailing slash); NAT 1.3 was the opposite | Use `/mcp` directly in IDE config and curl probes, or pass `-L` to curl to follow the redirect |
 | `406 Not Acceptable` from curl probe | Server replies with `text/event-stream`; default curl `Accept: */*` is rejected | Add `-H 'Accept: application/json, text/event-stream'` |
 | `401 Unauthorized` from cloud calls | Invalid `NVIDIA_API_KEY` | Regenerate at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys); update `.env` |
+| `[410] Gone — This endpoint has reached its end of life on 2026-05-18T00:00:00Z` during hosted rerank | An older config or image still pins retired model `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Set `OVAI_RERANK_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2` (or another current model from [build.nvidia.com/explore/retrieval](https://build.nvidia.com/explore/retrieval)), or fall back to `OVAI_RERANK=false`. Full details + on-prem NIM workaround in [LOCAL_DEPLOYMENT.md](../LOCAL_DEPLOYMENT.md#hybrid-retrieval-ovgenai-retrieval-tuning) |
 | `ModuleNotFoundError: aiohttp` from `check_mcp_health.py` | The host doesn't have `aiohttp` | `pip install aiohttp`, or run inside the container: `docker exec isaacsim-mcp python /app/check_mcp_health.py` |
 | `--env-file: file not found` | Wrong cwd when invoking `docker run` | Run from `source/mcp/isaacsim_mcp/`, or use absolute path |
 | Port 9904 already in use | Another process on that port | `lsof -i :9904` or `netstat -aon \| findstr 9904`; stop or remap (e.g. `-p 9914:9904`) |
 | `Current Python version (3.10.x) is not allowed by the project` during `build-docker.sh` | poetry venv is bound to system Python 3.10 | `poetry env remove --all && poetry env use python3.12` in **both** `source/aiq/isaacsim_fns/` and `source/mcp/isaacsim_mcp/` |
 | `command not found: poetry` during `build-docker.sh` | Poetry isn't installed | Install per [python-poetry.org](https://python-poetry.org/docs/#installation); see Prerequisites |
-| `pip ResolutionImpossible` mentioning `ragas` and `nvidia-nat` during `docker build` | The Dockerfile pins `ragas` and `nvidia-nat` to incompatible pre-release versions (e.g. `nvidia-nat==1.5.0a20260120` requires `ragas~=0.2.14`, but the Dockerfile may pin `ragas>=0.3.0rc1`) | Pin `ragas` in `Dockerfile` to the version `nvidia-nat` accepts (`"ragas~=0.2.14"`), or upgrade `nvidia-nat` to a build that allows newer `ragas` |
+| `pip ResolutionImpossible` mentioning `nvidia-nat` during `docker build` | NAT modular packages were resolved from different releases | Keep the full NAT package set on `1.8.0a20260514`; RAGAS is not part of the MCP runtime |
 | Tools not appearing in IDE | MCP config not loaded or wrong URL | Verify with `check_mcp_health.py`; ensure URL is `http://localhost:9904/mcp`; reload IDE |
 | `isaac-sim-mcp` already registered / `claude mcp add` rejects | Earlier registration (e.g. against the hosted `isaac-sim-mcp.nvidia.com`) is still in your config | Remove first: `claude mcp remove isaac-sim-mcp -s <local|user|project>`, then re-add against the local server |
 | `isaac-sim-mcp` missing from `claude mcp list` | `-t http` registered the MCP at project scope | Re-add with `--scope user`, or always launch Claude CLI from where you registered |
 
 ---
+
+**Stale or corrupt hybrid BM25 sidecar:**
+- As of Apr 2026 the sidecar is `bm25.json` (the old `bm25.pkl` pickle format was removed for pickle-safety). If hybrid search returns empty or mis-ranked results, delete `bm25.json` next to the FAISS index and restart — the server will rebuild it on first query using the `bm25_safe` JSON schema.
+
+## Dependencies
+
+The Docker images install `ovgenai-retrieval` — the shared hybrid-retrieval library bundled under `source/aiq/ovgenai_retrieval/` and built into a wheel by `source/mcp/build-wheels.sh` — backed by `rank_bm25`, so this MCP and the sibling `ovgenai-agent-search` tool share the exact same RRF-fusion + query-expansion + JSON-BM25 code path.
+
+## Related Projects
+
+- **`ovgenai-agent-search`** — the filesystem-search equivalent of this MCP. Same `ovgenai-retrieval` library, same guardrails, same query expansion, but exposed as a shell-first CLI / skill rather than an HTTP MCP. Use `ovgenai-agent-search` from agents that prefer shell access (e.g., Claude Code skills); use this MCP for agents that prefer HTTP tool calls.
 
 ## Development
 

@@ -6,56 +6,77 @@
 # You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 """Get USD knowledge function implementation."""
 
+import asyncio
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from ..config import DEFAULT_RERANK_KNOWLEDGE, FAISS_KNOWLEDGE_INDEX_PATH, get_effective_api_key
-from ..services.reranking import create_reranker_with_config
 from ..services.retrieval import Retriever, get_rag_context_knowledge
 
 logger = logging.getLogger(__name__)
 
-# Global services - will be initialized on first use
+_DEFAULT_KNOWLEDGE_SEARCH_TIMEOUT_SEC = 120.0
+
 _knowledge_retriever: Optional[Retriever] = None
-_reranker = None
 _retriever_initialized = False
 
 
-def _initialize_retriever(embedding_config: Optional[Dict[str, Any]] = None):
-    """Initialize retriever if not already done."""
-    global _knowledge_retriever, _retriever_initialized
+def _knowledge_search_timeout_sec() -> float:
+    raw = os.environ.get("USD_KNOWLEDGE_SEARCH_TIMEOUT_SEC", "").strip()
+    if not raw:
+        return _DEFAULT_KNOWLEDGE_SEARCH_TIMEOUT_SEC
+    try:
+        v = float(raw)
+        return v if v > 0 else _DEFAULT_KNOWLEDGE_SEARCH_TIMEOUT_SEC
+    except ValueError:
+        return _DEFAULT_KNOWLEDGE_SEARCH_TIMEOUT_SEC
 
+
+def _initialize_retriever(embedding_config: Optional[Dict[str, Any]] = None):
+    global _knowledge_retriever, _retriever_initialized
     if _retriever_initialized and not embedding_config:
         return
-
-    # Initialize retriever with provided config
     if FAISS_KNOWLEDGE_INDEX_PATH.exists():
         _knowledge_retriever = Retriever(embedding_config=embedding_config, load_path=str(FAISS_KNOWLEDGE_INDEX_PATH))
     else:
         logger.warning(f"FAISS knowledge index not found at {FAISS_KNOWLEDGE_INDEX_PATH}")
-
     _retriever_initialized = True
 
 
-def _get_or_create_reranker(reranking_config: Optional[Dict[str, Any]] = None):
-    """Lazily create and return the reranker."""
-    global _reranker
-
-    if _reranker is None or reranking_config:
-        _reranker = create_reranker_with_config(reranking_config)
-        if _reranker:
-            logger.info("Reranker initialized for knowledge")
-
-    return _reranker
+def _blocking_search(
+    request: str,
+    rerank_k: int,
+    embedding_config: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """FAISS knowledge retrieval + embedder HTTP. Reranking handled via OVAI_RERANK*."""
+    try:
+        _initialize_retriever(embedding_config)
+        if not FAISS_KNOWLEDGE_INDEX_PATH.exists():
+            return {
+                "outcome": "unavailable",
+                "error": (
+                    f"FAISS knowledge index not found at path: {FAISS_KNOWLEDGE_INDEX_PATH}. "
+                    "Please configure the path."
+                ),
+            }
+        if _knowledge_retriever is None:
+            return {
+                "outcome": "unavailable",
+                "error": "Knowledge retriever could not be initialized. Please check the configuration.",
+            }
+        rag_context = get_rag_context_knowledge(
+            user_query=request,
+            retriever=_knowledge_retriever,
+            rerank_k=rerank_k,
+        )
+        return {"outcome": "ok", "result": rag_context}
+    except Exception as e:
+        logger.exception("USD knowledge search failed in worker thread")
+        return {"outcome": "error", "error": str(e)}
 
 
 async def get_usd_knowledge(
@@ -65,85 +86,57 @@ async def get_usd_knowledge(
     embedding_config: Optional[Dict[str, Any]] = None,
     reranking_config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Retrieves relevant USD documentation and knowledge using semantic vector search and optional reranking.
+    """Retrieves relevant USD documentation and knowledge using semantic vector search.
 
-    This function performs a RAG (Retrieval-Augmented Generation) query against comprehensive USD
-    documentation. It uses FAISS vector similarity search with NVIDIA embeddings, followed by
-    optional reranking for improved relevance.
-
-    How it works:
-    1. Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
-    2. Performs semantic similarity search against pre-indexed USD documentation
-    3. Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
-    4. Returns formatted documentation excerpts with titles and URLs
-
-    Query matching: Your query is compared against the 'index_text' field of each document,
-    which contains concise summaries like:
-    - "UsdLuxGeometryLight lacks detailed specifications for consistent behavior across renderers"
-    - "Different renderers have varying approaches to mesh lights"
-    - "The design should cater to specific workflow requirements of geometry lights"
-
-    Knowledge domains covered:
-    - USD concepts and architecture (layers, prims, stages, composition)
-    - Rendering and lighting (UsdLux, geometry lights, materials)
-    - Animation and skeletal systems (UsdSkel)
-    - Geometry and scenes (UsdGeom)
-    - Workflows and best practices
-
-    Tips for better results:
-    - Use specific USD concepts (e.g., "layer composition", "prim inheritance")
-    - Include relevant domains (e.g., "lighting", "animation", "geometry")
-    - Ask about workflows, specifications, or behavioral details
-    - Use USD schema names when relevant (e.g., "UsdLux", "UsdGeom", "UsdSkel")
-
-    Args:
-        request: Your query about USD concepts, workflows, or documentation.
-                Examples: "What is layer composition?", "USD lighting workflow", "prim inheritance"
-        rerank_k: Number of documents to keep after reranking (default: DEFAULT_RERANK_KNOWLEDGE)
-        enable_rerank: Whether to enable reranking of search results (default: True)
-
-    Returns:
-        Dictionary containing:
-        - success: bool indicating if the operation succeeded
-        - result: Formatted documentation excerpts with titles, content, and source URLs, or error message
-        - error: Error message if operation failed
+    Reranking is now controlled by env vars on the hybrid retriever
+    (``OVAI_RERANK`` / ``OVAI_RERANK_BACKEND``, with legacy
+    ``USD_CODE_RERANKER_BACKEND`` / ``KIT_RERANKER_BACKEND`` honored as a
+    fallback). ``enable_rerank`` / ``reranking_config`` here are kept for
+    backward compat but no longer flip rerank per-call; explicit
+    ``enable_rerank=False`` logs a warning so the no-op isn't silent.
     """
+    if not enable_rerank:
+        logger.warning(
+            "get_usd_knowledge received enable_rerank=False; this kwarg is no "
+            "longer wired to the hybrid retriever. Set OVAI_RERANK=false (and "
+            "ensure no legacy *_RERANKER_BACKEND env var is set) to force-off."
+        )
     try:
-        # Initialize retriever if needed
-        _initialize_retriever(embedding_config)
-
-        if not FAISS_KNOWLEDGE_INDEX_PATH.exists():
+        timeout_sec = _knowledge_search_timeout_sec()
+        try:
+            block_result: Dict[str, Any] = await asyncio.wait_for(
+                asyncio.to_thread(_blocking_search, request, rerank_k, embedding_config),
+                timeout=timeout_sec,
+            )
+        except asyncio.TimeoutError:
             error_msg = (
-                f"FAISS knowledge index not found at path: {FAISS_KNOWLEDGE_INDEX_PATH}. Please configure the path."
+                f"USD knowledge search timed out after {timeout_sec:.0f}s. "
+                "Check NVIDIA_API_KEY, network, KIT_EMBEDDER_BACKEND, KIT_RERANKER_BACKEND, "
+                "and USD_KNOWLEDGE_SEARCH_TIMEOUT_SEC."
             )
             logger.error(error_msg)
             return {"success": False, "error": error_msg, "result": ""}
 
-        if _knowledge_retriever is None:
-            error_msg = "Knowledge retriever could not be initialized. Please check the configuration."
+        outcome = block_result.get("outcome")
+        if outcome == "unavailable":
+            error_msg = str(block_result.get("error", "Knowledge search not available"))
+            logger.error(error_msg)
+            return {"success": False, "error": error_msg, "result": ""}
+        if outcome == "error":
+            error_msg = f"Error retrieving USD knowledge: {block_result.get('error', 'unknown')}"
             logger.error(error_msg)
             return {"success": False, "error": error_msg, "result": ""}
 
-        # Get reranker only if reranking is enabled
-        reranker_to_use = _get_or_create_reranker(reranking_config) if enable_rerank else None
-
-        # Get the RAG context using the utility function with reranking
-        rag_context = get_rag_context_knowledge(
-            user_query=request,
-            retriever=_knowledge_retriever,
-            reranker=reranker_to_use,
-            rerank_k=rerank_k,  # Pass the rerank_k parameter
-        )
-
+        rag_context = block_result.get("result")
         if rag_context:
             logger.info(
-                f"Retrieved knowledge context for '{request}' with reranking: {'enabled' if enable_rerank else 'disabled'}"
+                f"Retrieved knowledge context for '{request}' with reranking: "
+                f"{'enabled' if enable_rerank else 'disabled'}"
             )
             return {"success": True, "result": rag_context, "error": None}
-        else:
-            no_result_msg = "No relevant USD knowledge found for your request."
-            logger.info(no_result_msg)
-            return {"success": True, "result": no_result_msg, "error": None}
+        no_result_msg = "No relevant USD knowledge found for your request."
+        logger.info(no_result_msg)
+        return {"success": True, "result": no_result_msg, "error": None}
 
     except Exception as e:
         error_msg = f"Error retrieving USD knowledge: {str(e)}"

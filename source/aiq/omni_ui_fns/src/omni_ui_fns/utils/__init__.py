@@ -13,9 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities module for OmniUI tools."""
+"""Utilities module for OmniUI MCP tools.
+
+``sanitize_query`` previously lived here as a local html-escaping
+re-implementation that silently corrupted queries containing
+``& < > ' "`` at embed time (audit finding R2). All call sites now
+import the canonical version directly from ``ovgenai_retrieval``;
+the local sanitizer module has been removed. ``get_atlas_service``
+below is unrelated and must stay — downstream functions consume it
+via ``from ..utils import get_atlas_service``.
+"""
 
 from .atlas_service import get_atlas_service
-from .input_sanitization import sanitize_identifier, sanitize_query
 
-__all__ = ["get_atlas_service", "sanitize_query", "sanitize_identifier"]
+__all__ = ["get_atlas_service"]

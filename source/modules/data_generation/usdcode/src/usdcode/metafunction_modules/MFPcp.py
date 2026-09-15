@@ -7,6 +7,8 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
+from __future__ import annotations
+
 import random
 import string
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple

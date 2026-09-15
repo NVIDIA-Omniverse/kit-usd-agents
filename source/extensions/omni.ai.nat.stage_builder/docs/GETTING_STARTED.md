@@ -49,7 +49,7 @@ Before running, you need to set the API keys for USD Search and NVIDIA services:
 
 ```bash
 set USDSEARCH_API_KEY=your_usd_search_api_key
-set NVIDIA_API_KEY=your_nvidia_api_key
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ## Running Stage Builder

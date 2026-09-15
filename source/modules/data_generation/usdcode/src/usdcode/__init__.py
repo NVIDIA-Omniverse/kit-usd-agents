@@ -16,7 +16,10 @@ from .usd_meta_functions_set import *
 from .metafunction_modules import MFAr
 from .metafunction_modules import MFGf
 from .metafunction_modules import MFKind
-from .metafunction_modules import MFNdr
+try:
+    from .metafunction_modules import MFNdr
+except ImportError:
+    MFNdr = None  # Ndr was removed from pxr in Kit 110 / OpenUSD 25.xx
 from .metafunction_modules import MFPcp
 from .metafunction_modules import MFPlug
 from .metafunction_modules import MFSdf

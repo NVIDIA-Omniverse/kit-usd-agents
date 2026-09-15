@@ -55,6 +55,7 @@ class UIWindowExamplesRetriever:
         self.top_k = top_k
         self.vectordb = None
         self.retriever = None
+        self._hybrid = None  # ovgenai-retrieval HybridRetriever if enabled
 
         if faiss_index_path and os.path.exists(faiss_index_path):
             try:
@@ -68,6 +69,12 @@ class UIWindowExamplesRetriever:
                     search_type="similarity",
                     search_kwargs={"k": top_k},
                 )
+
+                # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+                from ..utils.hybrid_shim import maybe_load_hybrid
+
+                self._hybrid = maybe_load_hybrid(faiss_index_path, self.embedder, top_k=top_k)
+
                 logger.info(f"Successfully loaded UI window examples FAISS index from {faiss_index_path}")
             except Exception as e:
                 logger.error(f"Failed to load FAISS index from {faiss_index_path}: {e}")
@@ -87,11 +94,21 @@ class UIWindowExamplesRetriever:
         """
         logger.info(f"[DEBUG] UIWindowExamplesRetriever.search called with query: {query}, top_k: {top_k}")
 
+        k = top_k if top_k is not None else self.top_k
+
+        # Hybrid path — opt-in via OVAI_RETRIEVAL_MODE=hybrid.
+        if getattr(self, "_hybrid", None) is not None:
+            from ..utils.hybrid_shim import hits_to_documents
+
+            try:
+                return hits_to_documents(self._hybrid.retrieve(query, top_k=k))
+            except Exception as e:
+                logger.error(f"Hybrid UI window search failed, falling back: {e}")
+
         if not self.retriever:
             logger.error("UI Window Examples Retriever not initialized")
             return []
 
-        k = top_k if top_k is not None else self.top_k
         self.retriever.search_kwargs = {"k": k}
         logger.info(f"[DEBUG] Using k={k} for UI window examples search")
 

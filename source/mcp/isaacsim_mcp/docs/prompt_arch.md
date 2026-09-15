@@ -80,7 +80,7 @@ The Isaac Sim MCP relies on an automated data collection pipeline that processes
 1. **Extension Data Collection**: Processes extension.toml files, generates Code Atlas for APIs
 2. **Code Examples Extraction**: Analyzes Code Atlas to find interesting robotics and simulation code patterns
 3. **Settings Discovery**: Extracts settings from TOML files and source code, tracking usage
-4. **Embeddings Generation**: Generates semantic embeddings using NVIDIA models (nv-embedqa-e5-v5)
+4. **Embeddings Generation**: Generates semantic embeddings using NVIDIA models (nemotron-3-embed-1b)
 5. **FAISS Database Creation**: Builds vector databases for fast semantic search
 
 The pipeline outputs versioned data structures organized by Isaac Sim version, allowing support for multiple versions.

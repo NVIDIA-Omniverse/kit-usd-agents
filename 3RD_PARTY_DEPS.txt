@@ -1,4 +1,4 @@
-Found 180 packages to check.
+Found 195 packages to check.
 ------------------------------
 Package: aioboto3 (Version: 15.5.0)
   Dependencies:
@@ -21,7 +21,7 @@ Package: aiofiles (Version: 25.1.0)
 Package: aiohappyeyeballs (Version: 2.6.1)
   No dependencies listed.
 ------------------------------
-Package: aiohttp (Version: 3.13.3)
+Package: aiohttp (Version: 3.14.3)
   Dependencies:
     - aiohappyeyeballs
     - aiosignal
@@ -48,9 +48,12 @@ Package: aiosignal (Version: 1.4.0)
 ------------------------------
 Package: alembic (Version: 1.18.1)
   Dependencies:
-    - Mako
-    - SQLAlchemy
+    - mako
+    - sqlalchemy
     - typing-extensions
+------------------------------
+Package: annotated-doc (Version: 0.0.4)
+  No dependencies listed.
 ------------------------------
 Package: annotated-types (Version: 0.7.0)
   No dependencies listed.
@@ -58,7 +61,7 @@ Package: annotated-types (Version: 0.7.0)
 Package: anyio (Version: 4.12.1)
   Dependencies:
     - idna
-    - typing_extensions
+    - typing-extensions
 ------------------------------
 Package: appdirs (Version: 1.4.4)
   No dependencies listed.
@@ -69,22 +72,24 @@ Package: async-timeout (Version: 5.0.1)
 Package: attrs (Version: 25.4.0)
   No dependencies listed.
 ------------------------------
-Package: authlib (Version: 1.6.6)
+Package: authlib (Version: 1.8.0)
   Dependencies:
     - cryptography
+    - joserfc
 ------------------------------
 Package: beautifulsoup4 (Version: 4.14.3)
   Dependencies:
     - soupsieve
     - typing-extensions
 ------------------------------
-Package: black (Version: 23.12.1)
+Package: black (Version: 26.3.1)
   Dependencies:
     - click
     - mypy-extensions
     - packaging
     - pathspec
     - platformdirs
+    - pytokens
 ------------------------------
 Package: boto3 (Version: 1.40.61)
   Dependencies:
@@ -108,7 +113,7 @@ Package: cffi (Version: 2.0.0)
 Package: charset-normalizer (Version: 3.4.4)
   No dependencies listed.
 ------------------------------
-Package: click (Version: 8.3.1)
+Package: click (Version: 8.5.0)
   Dependencies:
     - colorama
 ------------------------------
@@ -122,7 +127,7 @@ Package: colorlog (Version: 6.10.1)
 Package: coverage (Version: 7.13.1)
   No dependencies listed.
 ------------------------------
-Package: cryptography (Version: 46.0.3)
+Package: cryptography (Version: 50.0.1)
   Dependencies:
     - cffi
 ------------------------------
@@ -140,10 +145,10 @@ Package: datasets (Version: 4.5.0)
 Package: dill (Version: 0.4.0)
   No dependencies listed.
 ------------------------------
-Package: diskcache (Version: 5.6.3)
+Package: distro (Version: 1.9.0)
   No dependencies listed.
 ------------------------------
-Package: distro (Version: 1.9.0)
+Package: docstring-parser-fork (Version: 0.0.16)
   No dependencies listed.
 ------------------------------
 Package: et-xmlfile (Version: 2.0.0)
@@ -157,11 +162,13 @@ Package: faiss-cpu (Version: 1.13.2)
     - numpy
     - packaging
 ------------------------------
-Package: fastapi (Version: 0.119.1)
+Package: fastapi (Version: 0.136.1)
   Dependencies:
+    - annotated-doc
     - pydantic
     - starlette
     - typing-extensions
+    - typing-inspection
 ------------------------------
 Package: fastuuid (Version: 0.14.0)
   No dependencies listed.
@@ -184,6 +191,10 @@ Package: frozenlist (Version: 1.8.0)
 Package: fsspec (Version: 2025.10.0)
   Dependencies:
     - aiohttp
+------------------------------
+Package: googleapis-common-protos (Version: 1.75.0)
+  Dependencies:
+    - protobuf
 ------------------------------
 Package: greenlet (Version: 3.3.0)
   No dependencies listed.
@@ -240,15 +251,33 @@ Package: importlib-metadata (Version: 8.7.1)
 Package: iniconfig (Version: 2.3.0)
   No dependencies listed.
 ------------------------------
+Package: instructor (Version: 1.15.1)
+  Dependencies:
+    - aiohttp
+    - docstring-parser-fork
+    - jinja2
+    - jiter
+    - openai
+    - pydantic
+    - pydantic-core
+    - requests
+    - rich
+    - tenacity
+    - typer
+------------------------------
 Package: jinja2 (Version: 3.1.6)
   Dependencies:
-    - MarkupSafe
+    - markupsafe
 ------------------------------
 Package: jiter (Version: 0.12.0)
   No dependencies listed.
 ------------------------------
 Package: jmespath (Version: 1.0.1)
   No dependencies listed.
+------------------------------
+Package: joserfc (Version: 1.7.5)
+  Dependencies:
+    - cryptography
 ------------------------------
 Package: jsonpatch (Version: 1.33)
   Dependencies:
@@ -272,19 +301,19 @@ Package: jsonschema-specifications (Version: 2025.9.1)
   Dependencies:
     - referencing
 ------------------------------
-Package: langchain (Version: 1.2.7)
+Package: langchain (Version: 1.3.18)
   Dependencies:
     - langchain-core
     - langgraph
     - pydantic
 ------------------------------
-Package: langchain-aws (Version: 1.1.0)
+Package: langchain-aws (Version: 1.7.4)
   Dependencies:
     - boto3
     - langchain-core
     - numpy
 ------------------------------
-Package: langchain-classic (Version: 1.0.1)
+Package: langchain-classic (Version: 1.0.8)
   Dependencies:
     - langchain-core
     - langchain-text-splitters
@@ -294,7 +323,7 @@ Package: langchain-classic (Version: 1.0.1)
     - requests
     - sqlalchemy
 ------------------------------
-Package: langchain-community (Version: 0.4.1)
+Package: langchain-community (Version: 0.4.2)
   Dependencies:
     - aiohttp
     - dataclasses-json
@@ -304,7 +333,7 @@ Package: langchain-community (Version: 0.4.1)
     - langsmith
     - numpy
 ------------------------------
-Package: langchain-core (Version: 1.2.7)
+Package: langchain-core (Version: 1.6.1)
   Dependencies:
     - jsonpatch
     - langsmith
@@ -315,13 +344,13 @@ Package: langchain-core (Version: 1.2.7)
     - typing-extensions
     - uuid-utils
 ------------------------------
-Package: langchain-huggingface (Version: 1.2.0)
+Package: langchain-huggingface (Version: 1.2.2)
   Dependencies:
     - huggingface-hub
     - langchain-core
     - tokenizers
 ------------------------------
-Package: langchain-litellm (Version: 0.3.5)
+Package: langchain-litellm (Version: 0.7.1)
   Dependencies:
     - langchain-core
     - litellm
@@ -331,30 +360,30 @@ Package: langchain-milvus (Version: 0.3.3)
     - langchain-core
     - pymilvus
 ------------------------------
-Package: langchain-nvidia-ai-endpoints (Version: 1.0.2)
+Package: langchain-nvidia-ai-endpoints (Version: 1.4.3)
   Dependencies:
     - aiohttp
     - filetype
     - langchain-core
 ------------------------------
-Package: langchain-openai (Version: 1.1.7)
+Package: langchain-openai (Version: 1.6.0)
   Dependencies:
     - langchain-core
     - openai
     - tiktoken
 ------------------------------
-Package: langchain-tavily (Version: 0.2.17)
+Package: langchain-tavily (Version: 0.2.18)
   Dependencies:
     - aiohttp
     - langchain
     - langchain-core
     - requests
 ------------------------------
-Package: langchain-text-splitters (Version: 1.1.0)
+Package: langchain-text-splitters (Version: 1.1.2)
   Dependencies:
     - langchain-core
 ------------------------------
-Package: langgraph (Version: 1.0.7)
+Package: langgraph (Version: 1.2.11)
   Dependencies:
     - langchain-core
     - langgraph-checkpoint
@@ -363,22 +392,22 @@ Package: langgraph (Version: 1.0.7)
     - pydantic
     - xxhash
 ------------------------------
-Package: langgraph-checkpoint (Version: 4.0.0)
+Package: langgraph-checkpoint (Version: 4.2.0)
   Dependencies:
     - langchain-core
     - ormsgpack
 ------------------------------
-Package: langgraph-prebuilt (Version: 1.0.7)
+Package: langgraph-prebuilt (Version: 1.1.0)
   Dependencies:
     - langchain-core
     - langgraph-checkpoint
 ------------------------------
-Package: langgraph-sdk (Version: 0.3.3)
+Package: langgraph-sdk (Version: 0.4.4)
   Dependencies:
     - httpx
     - orjson
 ------------------------------
-Package: langsmith (Version: 0.6.4)
+Package: langsmith (Version: 0.12.1)
   Dependencies:
     - httpx
     - orjson
@@ -392,12 +421,11 @@ Package: langsmith (Version: 0.6.4)
 Package: librt (Version: 0.7.8)
   No dependencies listed.
 ------------------------------
-Package: litellm (Version: 1.81.0)
+Package: litellm (Version: 1.99.0)
   Dependencies:
     - aiohttp
     - click
     - fastuuid
-    - grpcio
     - httpx
     - importlib-metadata
     - jinja2
@@ -410,7 +438,7 @@ Package: litellm (Version: 1.81.0)
 ------------------------------
 Package: mako (Version: 1.3.10)
   Dependencies:
-    - MarkupSafe
+    - markupsafe
 ------------------------------
 Package: markdown-it-py (Version: 4.0.0)
   Dependencies:
@@ -426,7 +454,7 @@ Package: marshmallow (Version: 3.26.2)
 Package: mccabe (Version: 0.7.0)
   No dependencies listed.
 ------------------------------
-Package: mcp (Version: 1.25.0)
+Package: mcp (Version: 1.29.1)
   Dependencies:
     - anyio
     - httpx
@@ -449,9 +477,9 @@ Package: multiprocess (Version: 0.70.18)
 Package: mypy (Version: 1.19.1)
   Dependencies:
     - librt
-    - mypy_extensions
+    - mypy-extensions
     - pathspec
-    - typing_extensions
+    - typing-extensions
 ------------------------------
 Package: mypy-extensions (Version: 1.1.0)
   No dependencies listed.
@@ -468,10 +496,10 @@ Package: nest-asyncio2 (Version: 1.7.1)
 Package: networkx (Version: 3.6.1)
   No dependencies listed.
 ------------------------------
-Package: numpy (Version: 2.4.1)
+Package: numpy (Version: 1.26.4)
   No dependencies listed.
 ------------------------------
-Package: nvidia-nat (Version: 1.5.0a20260120)
+Package: nvidia-nat (Version: 1.8.0a20260514)
   Dependencies:
     - aioboto3
     - authlib
@@ -486,8 +514,26 @@ Package: nvidia-nat (Version: 1.5.0a20260120)
     - nest-asyncio2
     - networkx
     - numpy
+    - openinference-semantic-conventions
+    - openpyxl
+    - optuna
+    - pandas
+    - pip
+    - pkce
+    - pkginfo
+    - platformdirs
+    - plotly
+    - pydantic
+    - pymilvus
+    - python-dotenv
+    - pyyaml
+    - rich
+    - tabulate
+    - urllib3
+    - uvicorn
+    - wikipedia
 ------------------------------
-Package: nvidia-nat-langchain (Version: 1.5.0a20260120)
+Package: nvidia-nat-langchain (Version: 1.8.0a20260514)
   Dependencies:
     - langchain
     - langchain-aws
@@ -502,13 +548,20 @@ Package: nvidia-nat-langchain (Version: 1.5.0a20260120)
     - langgraph
     - nvidia-nat
 ------------------------------
-Package: nvidia-nat-mcp (Version: 1.5.0a20260120)
+Package: nvidia-nat-mcp (Version: 1.8.0a20260514)
   Dependencies:
     - aiorwlock
     - mcp
     - nvidia-nat
 ------------------------------
-Package: openai (Version: 2.15.0)
+Package: nvidia-nat-opentelemetry (Version: 1.8.0a20260514)
+  Dependencies:
+    - nvidia-nat
+    - opentelemetry-api
+    - opentelemetry-exporter-otlp
+    - opentelemetry-sdk
+------------------------------
+Package: openai (Version: 2.54.0)
   Dependencies:
     - anyio
     - distro
@@ -526,9 +579,57 @@ Package: openpyxl (Version: 3.1.5)
   Dependencies:
     - et-xmlfile
 ------------------------------
+Package: opentelemetry-api (Version: 1.42.1)
+  Dependencies:
+    - typing-extensions
+------------------------------
+Package: opentelemetry-exporter-otlp (Version: 1.42.1)
+  Dependencies:
+    - opentelemetry-exporter-otlp-proto-grpc
+    - opentelemetry-exporter-otlp-proto-http
+------------------------------
+Package: opentelemetry-exporter-otlp-proto-common (Version: 1.42.1)
+  Dependencies:
+    - opentelemetry-proto
+------------------------------
+Package: opentelemetry-exporter-otlp-proto-grpc (Version: 1.42.1)
+  Dependencies:
+    - googleapis-common-protos
+    - grpcio
+    - opentelemetry-api
+    - opentelemetry-exporter-otlp-proto-common
+    - opentelemetry-proto
+    - opentelemetry-sdk
+    - typing-extensions
+------------------------------
+Package: opentelemetry-exporter-otlp-proto-http (Version: 1.42.1)
+  Dependencies:
+    - googleapis-common-protos
+    - opentelemetry-api
+    - opentelemetry-exporter-otlp-proto-common
+    - opentelemetry-proto
+    - opentelemetry-sdk
+    - requests
+    - typing-extensions
+------------------------------
+Package: opentelemetry-proto (Version: 1.42.1)
+  Dependencies:
+    - protobuf
+------------------------------
+Package: opentelemetry-sdk (Version: 1.42.1)
+  Dependencies:
+    - opentelemetry-api
+    - opentelemetry-semantic-conventions
+    - typing-extensions
+------------------------------
+Package: opentelemetry-semantic-conventions (Version: 0.63b1)
+  Dependencies:
+    - opentelemetry-api
+    - typing-extensions
+------------------------------
 Package: optuna (Version: 4.4.0)
   Dependencies:
-    - PyYAML
+    - pyyaml
     - alembic
     - colorlog
     - numpy
@@ -536,7 +637,7 @@ Package: optuna (Version: 4.4.0)
     - sqlalchemy
     - tqdm
 ------------------------------
-Package: orjson (Version: 3.11.5)
+Package: orjson (Version: 3.11.8)
   No dependencies listed.
 ------------------------------
 Package: ormsgpack (Version: 1.12.2)
@@ -552,7 +653,10 @@ Package: pandas (Version: 2.3.3)
 Package: pathspec (Version: 1.0.3)
   No dependencies listed.
 ------------------------------
-Package: pip (Version: 25.3)
+Package: pillow (Version: 12.3.0)
+  No dependencies listed.
+------------------------------
+Package: pip (Version: 26.2)
   No dependencies listed.
 ------------------------------
 Package: pkce (Version: 1.0.3)
@@ -578,10 +682,10 @@ Package: ply (Version: 3.11)
 Package: propcache (Version: 0.4.1)
   No dependencies listed.
 ------------------------------
-Package: protobuf (Version: 6.33.4)
+Package: protobuf (Version: 7.34.1)
   No dependencies listed.
 ------------------------------
-Package: pyarrow (Version: 23.0.0)
+Package: pyarrow (Version: 23.0.1)
   No dependencies listed.
 ------------------------------
 Package: pycodestyle (Version: 2.11.1)
@@ -613,7 +717,7 @@ Package: pyflakes (Version: 3.1.0)
 Package: pygments (Version: 2.19.2)
   No dependencies listed.
 ------------------------------
-Package: pyjwt (Version: 2.10.1)
+Package: pyjwt (Version: 2.13.0)
   Dependencies:
     - cryptography
 ------------------------------
@@ -651,6 +755,9 @@ Package: python-dotenv (Version: 1.1.1)
 Package: python-multipart (Version: 0.0.22)
   No dependencies listed.
 ------------------------------
+Package: pytokens (Version: 0.4.1)
+  No dependencies listed.
+------------------------------
 Package: pytz (Version: 2025.2)
   No dependencies listed.
 ------------------------------
@@ -660,20 +767,9 @@ Package: pywin32 (Version: 311)
 Package: pyyaml (Version: 6.0.3)
   No dependencies listed.
 ------------------------------
-Package: ragas (Version: 0.2.15)
+Package: rank-bm25 (Version: 0.2.2)
   Dependencies:
-    - appdirs
-    - datasets
-    - diskcache
-    - langchain
-    - langchain-community
-    - langchain-core
-    - langchain_openai
-    - nest-asyncio
     - numpy
-    - openai
-    - pydantic
-    - tiktoken
 ------------------------------
 Package: redis (Version: 7.1.0)
   Dependencies:
@@ -692,7 +788,7 @@ Package: regex (Version: 2026.1.15)
 Package: requests (Version: 2.32.5)
   Dependencies:
     - certifi
-    - charset_normalizer
+    - charset-normalizer
     - idna
     - urllib3
 ------------------------------
@@ -712,7 +808,19 @@ Package: s3transfer (Version: 0.14.0)
   Dependencies:
     - botocore
 ------------------------------
-Package: setuptools (Version: 80.9.0)
+Package: scikit-network (Version: 0.33.5)
+  Dependencies:
+    - numpy
+    - scipy
+------------------------------
+Package: scipy (Version: 1.17.1)
+  Dependencies:
+    - numpy
+------------------------------
+Package: setuptools (Version: 84.0.0)
+  No dependencies listed.
+------------------------------
+Package: shellingham (Version: 1.5.4)
   No dependencies listed.
 ------------------------------
 Package: six (Version: 1.17.0)
@@ -721,7 +829,7 @@ Package: six (Version: 1.17.0)
 Package: sniffio (Version: 1.3.1)
   No dependencies listed.
 ------------------------------
-Package: soupsieve (Version: 2.8.3)
+Package: soupsieve (Version: 2.9.2)
   No dependencies listed.
 ------------------------------
 Package: sqlalchemy (Version: 2.0.45)
@@ -729,11 +837,11 @@ Package: sqlalchemy (Version: 2.0.45)
     - greenlet
     - typing-extensions
 ------------------------------
-Package: sse-starlette (Version: 3.0.3)
+Package: sse-starlette (Version: 3.4.8)
   Dependencies:
     - anyio
 ------------------------------
-Package: starlette (Version: 0.48.0)
+Package: starlette (Version: 1.6.0)
   Dependencies:
     - anyio
     - typing-extensions
@@ -756,6 +864,13 @@ Package: tokenizers (Version: 0.22.2)
 Package: tqdm (Version: 4.67.1)
   Dependencies:
     - colorama
+------------------------------
+Package: typer (Version: 0.24.2)
+  Dependencies:
+    - annotated-doc
+    - click
+    - rich
+    - shellingham
 ------------------------------
 Package: typing-extensions (Version: 4.15.0)
   No dependencies listed.

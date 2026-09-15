@@ -55,7 +55,16 @@ class RunnableNodeAgent(RunnableNode):
 
         chat_model = super()._get_chat_model(chat_model_name, chat_model_input, invoke_input, config)
 
-        prompt = LangSmithClient().pull_prompt("hwchase17/structured-chat-agent")
+        # langsmith 0.7.31+ gates public-prompt pulls behind an explicit
+        # `dangerously_pull_public_prompt` flag (related to BDSA-2026-9844 /
+        # CVE-2026-44843: untrusted serialized LangChain objects may be
+        # revived during pull). The `hwchase17/structured-chat-agent` prompt
+        # is published by Harrison Chase (langchain's creator) and is a stable
+        # well-known agent scaffold — acknowledging the risk explicitly here.
+        prompt = LangSmithClient().pull_prompt(
+            "hwchase17/structured-chat-agent",
+            dangerously_pull_public_prompt=True,
+        )
 
         agent = create_structured_chat_agent(chat_model, self.tools, prompt)
         agent_executor = AgentExecutor(

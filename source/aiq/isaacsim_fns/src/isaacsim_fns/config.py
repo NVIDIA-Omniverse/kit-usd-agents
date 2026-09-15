@@ -50,12 +50,12 @@ DEFAULT_RAG_TOP_K_CODE = 90
 DEFAULT_RERANK_CODE = 10
 
 # Reranking Configuration
-DEFAULT_RERANK_MODEL = "nvidia/llama-nemotron-rerank-1b-v2"
-DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking"
+DEFAULT_RERANK_MODEL = "nvidia/llama-nemotron-rerank-vl-1b-v2"
+DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-vl-1b-v2/reranking"
 
 # Embedding Configuration
-DEFAULT_EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
-DEFAULT_EMBEDDING_ENDPOINT = "https://ai.api.nvidia.com/v1"
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"
+DEFAULT_EMBEDDING_ENDPOINT = "https://integrate.api.nvidia.com/v1"
 
 # Environment variable names
 ENV_DISABLE_LOGGING = "KIT_MCP_DISABLE_USAGE_LOGGING"
@@ -63,6 +63,9 @@ ENV_MCP_PORT = "MCP_PORT"
 ENV_ISAACSIM_VERSION = "MCP_ISAACSIM_VERSION"
 ENV_EMBEDDER_BACKEND = "KIT_EMBEDDER_BACKEND"  # "nvidia_api" or "local"
 ENV_LOCAL_EMBEDDER_URL = "KIT_LOCAL_EMBEDDER_URL"  # URL for local embedder (e.g., "http://10.34.1.127:8001")
+ENV_EMBEDDING_MODEL = "KIT_EMBEDDING_MODEL"  # override the embedding model without a rebuild
+ENV_RERANK_MODEL = "KIT_RERANK_MODEL"  # override the rerank model without a rebuild
+ENV_RERANK_ENDPOINT = "KIT_RERANK_ENDPOINT"  # override the rerank URL outright
 
 
 def get_env_bool(env_var: str, default: bool = False) -> bool:
@@ -94,7 +97,24 @@ def get_env_float(env_var: str, default: float) -> float:
 # Runtime configuration
 MCP_PORT = get_env_int(ENV_MCP_PORT, DEFAULT_MCP_PORT)
 USAGE_LOGGING_ENABLED = not get_env_bool(ENV_DISABLE_LOGGING, False)
-ISAACSIM_VERSION = os.environ.get(ENV_ISAACSIM_VERSION, "6.0")
+ISAACSIM_VERSION = os.environ.get(ENV_ISAACSIM_VERSION, "6.1")
+
+# Model selection. These are the values the services actually use; the DEFAULT_*
+# constants above are only the fallback. Hosted models get retired periodically
+# (nv-embedqa-e5-v5 and llama-nemotron-rerank-1b-v2 both reached EOL on
+# 2026-08-25), so these are env-overridable to allow repointing a running
+# deployment without a code change and rebuild.
+#
+# NOTE: changing the embedding model requires a matching index. The bundled
+# FAISS data is built with EMBEDDING_MODEL; pointing at a model with a
+# different vector width will fail at query time, not at startup.
+EMBEDDING_MODEL = os.environ.get(ENV_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL)
+RERANK_MODEL = os.environ.get(ENV_RERANK_MODEL, DEFAULT_RERANK_MODEL)
+RERANK_ENDPOINT = os.environ.get(ENV_RERANK_ENDPOINT) or (
+    DEFAULT_RERANK_ENDPOINT
+    if RERANK_MODEL == DEFAULT_RERANK_MODEL
+    else f"https://ai.api.nvidia.com/v1/retrieval/{RERANK_MODEL}/reranking"
+)
 
 
 def get_effective_api_key(service: Optional[str] = None) -> Optional[str]:

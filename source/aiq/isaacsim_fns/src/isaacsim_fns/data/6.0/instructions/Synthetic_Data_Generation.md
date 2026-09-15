@@ -17321,10 +17321,10 @@ obtain a key and manage credits. See the [NVIDIA API reference page](https://doc
 
    ```python
    # Set API key for the current shell session
-   export NVIDIA_API_KEY="nvapi-YOUR-KEY-HERE"
+   export NVIDIA_API_KEY="REPLACE_WITH_NVIDIA_API_KEY"
 
    # Make the setting persistent (for bash)
-   echo 'export NVIDIA_API_KEY="nvapi-YOUR-KEY-HERE"' >> ~/.bashrc
+   echo 'export NVIDIA_API_KEY="REPLACE_WITH_NVIDIA_API_KEY"' >> ~/.bashrc
    source ~/.bashrc
    ```
 
@@ -17332,7 +17332,7 @@ obtain a key and manage credits. See the [NVIDIA API reference page](https://doc
 
    ```python
    REM Set API key for the current Command Prompt session
-   set NVIDIA_API_KEY=nvapi-YOUR-KEY-HERE
+   set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
    REM To make the setting persistent, add the variable in
    REM System Properties > Environment Variables.
@@ -20823,7 +20823,7 @@ Alternatively, you can set the API key as an environment variable before launchi
 Setting NVIDIA API key via environment variable
 
 ```python
-export NVIDIA_API_KEY="nvapi-YOUR-KEY-HERE"
+export NVIDIA_API_KEY="REPLACE_WITH_NVIDIA_API_KEY"
 ```
 
 ### Step 5: Enter a Scenario Description

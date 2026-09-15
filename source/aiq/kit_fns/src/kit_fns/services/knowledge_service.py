@@ -16,6 +16,7 @@
 """Knowledge retrieval service for Kit documentation using FAISS and reranking."""
 
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from ..config import (
@@ -25,7 +26,6 @@ from ..config import (
     KNOWLEDGE_INDEX_PATH,
 )
 from .embedder_service import EmbedderFactory
-from .reranking import Reranker
 
 logger = logging.getLogger(__name__)
 
@@ -67,27 +67,48 @@ class KnowledgeRetriever:
         if embedding_config:
             self.embedder = EmbedderFactory.create(
                 api_key=embedding_config.get("api_key"),
-                model=embedding_config.get("model", "nvidia/nv-embedqa-e5-v5"),
+                model=embedding_config.get("model", "nvidia/nemotron-3-embed-1b"),
             )
         else:
-            self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
+            self.embedder = EmbedderFactory.create(model="nvidia/nemotron-3-embed-1b")
+
+        # Feature flag — default to legacy semantic-only retrieval. Set
+        # OVAI_RETRIEVAL_MODE=hybrid to route through ovgenai-retrieval
+        # (FAISS + BM25 + RRF). Post-eval we flip the default.
+        self.retrieval_mode = os.environ.get("OVAI_RETRIEVAL_MODE", "semantic").lower()
+        self._hybrid = None
 
         if load_path:
-            try:
-                from ..utils.faiss_safe import load_faiss_safe
+            if self.retrieval_mode == "hybrid":
+                try:
+                    from ..utils.hybrid_shim import maybe_load_hybrid
 
-                self.vectordb = load_faiss_safe(
-                    load_path,
-                    self.embedder,
-                )
-                self.retriever = self.vectordb.as_retriever(
-                    search_type="similarity",
-                    search_kwargs={"k": top_k},
-                )
-                logger.info(f"Successfully loaded FAISS knowledge index from {load_path}")
-            except Exception as e:
-                logger.error(f"Failed to load FAISS knowledge index from {load_path}: {e}")
-                raise
+                    self._hybrid = maybe_load_hybrid(load_path, self.embedder, top_k=top_k)
+                    if self._hybrid is None:
+                        self.retrieval_mode = "semantic"
+                    else:
+                        logger.info(f"Loaded HybridRetriever (ovgenai-retrieval) for knowledge from {load_path}")
+                except Exception as e:
+                    logger.warning(f"Hybrid retrieval failed ({e!r}); falling back to legacy semantic path.")
+                    self._hybrid = None
+                    self.retrieval_mode = "semantic"
+
+            if self._hybrid is None:
+                try:
+                    from ..utils.faiss_safe import load_faiss_safe
+
+                    self.vectordb = load_faiss_safe(
+                        load_path,
+                        self.embedder,
+                    )
+                    self.retriever = self.vectordb.as_retriever(
+                        search_type="similarity",
+                        search_kwargs={"k": top_k},
+                    )
+                    logger.info(f"Successfully loaded FAISS knowledge index from {load_path} (mode=semantic)")
+                except Exception as e:
+                    logger.error(f"Failed to load FAISS knowledge index from {load_path}: {e}")
+                    raise
 
     def search(self, query: str, top_k: Optional[int] = None) -> List[Any]:
         """Search for relevant knowledge documents.
@@ -97,8 +118,32 @@ class KnowledgeRetriever:
             top_k: Number of results to return (overrides default)
 
         Returns:
-            List of relevant documents
+            List of relevant documents (LangChain Document shape for backward
+            compatibility with downstream ``get_rag_context_knowledge``).
         """
+        if self._hybrid is not None:
+            from langchain_core.documents import Document
+
+            k = top_k if top_k is not None else self.top_k
+            hits = self._hybrid.retrieve(query, top_k=k)
+            return [
+                Document(
+                    page_content=h.content,
+                    metadata={
+                        "index_text": h.index_text,
+                        "file_path": h.file_path,
+                        "line_start": h.line_start,
+                        "line_end": h.line_end,
+                        "section_hierarchy": h.section_hierarchy,
+                        "url": h.url,
+                        **h.metadata,
+                        "_ovai_score": h.score,
+                        "_ovai_provenance": h.provenance,
+                    },
+                )
+                for h in hits
+            ]
+
         if not self.retriever:
             logger.warning("Retriever not initialized - no FAISS index loaded")
             return []
@@ -116,7 +161,7 @@ def get_rag_context_knowledge(
     rag_max_size: int = DEFAULT_RAG_LENGTH_KNOWLEDGE,
     rag_top_k: int = DEFAULT_RAG_TOP_K_KNOWLEDGE,
     rerank_k: int = DEFAULT_RERANK_KNOWLEDGE,
-    reranker: Optional[Reranker] = None,
+    reranker: Optional[Any] = None,
 ) -> str:
     """Get RAG context for knowledge queries.
 

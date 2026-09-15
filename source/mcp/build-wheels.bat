@@ -22,13 +22,20 @@ REM
 REM Prerequisites:
 REM   - Python 3.11+
 REM   - Poetry (https://python-poetry.org/docs/#installation)
+REM   - 'build' module (auto-installed via 'pip install build' if missing)
+REM
+REM Wheels produced (each MCP's dist/ ends up with three .whl files):
+REM   - <mcp>_fns-*.whl          : per-MCP function package
+REM   - <mcp>_mcp-*.whl          : MCP server package
+REM   - ovgenai_retrieval-*.whl  : shared hybrid-retrieval library, built from
+REM                                source\aiq\ovgenai_retrieval\
 REM
 REM Usage:
 REM   build-wheels.bat         - Build all wheels
-REM   build-wheels.bat kit     - Build only kit-mcp wheels
-REM   build-wheels.bat omni    - Build only omni-ui-mcp wheels
-REM   build-wheels.bat usd     - Build only usd-code-mcp wheels
-REM   build-wheels.bat isaac   - Build only isaacsim-mcp wheels
+REM   build-wheels.bat kit     - Build only kit-mcp wheels (incl. retrieval)
+REM   build-wheels.bat omni    - Build only omni-ui-mcp wheels (incl. retrieval)
+REM   build-wheels.bat usd     - Build only usd-code-mcp wheels (incl. retrieval)
+REM   build-wheels.bat isaac   - Build only isaacsim-mcp wheels (incl. retrieval)
 
 setlocal EnableDelayedExpansion
 
@@ -69,6 +76,11 @@ REM Parse argument
 set "TARGET=%~1"
 if "%TARGET%"=="" set "TARGET=all"
 
+REM Build the shared ovgenai_retrieval wheel once before per-MCP builds.
+REM Every MCP needs it copied into its dist/.
+call :build_ovgenai_retrieval
+if %ERRORLEVEL% neq 0 exit /b 1
+
 if /i "%TARGET%"=="kit" goto :build_kit
 if /i "%TARGET%"=="omni" goto :build_omni
 if /i "%TARGET%"=="usd" goto :build_usd
@@ -84,8 +96,9 @@ call :build_wheel "%ROOT_DIR%\source\aiq\kit_fns" "kit_fns"
 if %ERRORLEVEL% neq 0 exit /b 1
 call :build_wheel "%SCRIPT_DIR%kit_mcp" "kit_mcp"
 if %ERRORLEVEL% neq 0 exit /b 1
-REM Copy kit_fns AFTER kit_mcp build to avoid deletion
+REM Copy kit_fns and ovgenai_retrieval AFTER kit_mcp build to avoid deletion
 call :copy_wheel "%ROOT_DIR%\source\aiq\kit_fns" "%SCRIPT_DIR%kit_mcp\dist" "kit_fns"
+call :copy_wheel "%ROOT_DIR%\source\aiq\ovgenai_retrieval" "%SCRIPT_DIR%kit_mcp\dist" "ovgenai_retrieval"
 echo [INFO] Kit MCP wheels ready in: %SCRIPT_DIR%kit_mcp\dist\
 if /i "%TARGET%"=="kit" goto :done
 goto :eof
@@ -96,8 +109,9 @@ call :build_wheel "%ROOT_DIR%\source\aiq\omni_ui_fns" "omni_ui_fns"
 if %ERRORLEVEL% neq 0 exit /b 1
 call :build_wheel "%SCRIPT_DIR%omni_ui_mcp" "omni_ui_mcp"
 if %ERRORLEVEL% neq 0 exit /b 1
-REM Copy omni_ui_fns AFTER omni_ui_mcp build to avoid deletion
+REM Copy omni_ui_fns and ovgenai_retrieval AFTER omni_ui_mcp build to avoid deletion
 call :copy_wheel "%ROOT_DIR%\source\aiq\omni_ui_fns" "%SCRIPT_DIR%omni_ui_mcp\dist" "omni_ui_fns"
+call :copy_wheel "%ROOT_DIR%\source\aiq\ovgenai_retrieval" "%SCRIPT_DIR%omni_ui_mcp\dist" "ovgenai_retrieval"
 echo [INFO] Omni UI MCP wheels ready in: %SCRIPT_DIR%omni_ui_mcp\dist\
 if /i "%TARGET%"=="omni" goto :done
 goto :eof
@@ -108,8 +122,9 @@ call :build_wheel "%ROOT_DIR%\source\aiq\usd_code_fns" "usd_code_fns"
 if %ERRORLEVEL% neq 0 exit /b 1
 call :build_wheel "%SCRIPT_DIR%usd_code_mcp" "usd_code_mcp"
 if %ERRORLEVEL% neq 0 exit /b 1
-REM Copy usd_code_fns AFTER usd_code_mcp build to avoid deletion
+REM Copy usd_code_fns and ovgenai_retrieval AFTER usd_code_mcp build to avoid deletion
 call :copy_wheel "%ROOT_DIR%\source\aiq\usd_code_fns" "%SCRIPT_DIR%usd_code_mcp\dist" "usd_code_fns"
+call :copy_wheel "%ROOT_DIR%\source\aiq\ovgenai_retrieval" "%SCRIPT_DIR%usd_code_mcp\dist" "ovgenai_retrieval"
 echo [INFO] USD Code MCP wheels ready in: %SCRIPT_DIR%usd_code_mcp\dist\
 if /i "%TARGET%"=="usd" goto :done
 goto :eof
@@ -120,8 +135,9 @@ call :build_wheel "%ROOT_DIR%\source\aiq\isaacsim_fns" "isaacsim_fns"
 if %ERRORLEVEL% neq 0 exit /b 1
 call :build_wheel "%SCRIPT_DIR%isaacsim_mcp" "isaacsim_mcp"
 if %ERRORLEVEL% neq 0 exit /b 1
-REM Copy isaacsim_fns AFTER isaacsim_mcp build to avoid deletion
+REM Copy isaacsim_fns and ovgenai_retrieval AFTER isaacsim_mcp build to avoid deletion
 call :copy_wheel "%ROOT_DIR%\source\aiq\isaacsim_fns" "%SCRIPT_DIR%isaacsim_mcp\dist" "isaacsim_fns"
+call :copy_wheel "%ROOT_DIR%\source\aiq\ovgenai_retrieval" "%SCRIPT_DIR%isaacsim_mcp\dist" "ovgenai_retrieval"
 echo [INFO] Isaac Sim MCP wheels ready in: %SCRIPT_DIR%isaacsim_mcp\dist\
 if /i "%TARGET%"=="isaac" goto :done
 goto :eof
@@ -132,6 +148,29 @@ call :build_omni
 call :build_usd
 call :build_isaac
 goto :done
+
+:build_ovgenai_retrieval
+REM Build the shared ovgenai_retrieval wheel using setuptools' PEP-517
+REM 'python -m build' rather than poetry (the package uses setuptools).
+echo [INFO] Building ovgenai_retrieval wheel...
+pushd "%ROOT_DIR%\source\aiq\ovgenai_retrieval"
+if exist dist rmdir /s /q dist
+if exist build rmdir /s /q build
+python -c "import build" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Installing 'build' module...
+    python -m pip install --user --quiet build
+)
+python -m build --wheel
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to build ovgenai_retrieval
+    popd
+    exit /b 1
+)
+echo [INFO] ovgenai_retrieval wheel built successfully
+dir /b dist\*.whl
+popd
+goto :eof
 
 :build_wheel
 REM %1 = package directory, %2 = package name

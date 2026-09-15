@@ -17,6 +17,7 @@
 
 import logging
 import pathlib
+from importlib import metadata
 
 
 def _get_version():
@@ -26,7 +27,10 @@ def _get_version():
         with open(version_file, "r", encoding="utf-8") as f:
             return f.readline().strip()
     except Exception:
-        return "1.0.0"
+        try:
+            return metadata.version("omni-ui-aiq")
+        except metadata.PackageNotFoundError:
+            return "1.2.0"
 
 
 __version__ = _get_version()

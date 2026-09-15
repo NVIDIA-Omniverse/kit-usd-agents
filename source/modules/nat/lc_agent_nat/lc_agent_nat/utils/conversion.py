@@ -11,7 +11,7 @@ from typing import List
 from langchain_core.messages import BaseMessage
 from langchain_core.messages import convert_to_openai_messages
 from nat.data_models.api_server import (
-    AIQChatRequest,
+    ChatRequest,
     Message,
     TextContent,
     ImageContent,
@@ -24,7 +24,7 @@ from pydantic import HttpUrl
 class ImageData(ImageUrl):
     data: str  # Base64 image data
 
-def convert_langchain_to_nat_messages(lc_messages: List[BaseMessage]) -> AIQChatRequest:
+def convert_langchain_to_nat_messages(lc_messages: List[BaseMessage]) -> ChatRequest:
     """Convert LangChain messages to NAT chat request format.
 
     This function takes a list of LangChain BaseMessage objects and converts them
@@ -35,13 +35,13 @@ def convert_langchain_to_nat_messages(lc_messages: List[BaseMessage]) -> AIQChat
         lc_messages: List of LangChain BaseMessage objects
 
     Returns:
-        AIQChatRequest: A properly formatted NAT chat request object
+        ChatRequest: A properly formatted NAT chat request object
     """
     # First convert LangChain messages to OpenAI format
     openai_messages = convert_to_openai_messages(lc_messages)
     nat_messages = []
 
-    # Convert each OpenAI message to AIQ message format
+    # Convert each OpenAI message to NAT message format
     for openai_msg in openai_messages:
         content = openai_msg["content"]
 
@@ -65,7 +65,7 @@ def convert_langchain_to_nat_messages(lc_messages: List[BaseMessage]) -> AIQChat
                         else:
                             url_str = str(image_url_data)
 
-                        # AIQ only supports HTTP/HTTPS URLs for ImageContent
+                        # NAT only supports HTTP/HTTPS URLs for ImageContent
                         # For base64 and file:// URLs, preserve the path information
                         if url_str.startswith("data:image"):
                             # Base64 image - use ImageContent with our custom ImageData
@@ -112,4 +112,4 @@ def convert_langchain_to_nat_messages(lc_messages: List[BaseMessage]) -> AIQChat
             nat_messages.append(Message(content=str(content), role=openai_msg["role"]))
 
     # Return a properly formatted NAT chat request
-    return AIQChatRequest(messages=nat_messages)
+    return ChatRequest(messages=nat_messages)

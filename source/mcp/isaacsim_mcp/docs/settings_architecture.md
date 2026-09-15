@@ -250,7 +250,7 @@ def create_setting_document(setting_key: str, setting_data: Dict) -> str:
 ### 2. Embedding Generation Process
 
 #### Model Selection
-- **Model**: NVIDIA `nv-embedqa-e5-v5`
+- **Model**: NVIDIA `nemotron-3-embed-1b`
 - **Dimension**: 1024 (typical for this model)
 - **Truncation**: END (truncate from the end if text is too long)
 
@@ -267,9 +267,9 @@ for i in range(0, len(settings_list), batch_size):
 ```json
 {
   "metadata": {
-    "model": "nvidia/nv-embedqa-e5-v5",
+    "model": "nvidia/nemotron-3-embed-1b",
     "total_settings": 850,
-    "embedding_dimension": 1024,
+    "embedding_dimension": 2048,
     "generated_at": "2024-01-15T10:30:00",
     "kit_version": "109.0",
     "successful_embeddings": 850,
@@ -361,7 +361,7 @@ class SettingsSearchService:
     def __init__(self, kit_version: str = "109.0"):
         self.kit_version = kit_version
         self.faiss_db_path = Path(f"data/{kit_version}/settings/settings_faiss")
-        self.embedder = NVIDIAEmbeddings(model="nvidia/nv-embedqa-e5-v5")
+        self.embedder = NVIDIAEmbeddings(model="nvidia/nemotron-3-embed-1b")
         self.vectorstore = None
         self._load_faiss_database()
 
@@ -493,7 +493,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 
 # Load the database
-embedder = NVIDIAEmbeddings(model="nvidia/nv-embedqa-e5-v5")
+embedder = NVIDIAEmbeddings(model="nvidia/nemotron-3-embed-1b")
 vectorstore = FAISS.load_local(
     "data/109.0/settings/settings_faiss",
     embedder,
@@ -551,7 +551,7 @@ results = vectorstore.similarity_search(
 
 **Solution**:
 ```bash
-export NVIDIA_API_KEY='your-api-key'
+export NVIDIA_API_KEY='REPLACE_WITH_NVIDIA_API_KEY'
 # Get key from: https://build.nvidia.com/
 ```
 
@@ -587,7 +587,7 @@ vectorstore = FAISS.load_local(
 
 **Solution**: Ensure consistent model usage:
 ```python
-DEFAULT_EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"  # Use same model everywhere
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"  # Use same model everywhere
 ```
 
 ### Performance Optimization

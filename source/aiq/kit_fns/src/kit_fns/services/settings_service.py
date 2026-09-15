@@ -45,6 +45,8 @@ class SettingsService:
     """Service for managing Kit settings information with FAISS search."""
 
     def __init__(self, faiss_db_path: str = None, settings_summary_path: str = None):
+        # _hybrid defaults to None — populated after FAISS load below when OVAI_RETRIEVAL_MODE=hybrid
+        self._hybrid = None
         """Initialize the Settings service.
 
         Args:
@@ -100,12 +102,17 @@ class SettingsService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
+            self.embedder = EmbedderFactory.create(model="nvidia/nemotron-3-embed-1b")
 
             # Load FAISS index via faiss_safe (JSON-backed metadata)
             from ..utils.faiss_safe import load_faiss_safe
 
             self.vectorstore = load_faiss_safe(str(self.faiss_db_path), self.embedder)
+
+            # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+            from ..utils.hybrid_shim import maybe_load_hybrid
+
+            self._hybrid = maybe_load_hybrid(str(self.faiss_db_path), self.embedder, top_k=20)
 
             logger.info(f"Successfully loaded FAISS index for settings from {self.faiss_db_path}")
 
@@ -143,6 +150,37 @@ class SettingsService:
             filters["prefix"] = prefix_filter
         if type_filter:
             filters["type"] = type_filter
+
+        # Hybrid path — opt-in, only when no filters (filter support TBD post-eval).
+        if self._hybrid is not None and not filters:
+            try:
+                from ..utils.hybrid_shim import hits_to_documents_with_scores
+
+                docs_with_scores = hits_to_documents_with_scores(self._hybrid.retrieve(query, top_k=top_k * 2))
+                for doc, score in docs_with_scores:
+                    metadata = doc.metadata
+                    setting_key = metadata.get("setting_key", "")
+                    setting_data = self.settings_data.get(setting_key, {}) if self.settings_data else {}
+                    results.append(
+                        {
+                            "setting": setting_key,
+                            "type": metadata.get("type", setting_data.get("type", "unknown")),
+                            "default_value": metadata.get("default_value", setting_data.get("default_value")),
+                            "documentation": metadata.get("documentation", setting_data.get("documentation", "")),
+                            "description": metadata.get("description", setting_data.get("description", "")),
+                            "extensions": list(setting_data.get("extensions", [])),
+                            "usage_count": metadata.get("usage_count", setting_data.get("usage_count", 0)),
+                            "found_in": setting_data.get("found_in", [])[:3],
+                            "has_documentation": metadata.get(
+                                "has_documentation", bool(setting_data.get("documentation"))
+                            ),
+                            "prefix": metadata.get("prefix", self._extract_prefix(setting_key)),
+                            "relevance_score": float(1.0 / (1.0 + score)),
+                        }
+                    )
+                return results[:top_k]
+            except Exception as e:
+                logger.warning(f"Hybrid settings search failed, falling back to semantic: {e}")
 
         # Use FAISS semantic search if available
         if self.vectorstore:

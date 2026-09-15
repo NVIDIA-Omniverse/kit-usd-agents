@@ -68,8 +68,7 @@ REM Install dependencies. If the shipped poetry.lock is older than the current
 REM pyproject.toml (which happens any time a new dep lands without `poetry lock`
 REM being re-run on the maintainer side), `poetry install` will refuse with a
 REM "pyproject.toml changed significantly..." error. Auto-recover by running
-REM `poetry lock` once and retrying — same behavior as setup-dev.sh
-REM.
+REM `poetry lock` once and retrying — same behavior as setup-dev.sh.
 REM
 REM Implementation note: cmd.exe expands %errorlevel% at PARSE time of an
 REM outer "if (...)" block, so nested ``if %errorlevel% neq 0`` checks

@@ -17,6 +17,8 @@
 
 import logging
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
@@ -25,6 +27,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_test_examples import search_test_examples
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,49 +50,34 @@ class SearchKitTestExamplesInput(BaseModel):
 
 
 # Tool description
-SEARCH_KIT_TEST_EXAMPLES_DESCRIPTION = """Find Kit test implementations and patterns using semantic search and optional reranking.
+SEARCH_KIT_TEST_EXAMPLES_DESCRIPTION = """Narrow-scope tool for finding Kit test code — setup/teardown, assertions, async-test patterns, and Kit-specific test harnesses.
 
-WHAT IT DOES:
-- Searches across Kit test code and testing patterns
-- Uses semantic matching to find relevant test implementations
-- Optionally reranks results using NVIDIA's reranking model for improved relevance
-- Returns complete test examples with setup and validation
-- Includes testing best practices and frameworks
-
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Test method implementations
-- Test setup and teardown patterns
-- UI testing examples
-- USD stage testing patterns
-- Extension lifecycle testing
-- Performance and integration tests
+WHEN TO USE THIS TOOL:
+- "Show me how to write a Kit unit/UI test for X."
+- Looking for `omni.kit.test` patterns, async test fixtures, or test harness boilerplate.
+- Need an example of testing extension lifecycle, widgets, or USD stages in Kit.
 
 ARGUMENTS:
-- query (str): Test scenario or functionality to find examples for
-- top_k (int, optional): Number of test examples to return (default: 10)
+- query (str): test scenario or functionality to find examples for.
+- top_k (int, optional): number of test examples to return (default 10).
 
 RETURNS:
-Test examples with:
-- Complete test method code
-- Setup and teardown patterns
-- Test assertions and validation
-- File paths and test locations
-- Testing framework usage
-- Test categories and tags
+Test examples with complete test method code, setup/teardown patterns, assertions, file paths, and framework usage.
 
 USAGE EXAMPLES:
-search_test_examples("ui widget testing")
-search_test_examples("usd stage operations test", top_k=5)
-search_test_examples("extension lifecycle test")
-search_test_examples("async test patterns")
-search_test_examples("button click testing")
+search_kit_test_examples "ui widget testing"
+search_kit_test_examples "async test patterns"
+search_kit_test_examples "extension lifecycle test"
 
-TIPS FOR BETTER RESULTS:
-- Use testing terminology (e.g., "test", "assert", "setup", "teardown")
-- Include component types (e.g., "widget test", "stage test", "extension test")
-- Specify testing patterns (e.g., "async test", "mock test", "integration test")
-- Reference specific functionality (e.g., "button click", "window creation", "prim operations")"""
+COVERAGE CAVEAT:
+Indexed from tests shipped with Kit SDK source trees; vendor test suites or private tests will not appear.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Non-test / production code examples → use search_kit_code_examples.
+- Conceptual questions about Kit's testing framework → use search_kit_knowledge.
+- Testing omni.ui widget behavior specifically → prefer the OmniUI MCP's search_ui_code_examples first.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchKitTestExamplesConfig(FunctionBaseConfig, name="search_kit_test_examples"):
@@ -114,7 +112,6 @@ async def register_search_kit_test_examples(config: SearchKitTestExamplesConfig,
 
         try:
             # Sanitize user input before sending to external APIs
-            from kit_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
@@ -125,14 +122,17 @@ async def register_search_kit_test_examples(config: SearchKitTestExamplesConfig,
             )
 
             if verbose:
-                logger.debug(f"Searched test examples for: '{input.query}', top_k: {input.top_k}")
+                logger.debug(f"Searched test examples for: '{_sanitize_log(input.query)}', top_k: {input.top_k}")
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

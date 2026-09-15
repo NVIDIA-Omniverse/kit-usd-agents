@@ -1,5 +1,5 @@
 [package]
-version = "2.2.3"
+version = "2.3.4"
 authors = ["Omniverse GenAI Team"]
 title = "LangChain Core (Preview)"
 description = "A core AI extension pulls the networked AI system transitioned to incorporate the open-source LangChain framework"
@@ -27,6 +27,10 @@ platform = true
 pages = ["docs/Overview.md", "docs/CHANGELOG.md"]
 
 [[test]]
+dependencies = [
+    # Recreates the field load order where pip_archive's older pydantic loads first (internal issue 6585942).
+    "omni.kit.pip_archive",
+]
 stdoutFailPatterns.exclude = [
     "*Warning:*",
 ]

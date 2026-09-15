@@ -1,2 +1,6 @@
-nvidia-nat>=1.4.0rc2
-nvidia-nat-langchain>=1.4.0rc2
+nvidia-nat==1.8.0a20260514
+nvidia-nat-langchain==1.8.0a20260514
+cryptography==50.0.1
+langchain-litellm==0.7.1
+litellm==1.99.0
+pyOpenSSL==26.4.0

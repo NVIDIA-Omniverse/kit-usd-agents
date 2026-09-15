@@ -457,7 +457,7 @@ FILTERS:
 - **NAT Framework (nvidia-nat >= 1.4.0)**: Function registration and MCP server
 - **LangChain**: Vector store and embedding integrations
 - **FAISS**: High-performance semantic search
-- **NVIDIA Embeddings**: nv-embedqa-e5-v5 model
+- **NVIDIA Embeddings**: nemotron-3-embed-1b model
 - **Pydantic**: Input validation and schema definition
 - **Redis**: Distributed telemetry (optional)
 - **Python 3.11+**: Core implementation

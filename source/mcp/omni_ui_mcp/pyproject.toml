@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "omni-ui-aiq"
-version = "1.0.0"
+version = "1.2.2"
 description = "OmniUI MCP server for Nemo Agent Toolkit - exposes OmniUI functions via Model Context Protocol (NAT-based)"
 authors = ["NVIDIA Omniverse"]
 readme = "README.md"
@@ -25,11 +25,13 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
-# NAT dependencies - allow pre-releases
-nvidia-nat = {version = ">=1.4.0rc3", allow-prereleases = true}
-nvidia-nat-langchain = {version = ">=1.4.0rc3", allow-prereleases = true}
-nvidia-nat-opentelemetry = {version = ">=1.4.0rc3", allow-prereleases = true}
-nvidia-nat-mcp = {version = ">=1.4.0rc3", allow-prereleases = true}
+# Keep the NAT packages on one matched release so plugin entry points cannot
+# resolve to an incompatible mix.
+nvidia-nat = "1.8.0a20260514"
+nvidia-nat-langchain = "1.8.0a20260514"
+nvidia-nat-opentelemetry = "1.8.0a20260514"
+nvidia-nat-mcp = "1.8.0a20260514"
+mcp = ">=1.28.1,<2"             # PYSEC-2026-3481/3482/3483 request smuggling, DoS, and auth bypass
 # OmniUI functions package
 omni-ui-fns = {path = "../../../source/aiq/omni_ui_fns", develop = true}
 # MCP server dependencies
@@ -37,34 +39,50 @@ aiohttp-sse = "^2.2.0"
 # Configuration support
 pyyaml = ">=6.0"
 # LangChain dependencies
-langchain = ">=1.2.6"
-langchain-core = ">=1.2.22"
+langchain = ">=1.3.9"             # GHSA-gr75-jv2w-4656 path traversal/sandbox escape in file-search middleware
+langchain-core = ">=1.4.7,<2"     # CVE-2026-44843 fixed in 1.3.3; 1.4.x stays past it and is required by langchain>=1.3.9
+langchain-openai = ">=1.1.14"     # BDSA-2026-7431 SSRF in chat_models/base.py urltosize()
+langsmith = ">=0.8.18"            # GHSA-f4xh-w4cj-qxq8 arbitrary server-side file read (TracingMiddleware)
 langchain-community = ">=0.3.31"
 langchain-milvus = ">=0.3.3"
-langchain-nvidia-ai-endpoints = ">=1.0.2"
-urllib3 = ">=2.6.3"
+langchain-nvidia-ai-endpoints = ">=1.4.3,<2"
+urllib3 = ">=2.7.0"
 # Transitive dependencies
+langgraph = ">=1.0.10"            # CVE-2026-28277 unsafe msgpack deserialization in checkpoint loading
 langgraph-checkpoint = ">=4.0.0"
 filelock = ">=3.20.3"
 marshmallow = ">=3.26.2"
 grpcio = ">=1.76.0"
-python-multipart = "0.0.22"
+python-multipart = "==0.0.31"     # CVE-2026-53539/53538/53540/53537 quadratic parsing + parameter smuggling
 # Security overrides for vulnerable transitive dependencies.
 # These are not directly imported by this package; they're pulled in via nvidia-nat /
 # maas-sdk / fastapi / langchain-*. Floors ensure the resolver picks patched versions.
-authlib = ">=1.6.9"
-cryptography = ">=46.0.5"
-litellm = ">=1.83.0"
+aiohttp = ">=3.14.3,<4"           # CVE-2026-59881/69243/69244 request smuggling and DoS
+authlib = ">=1.7.1"              # CVE-2026-44681/41479 OIDC/OAuth open redirect
+click = ">=8.3.3,<9"              # CVE-2026-7246 unbounded resource consumption
+cryptography = ">=50.0.0,<51"    # CVE-2026-69247 X.509 name constraints validation bypass
+joserfc = ">=1.6.8,<2"           # CVE-2026-48990/49852 JWT/JWK validation bypasses
+idna = ">=3.15"                  # CVE-2026-45409 idna.encode() bypass of CVE-2024-3651 fix
+langchain-classic = "==1.0.7"
+litellm = "==1.84.0"
+mako = "==1.3.12"
 orjson = ">=3.11.6"
+pip = ">=26.2"                   # CVE-2026-13346 malicious wheel path traversal
 protobuf = ">=6.33.5"
-pyjwt = ">=2.12.0"
-ragas = {version = ">=0.3.0rc1", allow-prereleases = true}
-starlette = ">=0.49.1,<0.51.0"
+pyarrow = "==23.0.1"
+pydantic-settings = ">=2.14.2"   # GHSA-4xgf-cpjx-pc3j symlink escape from secrets_dir
+pygments = ">=2.20.0"            # CVE-2026-4539 ReDoS in GUID regex
+pyjwt = ">=2.13.0"               # CVE-2026-48526/48525/48524/48523/48522 token forgery + DoS + SSRF
+python-dotenv = ">=1.2.2"        # CVE-2026-28684 symlink-following arbitrary file overwrite in set_key
+requests = ">=2.33.0"            # CVE-2026-25645 insecure temp file reuse in extract_zipped_paths()
+starlette = ">=1.3.1,<2.0"       # CVE-2026-48818/54283/48817/48710/54282 SSRF/DoS/host-header/getattr dispatch
+# RAGAS is intentionally omitted: CVE-2026-6587 has no fixed release, and the
+# MCP server does not use NAT's optional evaluation integration.
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0.0"
-pytest-cov = "^4.0.0"
-pytest-asyncio = "^0.21.0"
+pytest = ">=9.0.3,<10.0.0"        # CVE-2025-71176 vulnerable tmpdir handling
+pytest-cov = ">=6.0.0"
+pytest-asyncio = ">=1.0.0"
 black = ">=26.3.1,<27.0.0"
 flake8 = "^6.0.0"
 mypy = "^1.0.0"

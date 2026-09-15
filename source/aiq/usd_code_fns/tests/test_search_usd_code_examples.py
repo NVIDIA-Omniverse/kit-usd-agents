@@ -22,6 +22,21 @@ import pytest
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
+# The retrieval pipeline depends on ``ovgenai_retrieval.maybe_load_hybrid``,
+# which is deliberately *not* listed as a poetry dep so a fresh
+# ``poetry install`` doesn't need network access (see
+# ``utils/_retrieval_compat.py``). The lib IS installed in the production
+# docker build path via ``source/mcp/build-wheels.sh``. Skip this whole
+# module when running in the poetry-only env that lacks the wheel *or*
+# has a stale copy that predates ``maybe_load_hybrid``.
+try:
+    from ovgenai_retrieval import maybe_load_hybrid  # noqa: F401 — availability probe
+except ImportError:
+    pytest.skip(
+        "ovgenai_retrieval.maybe_load_hybrid not importable (poetry-only env or stale lib)",
+        allow_module_level=True,
+    )
+
 from omni_aiq_usd_code.config import FAISS_CODE_INDEX_PATH
 from omni_aiq_usd_code.functions.get_usd_code_example import get_usd_code_example
 
@@ -227,7 +242,7 @@ async def test_code_examples_contain_expected_imports():
     api_key = os.getenv("NVIDIA_API_KEY", "")
     embedding_config = (
         {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -271,7 +286,7 @@ async def test_code_examples_contain_stage_creation():
     api_key = os.getenv("NVIDIA_API_KEY", "")
     embedding_config = (
         {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -313,7 +328,7 @@ async def test_code_examples_mesh_contains_geometry():
     api_key = os.getenv("NVIDIA_API_KEY", "")
     embedding_config = (
         {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -368,7 +383,7 @@ async def test_get_code_examples_returns_valid_python():
     api_key = os.getenv("NVIDIA_API_KEY", "")
     embedding_config = (
         {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }

@@ -23,9 +23,22 @@ from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
 from nat.data_models.function import FunctionBaseConfig
+from omni_ui_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from omni_ui_fns.utils._retrieval_compat import sanitize_query
 from pydantic import BaseModel, Field
 
 from .functions.get_window_examples import get_window_examples
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,45 +51,31 @@ class SearchUIWindowExamplesInput(BaseModel):
 
 
 # Tool description
-SEARCH_UI_WINDOW_EXAMPLES_DESCRIPTION = """Retrieves relevant UI window examples using semantic vector search from a curated database of OmniUI implementations.
+SEARCH_UI_WINDOW_EXAMPLES_DESCRIPTION = """Find complete omni.ui window / dialog / popup layouts — modal dialogs, settings windows, error boxes, full authoring panels.
 
-WHAT IT DOES:
-- Converts your query to embeddings using NVIDIA's embedding model
-- Performs semantic similarity search against indexed UI window/dialog implementations
-- Returns formatted examples with descriptions, complete code, and file paths
-- Focuses specifically on window creation, dialog boxes, and UI container patterns
-
-QUERY MATCHING:
-Your query is compared against OmniUI window and dialog implementations, including:
-- Window creation with various configurations (modal, non-modal, resizable, etc.)
-- Dialog boxes and popup interfaces
-- UI containers with buttons, controls, and layouts
-- Error dialogs and confirmation windows
-- Animation and curve editing interfaces
-- Settings and configuration windows
+WHEN TO USE THIS TOOL:
+- "Show me a full modal dialog with buttons."
+- "Give me a resizable settings window example."
+- You need a whole window, not a single widget snippet.
 
 ARGUMENTS:
-- query (str): Your query describing the desired UI window example
+- query (str): natural-language description of the desired window/dialog.
 
 RETURNS:
-Formatted UI window examples with:
-- Detailed descriptions of window functionality
-- Complete Python code implementations
-- File paths and function locations
-- Class names and line numbers
+Formatted window examples with a description, complete Python implementation, file paths, class names, and line numbers.
 
 USAGE EXAMPLES:
-search_ui_window_examples "Create a modal dialog with buttons"
-search_ui_window_examples "Window with sliders and controls"
-search_ui_window_examples "Error message dialog box"
-search_ui_window_examples "Animation curve simplification window"
-search_ui_window_examples "Resizable window with UI components"
+search_ui_window_examples "modal dialog with buttons"
+search_ui_window_examples "resizable window with sliders"
+search_ui_window_examples "error message dialog"
 
-TIPS FOR BETTER RESULTS:
-- Use window-specific terminology (e.g., "modal", "dialog", "window", "popup")
-- Include UI component types (e.g., "buttons", "sliders", "checkboxes", "fields")
-- Reference window behaviors (e.g., "resizable", "closable", "modal", "fixed size")
-- Ask about specific UI patterns (e.g., "error dialog", "settings window", "confirmation")
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Individual widget / layout snippets (not whole windows) → use search_ui_code_examples.
+- Styling rules (colors, shades, fonts) → use get_ui_style_docs.
+- Full Window class signature / methods → use get_ui_class_detail.
+- Kit-side window management (docking, viewport bindings) → use the Kit MCP's search_kit_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 
@@ -86,10 +85,13 @@ class SearchUIWindowExamplesConfig(FunctionBaseConfig, name="search_ui_window_ex
     name: str = "search_ui_window_examples"
     verbose: bool = Field(default=False, description="Enable detailed logging")
     top_k: int = Field(default=5, description="Number of window examples to return")
-    format_type: str = Field(default="formatted", description="Format type: 'structured', 'formatted', or 'raw'")
+    format_type: str = Field(
+        default="formatted",
+        description="Format type: 'structured', 'formatted', or 'raw'",
+    )
 
     # Embedding configuration
-    embedding_model: Optional[str] = Field(default="nvidia/nv-embedqa-e5-v5", description="Embedding model to use")
+    embedding_model: Optional[str] = Field(default="nvidia/nemotron-3-embed-1b", description="Embedding model to use")
     embedding_endpoint: Optional[str] = Field(
         default=None, description="Embedding service endpoint (None for NVIDIA API)"
     )
@@ -107,11 +109,12 @@ async def register_search_ui_window_examples(config: SearchUIWindowExamplesConfi
     if config.verbose:
         logger.info("Registering search_ui_window_examples in verbose mode")
 
-    async def search_ui_window_examples_wrapper(input: SearchUIWindowExamplesInput) -> str:
+    async def search_ui_window_examples_wrapper(
+        input: SearchUIWindowExamplesInput,
+    ) -> str:
         """Single argument with schema."""
         import time
 
-        from omni_ui_fns.utils.input_sanitization import sanitize_query
         from omni_ui_fns.utils.usage_logging import get_usage_logger
 
         # Extract and sanitize the query string from the input model
@@ -152,16 +155,19 @@ async def register_search_ui_window_examples(config: SearchUIWindowExamplesConfi
                 )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)
             success = False
-            return f"ERROR: Failed to retrieve UI window examples - {error_msg}"
+            return f"ERROR: Failed to retrieve UI window examples - {_sanitize_log(error_msg, cap=500)}"
         finally:
             # Log usage if enabled
             if usage_logger and usage_logger.enabled:

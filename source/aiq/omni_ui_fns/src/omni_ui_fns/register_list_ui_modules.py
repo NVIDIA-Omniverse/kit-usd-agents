@@ -38,25 +38,28 @@ class ListUIModulesInput(BaseModel):
 
 
 # Tool description
-LIST_UI_MODULES_DESCRIPTION = """Return a list of all OmniUI module names from the Atlas data.
+LIST_UI_MODULES_DESCRIPTION = """Enumerate every omni.ui-related module known to the UI Atlas — discovery aid for the OmniUI module hierarchy.
 
-WHAT IT DOES:
-- Retrieves all OmniUI module names from the Atlas
-- Returns a simplified list of full module names
-- Provides total count of available modules
-- Sorts module names alphabetically for easy browsing
-- Includes extension information for each module
+WHEN TO USE THIS TOOL:
+- "Which omni.ui modules exist?"
+- You need to confirm a module name before calling get_ui_module_detail.
+- Auditing the module surface across omni.ui / omni.ui.scene / omni.ui.workspace.
+
+ARGUMENTS:
+- (no arguments)
 
 RETURNS:
-A JSON string containing:
-- module_names: Sorted list of all OmniUI module full names
-- total_count: Total number of modules
-- description: Brief description of the modules
+JSON with `module_names` (sorted list), `total_count`, and a brief description. Each module may also carry extension information.
 
 USAGE EXAMPLES:
 list_ui_modules
 
-This provides access to the complete OmniUI module hierarchy from Atlas data."""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Full details for a named module → use get_ui_module_detail.
+- Enumerate classes, not modules → use list_ui_classes.
+- Conceptual / how-to → use get_ui_instructions or search_ui_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class ListUIModulesConfig(FunctionBaseConfig, name="list_ui_modules"):

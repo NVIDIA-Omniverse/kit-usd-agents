@@ -6,6 +6,15 @@ Built on the [NVIDIA AIQ Toolkit](https://github.com/NVIDIA/GenerativeAIExamples
 
 ---
 
+## What's new (Apr 2026)
+
+- **MCP protocol bumped to `2025-11-25`** (G-8, G-9): NAT 1.4+ accepts the new spec date end-to-end.
+- **Hybrid retrieval is now the default** (`OVAI_RETRIEVAL_MODE=hybrid`): RRF fusion of BM25 lexical + dense semantic with optional cross-encoder reranking.
+- **Query expansion active on every search** — 215+ term glossary + auto-generated USD v25.02/v25.11 glossary expand abbreviations (SSS, PBR, LIVRPS, Gf, Sdf, ...) before retrieval (REQ-QE-1..6).
+- **BM25 sidecar migrated from `bm25.pkl` to `bm25.json`** (G-7, pickle-safety hardening) — new `bm25_safe` schema is JSON-only.
+- **Result guardrails wired into every search tool** (G-1, REQ-RG-1/2/3): `sanitize_query` on input and a deterministic "No relevant documentation found for this query." sentinel for empty results.
+- **Tool descriptions refreshed (Phase 14, 34 tools)** — every tool now has PRIMARY / WHEN-TO-USE / ARGUMENTS / RETURNS / USAGE EXAMPLES / WHEN-TO-USE-A-DIFFERENT-TOOL-INSTEAD / abbreviation-tip sections.
+
 ## 5-Minute Quickstart
 
 Get from zero to working OmniUI tools in your IDE. Follow every step in order.
@@ -21,7 +30,7 @@ Get from zero to working OmniUI tools in your IDE. Follow every step in order.
 
 | Key | What It's For | Where to Get It |
 |-----|---------------|-----------------|
-| `NVIDIA_API_KEY` | Authenticates calls to NVIDIA's cloud endpoints for embeddings, reranking, and LLM inference | [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — sign in, click **Generate API Key**, copy the `nvapi-...` value |
+| `NVIDIA_API_KEY` | Authenticates calls to NVIDIA's cloud endpoints for embeddings, reranking, and LLM inference | [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys) — sign in, click **Generate API Key**, paste it in place of `REPLACE_WITH_NVIDIA_API_KEY` |
 
 > **Note:** A second key (`NGC_API_KEY` from [org.ngc.nvidia.com/setup/api-key](https://org.ngc.nvidia.com/setup/api-key)) is only required for local NIM deployment — see [Deployment Options](#deployment-options).
 
@@ -35,7 +44,7 @@ cp .env.example .env
 Open `.env` and set:
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ### Step 3: Build and Run the Docker Container
@@ -69,7 +78,7 @@ python check_mcp_health.py
 curl -s -X POST http://localhost:9901/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"health","version":"1.0"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"health","version":"1.0"}}}'
 ```
 
 A healthy server returns a JSON-RPC `result` payload listing the server's name and capabilities.
@@ -217,14 +226,14 @@ The OmniUI corpus is a curated set of `omni.ui*` API metadata, code patterns, an
 ### Option A: Cloud Endpoints (Recommended)
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ### Option B: Local NIM Containers (Advanced, GPU required)
 
 ```env
-NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
-NGC_API_KEY=your_ngc_key_here
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
+NGC_API_KEY=REPLACE_WITH_NGC_API_KEY
 KIT_EMBEDDER_BACKEND=local
 KIT_LOCAL_EMBEDDER_URL=http://localhost:8080
 KIT_RERANKER_BACKEND=local
@@ -243,10 +252,12 @@ KIT_LOCAL_RERANKER_URL=http://localhost:8081
 | `404` on `GET /health` | No `/health` GET endpoint exists | Use `python check_mcp_health.py` or POST an MCP `initialize` to `/mcp` |
 | `307 Temporary Redirect` on POST `/mcp/` | NAT 1.25 canonicalises to `/mcp`. `curl -f` (without `-L`) treats 307 as success, so a healthcheck never exercises the endpoint. | Drop the trailing slash, or pass `-L` to curl. The repo's Dockerfile and compose healthchecks both use `curl -fL ... /mcp`. |
 | `401 Unauthorized` from cloud calls | Invalid `NVIDIA_API_KEY` | Regenerate at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys); update `.env` |
+| `[410] Gone — This endpoint has reached its end of life on 2026-05-18T00:00:00Z` during hosted rerank | An older config or image still pins retired model `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Set `OVAI_RERANK_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2` (or another current model from [build.nvidia.com/explore/retrieval](https://build.nvidia.com/explore/retrieval)), or fall back to `OVAI_RERANK=false`. Full details + on-prem NIM workaround in [LOCAL_DEPLOYMENT.md](../LOCAL_DEPLOYMENT.md#hybrid-retrieval-ovgenai-retrieval-tuning) |
 | `--env-file: file not found` | Wrong cwd when invoking `docker run` | Run from `source/mcp/omni_ui_mcp/`, or use absolute path |
 | Port 9901 already in use | Another process on that port | `lsof -i :9901` or `netstat -aon \| findstr 9901`; stop or remap (e.g. `-p 9911:9901`) |
 | Tools not appearing in IDE | MCP config not loaded or wrong URL | Verify with `check_mcp_health.py`; check IDE's MCP config URL (use `/mcp` — trailing slash works too via 307 redirect); reload IDE |
 | `omni-ui-mcp` missing from `claude mcp list` | `-t http` registered the MCP at project scope | Re-add with `--scope user`, or always launch Claude CLI from where you registered |
+| Hybrid search returns empty / mis-ranked results | Stale or corrupt `bm25.json` sidecar | Delete `bm25.json` next to the FAISS index and restart — server rebuilds it on first query using the `bm25_safe` JSON schema |
 
 ---
 
@@ -263,6 +274,14 @@ KIT_LOCAL_RERANKER_URL=http://localhost:8081
 ```
 
 ---
+
+## Dependencies
+
+The Docker images install `ovgenai-retrieval` — the shared hybrid-retrieval library bundled under `source/aiq/ovgenai_retrieval/` and built into a wheel by `source/mcp/build-wheels.sh` — backed by `rank_bm25`, so this MCP and the sibling `ovgenai-agent-search` tool share the exact same RRF-fusion + query-expansion + JSON-BM25 code path.
+
+## Related Projects
+
+- **`ovgenai-agent-search`** — the filesystem-search equivalent of this MCP. Same `ovgenai-retrieval` library, same guardrails, same query expansion, but exposed as a shell-first CLI / skill rather than an HTTP MCP. Use `ovgenai-agent-search` from agents that prefer shell access (e.g., Claude Code skills); use this MCP for agents that prefer HTTP tool calls.
 
 ## License
 

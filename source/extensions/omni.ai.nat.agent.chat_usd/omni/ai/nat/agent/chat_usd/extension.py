@@ -17,12 +17,12 @@ import carb
 import omni.ext
 from lc_agent import MultiAgentNetworkNode, RunnableToolNode, get_node_factory
 
-# Register all NAT components
-from nat.agent.react_agent.register import *
-
 # from nat.embedder.langchain_client import *
 # from nat.embedder.nim_embedder import *
 from nat.llm.nim_llm import *
+
+# Register all NAT components
+from nat.plugins.langchain.agent.react_agent.register import *
 from nat.plugins.langchain.register import *
 from nat.retriever.milvus.register import *
 from nat.runtime.loader import PluginTypes, discover_and_register_plugins

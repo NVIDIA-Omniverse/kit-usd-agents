@@ -13,7 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Isaac Sim Extensions Atlas service for managing Code Atlas data."""
+"""Isaac Sim Extensions Atlas service for managing Code Atlas data.
+
+Structurally mirrors ``kit_fns.services.kit_exts_atlas`` so a future shared-module
+extraction can collapse the two; the only intentional difference is the version
+constant (``ISAACSIM_VERSION``) and the data directory it points at. ``api_docs``
+methods load gracefully to ``None`` when the data dir is absent, which it is for
+isaacsim today.
+"""
 
 import json
 import logging
@@ -28,24 +35,28 @@ logger = logging.getLogger(__name__)
 DATA_BASE_PATH = Path(__file__).parent.parent / "data" / ISAACSIM_VERSION / "extensions"
 EXTENSIONS_DATABASE_FILE = DATA_BASE_PATH / "extensions_database.json"
 CODEATLAS_DIR = DATA_BASE_PATH / "codeatlas"
+API_DOCS_DIR = DATA_BASE_PATH / "api_docs"
 
 
 class KitExtensionsAtlasService:
     """Service for managing Isaac Sim Extensions Atlas data operations."""
 
-    def __init__(self, database_file_path: str = None, codeatlas_dir: str = None):
+    def __init__(self, database_file_path: str = None, codeatlas_dir: str = None, api_docs_dir: str = None):
         """Initialize the Isaac Sim Extensions Atlas service.
 
         Args:
             database_file_path: Path to the extensions database JSON file
             codeatlas_dir: Path to the directory containing Code Atlas files
+            api_docs_dir: Path to the directory containing API docs files
         """
         self.database_file_path = Path(database_file_path) if database_file_path else EXTENSIONS_DATABASE_FILE
         self.codeatlas_dir = Path(codeatlas_dir) if codeatlas_dir else CODEATLAS_DIR
+        self.api_docs_dir = Path(api_docs_dir) if api_docs_dir else API_DOCS_DIR
 
         self.database = None
         self.extensions = {}
         self._cached_codeatlas = {}  # Cache for loaded Code Atlas files
+        self._cached_api_docs = {}  # Cache for loaded API docs
         self._load_database()
 
     def _load_database(self) -> None:
@@ -144,6 +155,48 @@ class KitExtensionsAtlasService:
 
         except Exception as e:
             logger.error(f"Error loading Code Atlas for {extension_id}: {e}")
+            return None
+
+    def load_api_docs(self, extension_id: str) -> Optional[Dict[str, Any]]:
+        """Load API documentation for a specific extension.
+
+        Args:
+            extension_id: Extension ID to load API docs for
+
+        Returns:
+            API documentation data or None if not found
+        """
+        # Check cache first
+        if extension_id in self._cached_api_docs:
+            return self._cached_api_docs[extension_id]
+
+        # Get extension metadata to find the file
+        metadata = self.get_extension_metadata(extension_id)
+        if not metadata:
+            return None
+
+        # Construct file path
+        version = metadata.get("version", "")
+        api_docs_file = self.api_docs_dir / f"{extension_id}-{version}.api_docs.json"
+
+        if not api_docs_file.exists():
+            # Try without version
+            api_docs_file = self.api_docs_dir / f"{extension_id}.api_docs.json"
+            if not api_docs_file.exists():
+                logger.debug(f"API docs file not found for {extension_id}")
+                return None
+
+        try:
+            with open(api_docs_file, "r", encoding="utf-8") as f:
+                api_docs_data = json.load(f)
+
+            # Cache the loaded data
+            self._cached_api_docs[extension_id] = api_docs_data
+            logger.debug(f"Loaded API docs for {extension_id}")
+            return api_docs_data
+
+        except Exception as e:
+            logger.error(f"Error loading API docs for {extension_id}: {e}")
             return None
 
     def get_modules(self, extension_id: str = None) -> Dict[str, Any]:
@@ -336,3 +389,143 @@ class KitExtensionsAtlasService:
                 return method_info
 
         return None
+
+    def get_api_symbols(self, extension_id: str) -> List[Dict[str, Any]]:
+        """Get all API symbols (classes and methods) for an extension.
+
+        Args:
+            extension_id: Extension ID to get symbols for
+
+        Returns:
+            List of API symbols with basic information
+        """
+        api_docs = self.load_api_docs(extension_id)
+        if not api_docs:
+            # Fallback to Code Atlas if no API docs
+            codeatlas = self.load_codeatlas(extension_id)
+            if not codeatlas:
+                return []
+
+            symbols = []
+
+            # Add classes
+            for class_key, class_info in codeatlas.get("classes", {}).items():
+                symbols.append(
+                    {
+                        "symbol": class_info.get("name", class_key),
+                        "full_name": class_info.get("full_name", class_key),
+                        "type": "class",
+                        "docstring": class_info.get("docstring", ""),
+                        "api_reference": f"{extension_id}@{class_info.get('name', class_key)}",
+                    }
+                )
+
+            # Add methods (only public ones)
+            for method_key, method_info in codeatlas.get("methods", {}).items():
+                method_name = method_info.get("name", "")
+                if not method_name.startswith("_"):  # Public methods only
+                    symbols.append(
+                        {
+                            "symbol": method_name,
+                            "full_name": method_info.get("full_name", method_key),
+                            "type": "method",
+                            "parent_class": method_info.get("parent_class", ""),
+                            "docstring": method_info.get("docstring", ""),
+                            "api_reference": f"{extension_id}@{method_info.get('full_name', method_key)}",
+                        }
+                    )
+
+            return symbols
+
+        # Use API docs if available (preferred as it's cleaner)
+        symbols = []
+
+        for class_name, class_info in api_docs.get("classes", {}).items():
+            symbols.append(
+                {
+                    "symbol": class_name,
+                    "full_name": f"{extension_id}.{class_name}",
+                    "type": "class",
+                    "docstring": class_info.get("docstring", ""),
+                    "api_reference": f"{extension_id}@{class_name}",
+                }
+            )
+
+            # Add class methods (methods is a list of method names in our api_docs)
+            methods = class_info.get("methods", [])
+            if isinstance(methods, list):
+                for method_item in methods:
+                    if isinstance(method_item, str):
+                        # It's just a method name
+                        method_name = method_item
+                        symbols.append(
+                            {
+                                "symbol": f"{class_name}.{method_name}",
+                                "full_name": f"{extension_id}.{class_name}.{method_name}",
+                                "type": "method",
+                                "parent_class": class_name,
+                                "docstring": "",  # No docstring available in simplified format
+                                "api_reference": f"{extension_id}@{class_name}.{method_name}",
+                            }
+                        )
+                    elif isinstance(method_item, dict):
+                        # It's a method info dict
+                        method_name = method_item.get("name", "")
+                        if method_name:
+                            symbols.append(
+                                {
+                                    "symbol": f"{class_name}.{method_name}",
+                                    "full_name": f"{extension_id}.{class_name}.{method_name}",
+                                    "type": "method",
+                                    "parent_class": class_name,
+                                    "docstring": method_item.get("docstring", ""),
+                                    "api_reference": f"{extension_id}@{class_name}.{method_name}",
+                                }
+                            )
+            elif isinstance(methods, dict):
+                # Handle dict format (in case some have this structure)
+                for method_name, method_info in methods.items():
+                    symbols.append(
+                        {
+                            "symbol": f"{class_name}.{method_name}",
+                            "full_name": f"{extension_id}.{class_name}.{method_name}",
+                            "type": "method",
+                            "parent_class": class_name,
+                            "docstring": method_info.get("docstring", "") if isinstance(method_info, dict) else "",
+                            "api_reference": f"{extension_id}@{class_name}.{method_name}",
+                        }
+                    )
+
+        # Add module-level functions (functions is also a list in api_docs)
+        functions = api_docs.get("methods", [])
+        if isinstance(functions, list):
+            for func_info in functions:
+                if func_info.get("parent_class") is not None:
+                    continue
+                func_name = func_info.get("name", "")
+                if func_name:
+                    symbols.append(
+                        {
+                            "symbol": func_name,
+                            "full_name": f"{extension_id}.{func_name}",
+                            "type": "function",
+                            "docstring": func_info.get("docstring", ""),
+                            "api_reference": f"{extension_id}@{func_name}",
+                        }
+                    )
+        elif isinstance(functions, dict):
+            # Handle dict format (in case some have this structure)
+            for func_name, func_info in functions.items():
+                if func_info.get("parent_class") is not None:
+                    continue
+                symbols.append(
+                    {
+                        "symbol": func_name,
+                        "full_name": f"{extension_id}.{func_name}",
+                        "type": "function",
+                        "docstring": func_info.get("docstring", ""),
+                        "api_reference": f"{extension_id}@{func_name}",
+                    }
+                )
+
+        return symbols

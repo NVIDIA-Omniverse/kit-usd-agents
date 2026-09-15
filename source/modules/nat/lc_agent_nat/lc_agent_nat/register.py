@@ -43,10 +43,10 @@ from nat.builder.builder import Builder
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
-from nat.data_models.api_server import AIQChatRequest
-from nat.data_models.api_server import AIQChatResponseChunk
-from nat.data_models.api_server import AIQChoice
-from nat.data_models.api_server import AIQChoiceMessage
+from nat.data_models.api_server import ChatRequest
+from nat.data_models.api_server import ChatResponseChunk
+from nat.data_models.api_server import ChatResponseChoice
+from nat.data_models.api_server import ChoiceMessage
 from nat.data_models.component_ref import LLMRef
 from nat.data_models.function import FunctionBaseConfig
 
@@ -163,11 +163,11 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
     get_node_factory().register(RunnableHumanNode)
     get_node_factory().register(RunnableNode)
 
-    async def setup_network(input_message: AIQChatRequest) -> RunnableNetwork:
-        """Set up a RunnableNetwork with messages from AIQChatRequest.
+    async def setup_network(input_message: ChatRequest) -> RunnableNetwork:
+        """Set up a RunnableNetwork with messages from ChatRequest.
 
         Args:
-            input_message: The AIQChatRequest containing the messages.
+            input_message: The ChatRequest containing the messages.
 
         Returns:
             RunnableNetwork: The configured network ready for invocation.
@@ -188,7 +188,7 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
 
         # Create a RunnableNetwork with the specified chat model
         with RunnableNetwork(default_node="RunnableNode", chat_model_name=chat_model_name) as network:
-            # Convert AIQChatRequest messages to LangChain messages
+            # Convert ChatRequest messages to LangChain messages
             for msg in input_message.messages:
                 if msg.role == "user":
                     RunnableHumanNode(msg.content)
@@ -202,11 +202,11 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
 
         return network
 
-    async def generate_response(input_message: AIQChatRequest) -> str:
+    async def generate_response(input_message: ChatRequest) -> str:
         """Process a list of input messages and generate a complete response.
 
         Args:
-            input_message: The AIQChatRequest containing the messages.
+            input_message: The ChatRequest containing the messages.
 
         Returns:
             str: The response content from the LLM.
@@ -221,11 +221,11 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
 
         return result
 
-    async def stream_response(input_message: AIQChatRequest) -> AsyncGenerator[str, None]:
+    async def stream_response(input_message: ChatRequest) -> AsyncGenerator[str, None]:
         """Process messages and stream the response chunks.
 
         Args:
-            input_message: The AIQChatRequest containing the messages.
+            input_message: The ChatRequest containing the messages.
 
         Yields:
             str: Chunks of the response from the LLM.
@@ -241,11 +241,11 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
     def convert_base_message(value: BaseMessage) -> str:
         return str(value.content)
 
-    def convert_chunk(value: AINodeMessageChunk) -> AIQChatResponseChunk:
-        """Convert a AINodeMessageChunk to AIQChatResponseChunk."""
+    def convert_chunk(value: AINodeMessageChunk) -> ChatResponseChunk:
+        """Convert a AINodeMessageChunk to ChatResponseChunk."""
         role = _get_message_openai_role(value)
 
-        # Use ChatResponseChunkChoice for streaming (correct type for AIQChatResponseChunk.choices)
+        # Use ChatResponseChunkChoice for streaming (correct type for ChatResponseChunk.choices)
         if HAS_STREAMING_CHUNK_TYPES:
             choice = ChatResponseChunkChoice(
                 index=0,
@@ -254,14 +254,14 @@ async def simple_function(config: SimpleFunctionConfig, builder: Builder):
             )
         else:
             # Fallback for older NAT versions without streaming chunk types
-            choice = AIQChoice(
+            choice = ChatResponseChoice(
                 index=0,
-                message=AIQChoiceMessage(content=value.content, role=role),
+                message=ChoiceMessage(content=value.content, role=role),
             )
 
         chunk_id = value.id if value.id is not None else str(uuid.uuid4())
         created_time = datetime.datetime.now(datetime.timezone.utc)
-        return AIQChatResponseChunk(id=chunk_id, choices=[choice], created=created_time)
+        return ChatResponseChunk(id=chunk_id, choices=[choice], created=created_time)
 
     # Yield the function info to register with AgentIQ
     yield FunctionInfo.create(

@@ -17,8 +17,8 @@ cd source/mcp/omni_ui_mcp
 poetry install
 
 # Set your API key
-set NVIDIA_API_KEY=your_api_key_here  # Windows
-export NVIDIA_API_KEY=your_api_key_here  # Linux/Mac
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY  # Windows
+export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY  # Linux/Mac
 
 # Run the server
 poetry run python -m omni_ui_mcp
@@ -33,7 +33,7 @@ build-docker.bat  # Windows
 ./build-docker.sh  # Linux/Mac
 
 # Run the container
-docker run --rm -e NVIDIA_API_KEY=your_api_key -p 9901:9901 omni-ui-mcp:latest
+docker run --rm -e NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY -p 9901:9901 omni-ui-mcp:latest
 ```
 
 ## Quick Test
@@ -46,7 +46,7 @@ import asyncio
 import os
 
 # Make sure NVIDIA_API_KEY is set
-os.environ['NVIDIA_API_KEY'] = 'your_api_key_here'
+os.environ['NVIDIA_API_KEY'] = 'REPLACE_WITH_NVIDIA_API_KEY'
 
 import sys
 sys.path.insert(0, 'src')

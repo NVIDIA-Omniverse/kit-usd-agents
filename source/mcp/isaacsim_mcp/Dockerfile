@@ -1,10 +1,18 @@
-FROM python:3.13-slim
+FROM python:3.13-alpine3.23
 
-# Install curl for healthcheck (--no-install-recommends for minimal footprint)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Patch base-image packages before installing anything else. python:alpine
+# ships whatever apk had when the base was cut, so CVE fixes Alpine has already
+# published (e.g. libuuid 2.41.6-r1 for CVE-2026-76642/78408/78410) do not
+# reach us until the base is rebuilt upstream. Upgrading here closes that gap.
+RUN apk upgrade --no-cache
 
-# Install uv for fast dependency resolution and upgrade pip for security (GHSA-4xh5-x5gv-qwph)
-RUN pip install --upgrade "pip>=25.3" && \
+# Install the health-check client and native runtimes used by binary wheels.
+RUN apk add --no-cache curl libstdc++ libgomp
+
+# Upgrade pip for security (GHSA-4xh5-x5gv-qwph), install uv for resolver.
+# Matches the kit_mcp / usd_code_mcp / omni_ui_mcp Dockerfile shape
+# (audit R3 — stop mixing pip and uv across the 4 images).
+RUN pip install --upgrade "pip>=26.2" && \
     pip install uv
 
 # Copy ALL wheel files (including dependencies)
@@ -16,58 +24,91 @@ COPY workflows/ /app/workflows/
 
 WORKDIR /app
 
-# Install wheels WITHOUT dependencies first, then resolve deps via uv.
-# Switched from vanilla pip to uv to match the 3 sibling MCP Dockerfiles
-# (kit_mcp, omni_ui_mcp, usd_code_mcp): vanilla pip's backtracking explodes
-# when nvidia-nat is loose-pinned (the 1.5.0a20260120 alpha exact-pin used to
-# collide with the ragas>=0.3.0rc1 CVE override which transitively required
-# ragas~=0.2.14 from the older NAT). uv's resolver picks a compatible newer
-# NAT alpha + ragas 0.3.x in seconds rather than hours of backtracking.
-RUN uv pip install --system --no-deps isaacsim_fns-*.whl isaacsim_mcp-*.whl && \
-    uv pip install --system --prerelease=allow \
-    "nvidia-nat>=1.4.0a0,<2.0.0" \
-    "nvidia-nat-langchain>=1.4.0a0,<2.0.0" \
-    "nvidia-nat-opentelemetry>=1.4.0a0,<2.0.0" \
-    "nvidia-nat-mcp>=1.3.1" \
-    "langchain>=1.2.7,<2.0.0" \
-    "langchain-core>=1.2.22,<2.0.0" \
+# Install in-tree wheels (fns, mcp, retrieval) first without deps — they
+# carry local path refs. External deps resolve separately via uv.
+# Pin every NAT package to one matched release so entry points cannot resolve
+# to an incompatible alpha mix. This validated release keeps RAGAS out of the
+# runtime dependency graph.
+RUN uv pip install --system --no-deps \
+    isaacsim_fns-*.whl isaacsim_mcp-*.whl ovgenai_retrieval-*.whl
+
+RUN uv pip install --system --prerelease=if-necessary-or-explicit \
+    "nvidia-nat==1.8.0a20260514" \
+    "nvidia-nat-langchain==1.8.0a20260514" \
+    "nvidia-nat-opentelemetry==1.8.0a20260514" \
+    "nvidia-nat-mcp==1.8.0a20260514" \
+    "langchain>=1.3.9" \
+    "langchain-core>=1.4.7,<2" \
+    "langchain-openai>=1.1.14" \
+    "langsmith>=0.8.18" \
     "langchain-community==0.4.1" \
-    "langchain-nvidia-ai-endpoints==1.0.2" \
+    "langchain-classic==1.0.7" \
+    "langchain-nvidia-ai-endpoints>=1.4.3,<2" \
     "langchain-tavily==0.2.17" \
-    "urllib3==2.6.3" \
-    "mcp==1.25.0" \
-    "fastapi==0.119.1" \
+    "urllib3==2.7.0" \
+    "yarl<1.24" \
+    "langgraph>=1.0.10" \
+    "marshmallow>=3.26.2" \
+    "mcp>=1.28.1,<2" \
+    "python-multipart==0.0.31" \
+    "fastapi>=0.136.1" \
     "faiss-cpu==1.13.2" \
+    "rank_bm25>=0.2.2" \
     "pyyaml==6.0.3" \
     "httpx==0.28.1" \
-    "requests==2.32.5" \
+    "requests>=2.33.0" \
     "redis[hiredis]==7.1.0" \
-    "authlib>=1.6.9" \
-    "cryptography>=46.0.5" \
-    "litellm>=1.83.0" \
+    "aiohttp>=3.14.3,<4" \
+    "starlette>=1.3.1,<2.0" \
+    "authlib>=1.7.1" \
+    "click>=8.3.3,<9" \
+    "cryptography>=50.0.0,<51" \
+    "idna>=3.15" \
+    "joserfc>=1.6.8,<2" \
+    "litellm==1.84.0" \
+    "Mako==1.3.12" \
     "orjson>=3.11.6" \
     "protobuf>=6.33.5" \
-    "pyjwt>=2.12.0" \
-    "ragas>=0.3.0rc1" && \
-    uv pip install --system --reinstall --no-deps "starlette==0.51.0"
+    "pyarrow==23.0.1" \
+    "pydantic-settings>=2.14.2" \
+    "pygments>=2.20.0" \
+    "pyjwt>=2.13.0" \
+    "python-dotenv>=1.2.2"
+
+# RAGAS, diskcache, and Pillow are not used by this MCP server. Keep their
+# absence as an image invariant while RAGAS and diskcache have no safe release.
+RUN uv pip check --system && \
+    python -c "import importlib.util; assert importlib.util.find_spec('ragas') is None; assert importlib.util.find_spec('diskcache') is None; assert importlib.util.find_spec('PIL') is None" && \
+    rm -rf /root/.cache /app/.cache \
+        /usr/local/lib/python3.13/site-packages/pip \
+        /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+        /usr/local/lib/python3.13/site-packages/uv-*.dist-info && \
+    rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.13 \
+        /usr/local/bin/uv /usr/local/bin/uvx
+
+# starlette is bumped to >=1.3.1 (CVE-2026-48818/54283/48817/48710/54282).
+# fastapi is bumped to >=0.136.1, which natively supports starlette 1.x
+# (starlette>=0.46.0), so the previous --no-deps force-reinstall hack
+# (fastapi 0.119.1 capped starlette<0.49) is no longer needed — the single
+# resolved install above lands fastapi 0.136.1 + starlette 1.3.1 cleanly,
+# matching the regenerated poetry.lock and the other three MCP servers.
 
 # Verify installations
 RUN python -c "import isaacsim_fns; print(f'isaacsim_fns version: {isaacsim_fns.__version__}')" && \
-    python -c "import isaacsim_mcp; print(f'isaacsim_mcp version: {isaacsim_mcp._get_version()}')"
+    python -c "import isaacsim_mcp; print(f'isaacsim_mcp version: {isaacsim_mcp._get_version()}')" && \
+    python -c "import ovgenai_retrieval; print(f'ovgenai_retrieval version: {ovgenai_retrieval.__version__}')"
 
 # Create non-root user for security
-RUN groupadd --gid 1000 appgroup \
-    && useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
+RUN addgroup -g 1000 -S appgroup \
+    && adduser -u 1000 -S -D -H -s /sbin/nologin -G appgroup appuser
 
 # Set environment variables
 ENV PYTHONPATH=/app
-# Ensure print() output (including the [mcp-startup] banner before the
-# nat-mcp-serve subprocess) appears in `docker logs` in real time
-# rather than being block-buffered until process exit.
-ENV PYTHONUNBUFFERED=1
 ENV ISAACSIM_MCP_DISABLE_USAGE_LOGGING=false
 ENV MCP_PORT=9904
 ENV MCP_HOST=0.0.0.0
+ENV OVAI_RERANK_BACKEND=nvidia
+ENV OVAI_RERANK_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2
 ENV HOME=/app
 
 # Set ownership and permissions
@@ -80,14 +121,14 @@ EXPOSE 9904
 RUN touch /.dockerenv
 
 # Health check against the streamable-http /mcp endpoint. The Accept header is
-# REQUIRED — NAT 1.4 returns 406 Not Acceptable without it, and the previous
-# version of this line (no Accept, trailing slash) was a silent false-positive
-# that passed via the 307 redirect curl ate.
+# REQUIRED — NAT 1.4 returns ``406 Not Acceptable`` without it, and the
+# previous version of this line (no Accept, trailing slash) could pass the
+# redirect check while missing the actual streamable-http requirement.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -fL -X POST http://localhost:9904/mcp \
         -H "Content-Type: application/json" \
         -H "Accept: application/json, text/event-stream" \
-        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"healthcheck","version":"1.0.0"}}}' || exit 1
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"healthcheck","version":"1.0.0"}}}' || exit 1
 
 # Switch to non-root user
 USER appuser

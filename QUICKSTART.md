@@ -55,7 +55,7 @@ Copy-Item .env.example .env
 
 Add your NVIDIA API key to the `.env` file:
 ```
-NVIDIA_API_KEY=nvapi-your-key-here
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 ## Step 3: Install and Run an MCP Server
@@ -197,17 +197,17 @@ claude "Using the usd-code-mcp tools, list all USD modules available"
 
 **Linux/macOS:**
 ```bash
-export NVIDIA_API_KEY=nvapi-your-key-here
+export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 **Windows CMD:**
 ```cmd
-set NVIDIA_API_KEY=nvapi-your-key-here
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 **Windows PowerShell:**
 ```powershell
-$env:NVIDIA_API_KEY="nvapi-your-key-here"
+$env:NVIDIA_API_KEY="REPLACE_WITH_NVIDIA_API_KEY"
 ```
 
 ### Poetry not found

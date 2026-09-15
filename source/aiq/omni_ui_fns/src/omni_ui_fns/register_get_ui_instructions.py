@@ -47,58 +47,40 @@ If not provided or None, lists all available instructions with their description
 
 
 # Tool description
-GET_UI_INSTRUCTIONS_DESCRIPTION = """Retrieve OmniUI system instructions and documentation for code generation and UI development.
+GET_UI_INSTRUCTIONS_DESCRIPTION = """Top-level OmniUI router / preamble. Loads the canonical omni.ui playbook (framework basics, data models, 3D scene UI, widgets / layouts / styling) before a coding task.
 
-WHAT IT DOES:
-- Retrieves specific OmniUI system instruction documents
-- Provides comprehensive documentation for different aspects of omni.ui
-- Lists all available instructions when no name is specified
-- Returns formatted content with metadata and use cases
+WHEN TO USE THIS TOOL:
+- You are about to start an omni.ui coding task and want the playbook in context.
+- You need the core "how omni.ui is structured" primer.
+- Call with no argument to see all available instruction sets.
 
-INSTRUCTION SETS:
-1. **agent_system**: Core system prompt and omni.ui framework basics
-   - Understanding omni.ui and omni.ui.scene fundamentals
-   - Widget filters, options menus, searchable comboboxes
-   - General code writing guidelines and placeholder patterns
+AVAILABLE INSTRUCTION SETS:
+- "agent_system": core system prompt + omni.ui / omni.ui.scene fundamentals, writing conventions.
+- "classes": class API reference & model patterns (AbstractValueModel, SimpleStringModel, custom models, MVC).
+- "omni_ui_scene_system": complete omni.ui.scene 3D UI docs (shapes, SceneView, gestures, manipulators, USD camera sync).
+- "omni_ui_system": widgets, containers, layouts, window management, styling, drag & drop.
 
-2. **classes**: Comprehensive class API reference and model patterns
-   - AbstractValueModel and data model implementations
-   - SimpleStringModel, SimpleBoolModel, SimpleFloatModel, SimpleIntModel
-   - Custom models, callbacks, and model-view patterns
-
-3. **omni_ui_scene_system**: Complete 3D UI system documentation
-   - 3D shapes (Line, Curve, Rectangle, Arc, etc.)
-   - SceneView, camera controls, Transform containers
-   - Gestures, mouse interactions, manipulators
-   - USD camera and stage synchronization
-
-4. **omni_ui_system**: Core widgets, containers, layouts and styling
-   - Basic UI shapes and widgets (Labels, Buttons, Fields, Sliders)
-   - Layout systems (HStack, VStack, ZStack, Grid)
-   - Window management, styling with selectors
-   - Drag & drop, MDV pattern, callbacks
+ARGUMENTS:
+- name (str, optional): one of the set names above; null lists all sets with descriptions.
 
 RETURNS:
-When name is provided:
-- Formatted instruction content with metadata header
-- Description and use cases for the instruction set
-- Full documentation content
-
-When name is not provided:
-- List of all available instructions
-- Descriptions and use cases for each
+Formatted instruction content with metadata and use cases, or a directory listing when called with no argument.
 
 USAGE EXAMPLES:
-get_ui_instructions(name="agent_system")  # Get core system prompt
-get_ui_instructions(name="omni_ui_system")  # Get widgets and layouts documentation
-get_ui_instructions()  # List all available instructions
+get_ui_instructions name="agent_system"
+get_ui_instructions name="omni_ui_scene_system"
+get_ui_instructions
 
-WHEN TO USE:
-- Load agent_system when starting omni.ui development for fundamental concepts
-- Load classes when working with data models and custom implementations
-- Load omni_ui_scene_system for 3D UI and manipulator development
-- Load omni_ui_system for standard UI widgets and layouts
-- Call without parameters to see all available instructions"""
+CROSS-SERVER ROUTING:
+- For Universal Scene Description (USD) concepts and pxr API details → use the USD Code MCP's `search_usd_knowledge`.
+- For Isaac Sim robotics, sensor extensions, and synthetic data generation → use the Isaac Sim MCP's `search_isaac_sim_code_examples`.
+- For general Kit runtime, lifecycle, and architecture → use the Kit MCP's `search_kit_knowledge`.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Per-class usage guidance → use get_ui_class_instructions.
+- Widget / window code examples → use search_ui_code_examples or search_ui_window_examples.
+- Styling specifics → use get_ui_style_docs.
+- Raw class / method signatures → use get_ui_class_detail / get_ui_method_detail."""
 
 
 class GetUIInstructionsConfig(FunctionBaseConfig, name="get_ui_instructions"):

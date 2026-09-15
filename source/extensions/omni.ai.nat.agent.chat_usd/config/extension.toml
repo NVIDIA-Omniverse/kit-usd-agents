@@ -1,5 +1,5 @@
 [package]
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Omniverse GenAI Team"]
 title = "NAT Chat USD Agent"
 description = "Integration of Chat USD Agent capabilities for NAT"

@@ -7,5 +7,5 @@
 ## license agreement from NVIDIA CORPORATION is strictly prohibited.
 ##
 
-from .register_retrievers import register_all
-from .register_retrievers import unregister_all
+from .register_retrievers import register_all as register_all
+from .register_retrievers import unregister_all as unregister_all

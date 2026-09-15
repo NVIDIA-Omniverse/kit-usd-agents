@@ -44,6 +44,8 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"
+DEFAULT_EMBEDDING_DIMENSION = 2048
 
 
 def save_faiss_safe(vectorstore: Any, folder_path: str, index_name: str = "index") -> None:
@@ -71,6 +73,9 @@ def load_faiss_safe(
     folder_path: str,
     embeddings: Any,
     index_name: str = "index",
+    *,
+    expected_model: Optional[str] = None,
+    expected_dimension: Optional[int] = None,
     **kwargs: Any,
 ) -> Any:
     """Load FAISS from ``<folder>/<index_name>.faiss`` + ``<folder>/<index_name>.json``.
@@ -112,6 +117,54 @@ def load_faiss_safe(
     }
     docstore = InMemoryDocstore(documents)
     index_to_id = {int(k): v for k, v in safe["index_to_docstore_id"].items()}
+
+    rows = sorted(index_to_id)
+    if rows != list(range(int(index.ntotal))):
+        raise ValueError(
+            f"FAISS row mapping in {json_path} is not contiguous or does not match "
+            f"the {index.ntotal} vectors in {faiss_path}"
+        )
+    missing_ids = sorted(set(index_to_id.values()) - set(documents))
+    if missing_ids or len(documents) != int(index.ntotal):
+        raise ValueError(
+            f"FAISS docstore in {json_path} does not match the index: "
+            f"vectors={index.ntotal}, documents={len(documents)}, missing_ids={len(missing_ids)}"
+        )
+
+    detected_model = getattr(embeddings, "model", None)
+    if expected_model is None and isinstance(detected_model, str):
+        expected_model = detected_model
+    if expected_dimension is None and expected_model == DEFAULT_EMBEDDING_MODEL:
+        expected_dimension = DEFAULT_EMBEDDING_DIMENSION
+
+    manifest_path = path / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        embedding_info = manifest.get("embeddings") or {}
+        manifest_model = embedding_info.get("model")
+        manifest_dimension = embedding_info.get("dim")
+        if not manifest_model or not isinstance(manifest_dimension, int):
+            raise ValueError(f"Incomplete embedding provenance in {manifest_path}")
+        if manifest_dimension != int(index.d):
+            raise ValueError(
+                f"FAISS dimension mismatch in {path}: index={index.d}, "
+                f"manifest={manifest_dimension}. Reindex this bundle."
+            )
+        if expected_model and manifest_model != expected_model:
+            raise ValueError(
+                f"Embedding model mismatch in {path}: index was built with "
+                f"{manifest_model!r}, configured model is {expected_model!r}. Reindex this bundle."
+            )
+        chunk_count = (manifest.get("chunks") or {}).get("count")
+        if chunk_count is not None and chunk_count != int(index.ntotal):
+            raise ValueError(
+                f"Chunk count mismatch in {manifest_path}: manifest={chunk_count}, " f"index={index.ntotal}"
+            )
+    if expected_dimension is not None and int(index.d) != expected_dimension:
+        raise ValueError(
+            f"Embedding dimension mismatch in {path}: index={index.d}, "
+            f"configured model requires {expected_dimension}. Reindex this bundle."
+        )
 
     return FAISS(embeddings, index, docstore, index_to_id, **kwargs)
 

@@ -8,8 +8,8 @@ This directory contains tests for the `omni_ui_fns` package.
 
 ```bash
 # Set your NVIDIA API key
-export NVIDIA_API_KEY="your-api-key-here"  # Linux/macOS
-set NVIDIA_API_KEY=your-api-key-here       # Windows
+export NVIDIA_API_KEY="REPLACE_WITH_NVIDIA_API_KEY"  # Linux/macOS
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY       # Windows
 
 # Run the test
 cd source/aiq/omni_ui_fns/src/omni_ui_fns/tests

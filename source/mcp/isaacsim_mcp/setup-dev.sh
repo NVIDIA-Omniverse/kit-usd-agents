@@ -16,9 +16,11 @@
 
 set -e  # Exit on any error
 
-echo "========================================"
+readonly DIVIDER="========================================"
+
+echo "$DIVIDER"
 echo "Isaac Sim MCP Server - Development Setup"
-echo "========================================"
+echo "$DIVIDER"
 echo
 
 # Check if Python is available
@@ -54,7 +56,7 @@ if ! command -v poetry &> /dev/null; then
     echo
     echo "Poetry not found. Installing Poetry..."
     echo
-    curl -sSL https://install.python-poetry.org | $PYTHON_CMD -
+    curl --proto '=https' --tlsv1.2 -sSL https://install.python-poetry.org | $PYTHON_CMD -
 
     # Add Poetry to PATH for current session
     export PATH="$HOME/.local/bin:$PATH"
@@ -98,9 +100,9 @@ fi
 mkdir -p logs
 
 echo
-echo "========================================"
+echo "$DIVIDER"
 echo "Setup completed successfully!"
-echo "========================================"
+echo "$DIVIDER"
 echo
 echo "Next steps:"
 echo "1. Run './run.sh' to start the Isaac Sim MCP server"

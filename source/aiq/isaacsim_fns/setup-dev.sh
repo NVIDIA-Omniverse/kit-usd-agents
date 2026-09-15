@@ -21,9 +21,12 @@
 # This script sets up the local development environment
 set -e  # Exit on any error
 
-echo "========================================"
+# S1192: reusable banner divider used in multiple echo blocks.
+readonly DIVIDER="========================================"
+
+echo "$DIVIDER"
 echo "Kit AIQ Functions - Development Setup"
-echo "========================================"
+echo "$DIVIDER"
 echo
 
 # Check for Python 3.12 specifically
@@ -60,7 +63,7 @@ if ! command -v poetry &> /dev/null; then
     echo
     echo "Poetry not found. Installing Poetry..."
     echo
-    curl -sSL https://install.python-poetry.org | $PYTHON_CMD -
+    curl --proto '=https' --tlsv1.2 -sSL https://install.python-poetry.org | $PYTHON_CMD -
     
     # Add Poetry to PATH for current session
     export PATH="$HOME/.local/bin:$PATH"
@@ -105,9 +108,9 @@ poetry install
 mkdir -p logs
 
 echo
-echo "========================================"
+echo "$DIVIDER"
 echo "Setup completed successfully!"
-echo "========================================"
+echo "$DIVIDER"
 echo
 echo "Next steps:"
 echo "1. Use 'poetry shell' to activate the virtual environment"

@@ -73,33 +73,30 @@ class GetAPIDetailsInput(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-GET_KIT_API_DETAILS_DESCRIPTION = """Get detailed Kit API documentation - SUPER FLEXIBLE INPUT!
+GET_KIT_API_DETAILS_DESCRIPTION = """Specialized lookup tool for a specific Kit API symbol (class, method, function) when you already know its `extension_id@symbol` reference.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON!
+WHEN TO USE THIS TOOL:
+- You know the exact symbol you want (e.g. "omni.ui@Window", "omni.kit.app@IApp").
+- You need the full docstring, signature, parameters, or return type.
+- Batch-looking-up several API symbols at once.
 
-PARAMETER:
-- api_references: API references in format 'extension_id@symbol':
-  * Single API: "omni.ui@Window"
-  * Native array: ["omni.ui@Window", "omni.ui@Button"] ← WORKS DIRECTLY!
-  * JSON string: '["omni.ui@Window", "omni.ui@Button"]'
-  * Comma-separated: "omni.ui@Window, omni.ui@Button"
-  * Empty/null: Lists all available API references
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_api_details(api_references=["omni.ui@Window", "omni.ui@Button"])
-✅ Single string: get_api_details(api_references="omni.ui@Window")
-✅ JSON string: get_api_details(api_references='["omni.ui@Window", "omni.ui@Button"]')
-✅ Comma format: get_api_details(api_references="omni.ui@Window, omni.ui@Button") 
-✅ List all: get_api_details() or get_api_details(api_references=null)
+ARGUMENTS:
+- api_references (str | list[str] | null): one or more API references in 'extension_id@symbol' format; accepts single string, list, JSON-array string, or comma-separated string. Null lists available references.
 
 RETURNS:
-Complete API documentation with:
-- Full docstrings and descriptions
-- Method signatures and parameters
-- Return types and exceptions
-- Property information
-- Usage examples
-- Error handling for invalid/missing APIs"""
+Complete API documentation including docstrings, method signatures, parameters, return types, properties, and usage snippets.
+
+USAGE EXAMPLES:
+get_kit_api_details "omni.ui@Window"
+get_kit_api_details ["omni.ui@Window", "omni.ui@Button"]
+get_kit_api_details "omni.kit.app@IApp"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You don't know the symbol name yet → use search_kit_knowledge or search_kit_extensions first.
+- You want the full API surface of an extension → use get_kit_extension_apis.
+- You need working sample code → use search_kit_code_examples.
+- USD pxr.* classes → use the USD Code MCP's get_usd_class_detail / get_usd_method_detail.
+- omni.ui classes → use the OmniUI MCP's get_ui_class_detail."""
 
 
 class GetAPIDetailsConfig(FunctionBaseConfig, name="get_kit_api_details"):

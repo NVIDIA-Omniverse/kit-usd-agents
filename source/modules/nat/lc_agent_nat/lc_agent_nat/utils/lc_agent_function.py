@@ -31,10 +31,10 @@ from lc_agent.runnable_node import AINodeMessageChunk
 from nat.builder.builder import Builder
 from nat.builder.function import Function
 from nat.builder.framework_enum import LLMFrameworkEnum
-from nat.data_models.api_server import AIQChatRequest
-from nat.data_models.api_server import AIQChatResponseChunk
-from nat.data_models.api_server import AIQChoice
-from nat.data_models.api_server import AIQChoiceMessage
+from nat.data_models.api_server import ChatRequest
+from nat.data_models.api_server import ChatResponseChunk
+from nat.data_models.api_server import ChatResponseChoice
+from nat.data_models.api_server import ChoiceMessage
 from nat.data_models.function import FunctionBaseConfig
 from lc_agent import get_node_factory, get_chat_model_registry
 
@@ -53,7 +53,7 @@ StreamingOutputT = TypeVar("StreamingOutputT")
 SingleOutputT = TypeVar("SingleOutputT")
 
 
-class LCAgentFunction(Function[AIQChatRequest, str, str]):
+class LCAgentFunction(Function[ChatRequest, str, str]):
     """Network function implementation for MultiAgent that handles message processing and response generation."""
 
     def __init__(
@@ -72,7 +72,7 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
         super().__init__(
             config=config,
             description=description,
-            input_schema=AIQChatRequest,
+            input_schema=ChatRequest,
             streaming_output_schema=str,
             single_output_schema=str,
             converters=[LCAgentFunction.convert_base_message, LCAgentFunction.convert_chunk],
@@ -110,11 +110,11 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
         return str(value.content)
 
     @staticmethod
-    def convert_chunk(value: AINodeMessageChunk) -> AIQChatResponseChunk:
-        """Convert a AINodeMessageChunk to AIQChatResponseChunk."""
+    def convert_chunk(value: AINodeMessageChunk) -> ChatResponseChunk:
+        """Convert a AINodeMessageChunk to ChatResponseChunk."""
         role = _get_message_openai_role(value)
 
-        # Use ChatResponseChunkChoice for streaming (correct type for AIQChatResponseChunk.choices)
+        # Use ChatResponseChunkChoice for streaming (correct type for ChatResponseChunk.choices)
         if HAS_STREAMING_CHUNK_TYPES:
             choice = ChatResponseChunkChoice(
                 index=0,
@@ -123,23 +123,23 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
             )
         else:
             # Fallback for older NAT versions without streaming chunk types
-            choice = AIQChoice(
+            choice = ChatResponseChoice(
                 index=0,
-                message=AIQChoiceMessage(content=value.content, role=role),
+                message=ChoiceMessage(content=value.content, role=role),
             )
 
         chunk_id = value.id if value.id is not None else str(uuid.uuid4())
         created_time = datetime.datetime.now(datetime.timezone.utc)
-        return AIQChatResponseChunk(id=chunk_id, choices=[choice], created=created_time)
+        return ChatResponseChunk(id=chunk_id, choices=[choice], created=created_time)
 
-    async def pre_invoke(self, value: AIQChatRequest) -> None:
+    async def pre_invoke(self, value: ChatRequest) -> None:
         """Called before invoking or streaming from the network.
 
         This method can be used to perform setup operations before processing
         the request, such as logging, validation, or initialization.
 
         Args:
-            value: The AIQChatRequest containing the messages to process.
+            value: The ChatRequest containing the messages to process.
         """
         logger.debug(f"Pre-invoke registering {self.lc_agent_node_name} with {self.lc_agent_node_type}")
         get_node_factory().register(self.lc_agent_node_type, name=self.lc_agent_node_name, **self.lc_agent_node_kwargs)
@@ -154,14 +154,14 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
             model_registry = get_chat_model_registry()
             model_registry.register(self.chat_model_name, chat_model)
 
-    async def post_invoke(self, value: AIQChatRequest, success: bool = True, error: Optional[Exception] = None) -> None:
+    async def post_invoke(self, value: ChatRequest, success: bool = True, error: Optional[Exception] = None) -> None:
         """Called after invoking or streaming from the network, regardless of success.
 
         This method is useful for cleanup operations, logging, monitoring, etc.
         It's called even if the invoke operation fails.
 
         Args:
-            value: The AIQChatRequest that was processed
+            value: The ChatRequest that was processed
             success: Whether the invoke operation succeeded
             error: The exception that occurred, if any
         """
@@ -240,8 +240,8 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
 
         return network
 
-    async def setup_network(self, config: FunctionBaseConfig, input_message: AIQChatRequest) -> RunnableNetwork:
-        """Set up a RunnableNetwork with messages from AIQChatRequest."""
+    async def setup_network(self, config: FunctionBaseConfig, input_message: ChatRequest) -> RunnableNetwork:
+        """Set up a RunnableNetwork with messages from ChatRequest."""
         system_messages = []
         if hasattr(config, "system_message") and config.system_message:
             system_messages.append(SystemMessage(content=config.system_message))
@@ -256,7 +256,7 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
 
         # Create a RunnableNetwork with the specified configuration
         with RunnableNetwork(default_node=self.lc_agent_node_name, chat_model_name=self.chat_model_name) as network:
-            # Convert AIQChatRequest messages to LangChain messages
+            # Convert ChatRequest messages to LangChain messages
             for msg in input_message.messages:
                 # Handle both string and list content
                 if isinstance(msg.content, str):
@@ -319,7 +319,7 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
 
         return network
 
-    async def _ainvoke(self, value: AIQChatRequest) -> str:
+    async def _ainvoke(self, value: ChatRequest) -> str:
         """Process input messages and generate a complete response."""
         from pydantic import ValidationError
 
@@ -359,7 +359,7 @@ class LCAgentFunction(Function[AIQChatRequest, str, str]):
         finally:
             await self.post_invoke(value, success=success, error=error)
 
-    async def _astream(self, value: AIQChatRequest) -> AsyncGenerator[str, None]:
+    async def _astream(self, value: ChatRequest) -> AsyncGenerator[str, None]:
         """Process input messages and stream the response chunks."""
         await self.pre_invoke(value)
         success = False

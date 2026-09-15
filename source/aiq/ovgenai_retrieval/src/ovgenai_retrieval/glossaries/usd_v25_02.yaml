@@ -1,0 +1,313 @@
+_meta:
+  generator: ovgenai_retrieval.glossaries.generate_usd
+  version_label: v25_02
+  module_count: 93
+usd_modules:
+  Ar:
+  - Asset Resolver
+  - 'classes: Ar_PyAsset, AssetInfo, DefaultResolver, DefaultResolverContext, ResolverChanged,
+    ResolverNotice, Notice, ResolvedPath and 6 more'
+  CameraUtil:
+  - Camera Utilities
+  - 'classes: ConformWindowPolicy, Framing, ScreenWindowParameters'
+  Garch:
+  - Graphics Architecture
+  - 'classes: GLPlatformDebugContext'
+  GeomUtil:
+  - Geometry Utilities
+  - 'classes: CapsuleMeshGenerator, ConeMeshGenerator, CuboidMeshGenerator, CylinderMeshGenerator,
+    DiskMeshGenerator, InterpolationTokens, PlaneMeshGenerator, SphereMeshGenerator'
+  Gf:
+  - Graphics Foundation
+  - 'classes: BBox3d, FOVDirection, Projection, Camera, Color, ColorSpace, ColorSpaceNames,
+    DualQuatd and 43 more'
+  Glf:
+  - GL Foundation
+  - 'classes: DrawTarget, GLQueryObject, SimpleLight, SimpleMaterial, Texture'
+  Kind:
+  - Kind Registry
+  - 'classes: Registry, Tokens'
+  Ndr:
+  - Node Definition Registry
+  - 'classes: DiscoveryPlugin, DiscoveryPluginContext, DiscoveryPluginList, DiscoveryUri,
+    Node, NodeDiscoveryResult, NodeList, Property and 7 more'
+  Pcp:
+  - Prim Cache Population
+  - 'classes: ArcType, Cache, Dependency, DependencyType, DynamicFileFormatDependencyData,
+    ErrorArcCycle, ErrorArcPermissionDenied, ErrorArcToProhibitedChild and 44 more'
+  Performance:
+  - USD pxr module Performance
+  Plug:
+  - Plugin Registry
+  - 'classes: Base, DidRegisterPlugins, Notice, Plugin, Registry, _TestPlugBase1,
+    _TestPlugBase2, _TestPlugBase3 and 1 more'
+  PxOsd:
+  - USD pxr module PxOsd
+  - 'classes: MeshTopology, Code, Invalidation, MeshTopologyValidation, OpenSubdivTokens,
+    SubdivTags'
+  Sdf:
+  - Scene Description Foundations
+  - 'classes: AngularUnit, AssetPath, AssetPathArray, AttributeSpec, AuthoringError,
+    BatchNamespaceEdit, ChangeBlock, ChildrenView_Sdf_AttributeChildPolicy_SdfAttributeViewPredicate_Iterator
+    and 124 more'
+  Sdr:
+  - Shader Definition Registry
+  - 'classes: NodeContext, NodeMetadata, NodeRole, PropertyMetadata, PropertyRole,
+    PropertyTypes, Registry, ShaderNode and 2 more'
+  Trace:
+  - Trace
+  - 'classes: AggregateNode, AggregateTree, Collector, ParsedTree, Reporter'
+  Ts:
+  - USD pxr module Ts
+  - 'classes: AntiRegressionAuthoringSelector, AntiRegressionMode, CurveType, EditBehaviorBlock,
+    ExtrapMode, Extrapolation, InterpMode, Knot and 6 more'
+  Usd:
+  - Universal Scene Description
+  - 'classes: APISchemaBase, AssetInfoKeys, Attribute, AttributeQuery, ClipsAPI, CollectionAPI,
+    ColorSpaceAPI, ColorSpaceCache and 80 more'
+  UsdAppUtils:
+  - USD App Utilities
+  - 'classes: FrameRecorder'
+  UsdAppUtils.cameraArgs:
+  - USD pxr module UsdAppUtils.cameraArgs
+  UsdAppUtils.colorArgs:
+  - USD pxr module UsdAppUtils.colorArgs
+  UsdAppUtils.complexityArgs:
+  - USD pxr module UsdAppUtils.complexityArgs
+  - 'classes: _RefinementComplexity, RefinementComplexities'
+  UsdAppUtils.framesArgs:
+  - USD pxr module UsdAppUtils.framesArgs
+  - 'classes: FrameSpecIterator'
+  UsdAppUtils.rendererArgs:
+  - USD pxr module UsdAppUtils.rendererArgs
+  UsdBakeMtlx:
+  - USD pxr module UsdBakeMtlx
+  UsdGeom:
+  - USD Geometry
+  - 'classes: BBoxCache, BasisCurves, Boundable, Camera, Capsule, Capsule_1, Cone,
+    ConstraintTarget and 40 more'
+  UsdHydra:
+  - USD Hydra
+  - 'classes: GenerativeProceduralAPI, Tokens, _CanApplyResult'
+  UsdImagingGL:
+  - USD pxr module UsdImagingGL
+  - 'classes: CullStyle, DrawMode, Parameters, Engine, RenderParams, RendererCommandArgDescriptor,
+    RendererCommandDescriptor, RendererSetting and 1 more'
+  UsdLux:
+  - USD Lighting
+  - 'classes: BoundableLightBase, CylinderLight, DiskLight, DistantLight, DomeLight,
+    DomeLight_1, GeometryLight, LightAPI and 17 more'
+  UsdMedia:
+  - USD Media
+  - 'classes: Thumbnails, AssetPreviewsAPI, SpatialAudio, Tokens, _CanApplyResult'
+  UsdMtlx:
+  - USD pxr module UsdMtlx
+  - 'classes: MaterialXConfigAPI, Tokens, _CanApplyResult'
+  UsdPhysics:
+  - USD Physics
+  - 'classes: ArticulationRootAPI, CollisionAPI, CollisionGroup, CollisionGroupTable,
+    DistanceJoint, DriveAPI, FilteredPairsAPI, FixedJoint and 14 more'
+  UsdProc:
+  - USD Procedural
+  - 'classes: GenerativeProcedural, Tokens'
+  UsdRender:
+  - USD Render
+  - 'classes: Pass, Product, Settings, SettingsBase, Tokens, Var'
+  UsdResolverExample:
+  - USD pxr module UsdResolverExample
+  - 'classes: ResolverContext'
+  UsdRi:
+  - USD RenderMan
+  - 'classes: MaterialAPI, RenderPassAPI, SplineAPI, StatementsAPI, Tokens, _CanApplyResult'
+  UsdSchemaExamples:
+  - USD pxr module UsdSchemaExamples
+  - 'classes: Complex, ParamsAPI, Simple, Tokens, _CanApplyResult'
+  UsdSemantics:
+  - USD pxr module UsdSemantics
+  - 'classes: LabelsAPI, LabelsQuery, Tokens, _CanApplyResult'
+  UsdShade:
+  - USD Shading
+  - 'classes: AttributeType, ConnectableAPI, ConnectionModification, ConnectionSourceInfo,
+    CoordSysAPI, Input, Material, CollectionBinding and 12 more'
+  UsdSkel:
+  - USD Skeleton / Animation
+  - 'classes: AnimMapper, AnimQuery, Animation, Binding, BindingAPI, BlendShape, BlendShapeQuery,
+    Cache and 8 more'
+  UsdUI:
+  - USD UI
+  - 'classes: Backdrop, NodeGraphNodeAPI, SceneGraphPrimAPI, Tokens, _CanApplyResult'
+  UsdUtils:
+  - USD Utilities
+  - 'classes: CoalescingDiagnosticDelegate, CoalescingDiagnosticDelegateItem, CoalescingDiagnosticDelegateSharedItem,
+    CoalescingDiagnosticDelegateUnsharedItem, ConditionalAbortDiagnosticDelegate,
+    ConditionalAbortDiagnosticDelegateErrorFilters, DependencyInfo, ExtractExternalReferencesParams
+    and 9 more'
+  UsdUtils.complianceChecker:
+  - USD pxr module UsdUtils.complianceChecker
+  - 'classes: NodeTypes, ShaderProps, BaseRuleChecker, ByteAlignmentChecker, CompressionChecker,
+    MissingReferenceChecker, StageMetadataChecker, TextureChecker and 12 more'
+  UsdUtils.constantsGroup:
+  - USD pxr module UsdUtils.constantsGroup
+  - 'classes: _MetaConstantsGroup, ConstantsGroup'
+  UsdUtils.fixBrokenPixarSchemas:
+  - USD pxr module UsdUtils.fixBrokenPixarSchemas
+  - 'classes: FixBrokenPixarSchemas'
+  UsdUtils.toolPaths:
+  - USD pxr module UsdUtils.toolPaths
+  UsdUtils.updateSchemaWithSdrNode:
+  - USD pxr module UsdUtils.updateSchemaWithSdrNode
+  - 'classes: SchemaDefiningKeys, SchemaDefiningMiscConstants, PropertyDefiningKeys,
+    UserDocConstants'
+  UsdUtils.usdzUtils:
+  - USD pxr module UsdUtils.usdzUtils
+  - 'classes: UsdzAssetIterator'
+  UsdValidation:
+  - USD pxr module UsdValidation
+  - 'classes: ValidationContext, ValidationError, ValidationErrorSite, ValidationErrorType,
+    ValidationRegistry, ValidationTimeRange, Validator, ValidatorMetadata and 1 more'
+  UsdVol:
+  - USD Volumes
+  - 'classes: Field3DAsset, FieldAsset, FieldBase, OpenVDBAsset, Tokens, Volume'
+  Usdviewq:
+  - usdview Qt shell
+  - 'classes: ContainerDataSource, DataSourceBase, DataSourceLocator, DataSourceLocatorSet,
+    HydraObserver, InvalidUsdviewOption, Launcher, SampledDataSource and 2 more'
+  Usdviewq._usdviewq:
+  - USD pxr module Usdviewq._usdviewq
+  - 'classes: ContainerDataSource, DataSourceBase, DataSourceLocator, DataSourceLocatorSet,
+    HydraObserver, SampledDataSource, Utils, VectorDataSource'
+  Usdviewq.adjustDefaultMaterial:
+  - USD pxr module Usdviewq.adjustDefaultMaterial
+  - 'classes: AdjustDefaultMaterial'
+  Usdviewq.adjustDefaultMaterialUI:
+  - USD pxr module Usdviewq.adjustDefaultMaterialUI
+  - 'classes: Ui_AdjustDefaultMaterial'
+  Usdviewq.adjustFreeCamera:
+  - USD pxr module Usdviewq.adjustFreeCamera
+  - 'classes: AdjustFreeCamera'
+  Usdviewq.adjustFreeCameraUI:
+  - USD pxr module Usdviewq.adjustFreeCameraUI
+  - 'classes: Ui_AdjustFreeCamera'
+  Usdviewq.appController:
+  - USD pxr module Usdviewq.appController
+  - 'classes: HUDEntries, PropertyIndex, UIDefaults, LayerStackViewColumnIndex, UsdviewDataModel,
+    UIStateProxySource, Blocker, MainWindow and 1 more'
+  Usdviewq.attributeValueEditor:
+  - USD pxr module Usdviewq.attributeValueEditor
+  - 'classes: AttributeValueEditor'
+  Usdviewq.attributeValueEditorUI:
+  - USD pxr module Usdviewq.attributeValueEditorUI
+  - 'classes: Ui_AttributeValueEditor'
+  Usdviewq.attributeViewContextMenu:
+  - USD pxr module Usdviewq.attributeViewContextMenu
+  - 'classes: AttributeViewContextMenu, AttributeViewContextMenuItem, CopyAttributeNameMenuItem,
+    CopyAttributeValueMenuItem, CopyTargetPathMenuItem, SelectTargetPathMenuItem,
+    SelectAllTargetPathsMenuItem, CopyAllTargetPathsMenuItem'
+  Usdviewq.common:
+  - USD pxr module Usdviewq.common
+  - 'classes: ClearColors, DefaultFontFamily, HighlightColors, UIBaseColors, UIPrimTypeColors,
+    UIPrimTreeColors, UIPropertyValueSourceColors, UIFonts and 17 more'
+  Usdviewq.configController:
+  - USD pxr module Usdviewq.configController
+  - 'classes: ConfigController'
+  Usdviewq.customAttributes:
+  - USD pxr module Usdviewq.customAttributes
+  - 'classes: ComputedPropertyNames, CustomAttribute, BoundingBoxAttribute, LocalToWorldXformAttribute,
+    ResolvedBoundMaterial, ResolvedFullMaterial, ResolvedPreviewMaterial, ResolvedLabelsAttribute
+    and 1 more'
+  Usdviewq.frameSlider:
+  - USD pxr module Usdviewq.frameSlider
+  - 'classes: FrameSlider'
+  Usdviewq.freeCamera:
+  - USD pxr module Usdviewq.freeCamera
+  - 'classes: FreeCamera'
+  Usdviewq.headerContextMenu:
+  - USD pxr module Usdviewq.headerContextMenu
+  - 'classes: HeaderContextMenu, HeaderContextMenuItem'
+  Usdviewq.layerStackContextMenu:
+  - USD pxr module Usdviewq.layerStackContextMenu
+  - 'classes: LayerStackContextMenu, LayerStackContextMenuItem, OpenLayerMenuItem,
+    UsdviewLayerMenuItem, CopyLayerPathMenuItem, CopyLayerIdentifierMenuItem, CopyPathMenuItem,
+    MuteOrUnmuteLayerMenuItem'
+  Usdviewq.legendUtil:
+  - USD pxr module Usdviewq.legendUtil
+  Usdviewq.mainWindowUI:
+  - USD pxr module Usdviewq.mainWindowUI
+  - 'classes: Ui_MainWindow'
+  Usdviewq.plugin:
+  - USD pxr module Usdviewq.plugin
+  - 'classes: DuplicateCommandPlugin, DeferredImport, PluginContainer, CommandPlugin,
+    PluginMenu, PluginRegistry, PluginUIBuilder'
+  Usdviewq.preferences:
+  - USD pxr module Usdviewq.preferences
+  - 'classes: Preferences'
+  Usdviewq.preferencesUI:
+  - USD pxr module Usdviewq.preferencesUI
+  - 'classes: Ui_Preferences'
+  Usdviewq.prettyPrint:
+  - USD pxr module Usdviewq.prettyPrint
+  Usdviewq.primContextMenu:
+  - USD pxr module Usdviewq.primContextMenu
+  - 'classes: PrimContextMenu'
+  Usdviewq.primContextMenuItems:
+  - USD pxr module Usdviewq.primContextMenuItems
+  - 'classes: PrimContextMenuItem, SeparatorMenuItem, JumpToEnclosingModelItem, SelectBoundPreviewMaterialMenuItem,
+    SelectBoundFullMaterialMenuItem, ActiveMenuItem, ToggleVisibilityMenuItem, VisOnlyMenuItem
+    and 7 more'
+  Usdviewq.primLegend:
+  - USD pxr module Usdviewq.primLegend
+  - 'classes: PrimLegend'
+  Usdviewq.primLegendUI:
+  - USD pxr module Usdviewq.primLegendUI
+  - 'classes: Ui_PrimLegend'
+  Usdviewq.primTreeWidget:
+  - USD pxr module Usdviewq.primTreeWidget
+  - 'classes: DrawModes, DrawModeComboBox, DrawModeWidget, DrawModeItemDelegate, SelectedAncestorItemDelegate,
+    PrimItemSelectionModel, SelectionEnabler, PrimTreeWidget'
+  Usdviewq.primViewItem:
+  - USD pxr module Usdviewq.primViewItem
+  - 'classes: PrimViewColumnIndex, PrimViewItem'
+  Usdviewq.propertyLegend:
+  - USD pxr module Usdviewq.propertyLegend
+  - 'classes: PropertyLegend'
+  Usdviewq.propertyLegendUI:
+  - USD pxr module Usdviewq.propertyLegendUI
+  - 'classes: Ui_PropertyLegend'
+  Usdviewq.pythonInterpreter:
+  - USD pxr module Usdviewq.pythonInterpreter
+  - 'classes: _Completer, Interpreter, _Helper, Controller, View, Myconsole'
+  Usdviewq.qt:
+  - USD pxr module Usdviewq.qt
+  Usdviewq.rootDataModel:
+  - USD pxr module Usdviewq.rootDataModel
+  - 'classes: ChangeNotice, RootDataModel'
+  Usdviewq.scalarTypes:
+  - USD pxr module Usdviewq.scalarTypes
+  Usdviewq.selectionDataModel:
+  - USD pxr module Usdviewq.selectionDataModel
+  - 'classes: Blocker, _PrimSelection, _PropSelection, SelectionDataModel'
+  Usdviewq.settings:
+  - USD pxr module Usdviewq.settings
+  - 'classes: _StateProp, ExclusiveFile, StateSource, Settings, ConfigManager'
+  Usdviewq.stageView:
+  - USD pxr module Usdviewq.stageView
+  - 'classes: GLSLProgram, Rect, OutlineRect, FilledRect, Prim2DSetupTask, Prim2DDrawTask,
+    Outline, Reticles and 5 more'
+  Usdviewq.usdviewApi:
+  - USD pxr module Usdviewq.usdviewApi
+  - 'classes: UsdviewApi'
+  Usdviewq.usdviewContextMenuItem:
+  - USD pxr module Usdviewq.usdviewContextMenuItem
+  - 'classes: UsdviewContextMenuItem'
+  Usdviewq.variantComboBox:
+  - USD pxr module Usdviewq.variantComboBox
+  - 'classes: VariantComboBox'
+  Usdviewq.viewSettingsDataModel:
+  - USD pxr module Usdviewq.viewSettingsDataModel
+  - 'classes: OCIOSettings, ViewSettingsDataModel'
+  Vt:
+  - Value Types
+  - 'classes: BoolArray, CharArray, DoubleArray, DualQuatdArray, DualQuatfArray, DualQuathArray,
+    FloatArray, HalfArray and 40 more'
+  Work:
+  - Work Dispatcher

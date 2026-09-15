@@ -33,9 +33,9 @@ install_requires = req_file("requirements.txt")
 
 setup(
     name="lc_agent",
-    version="0.2.21",
+    version="0.2.23",
     author="Omniverse GenAI Team",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="Ai Agent Next Generation Language Network",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

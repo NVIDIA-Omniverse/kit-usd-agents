@@ -108,57 +108,40 @@ class GetKitInstructionsInput(BaseModel):
 
 
 # Tool description
-GET_KIT_INSTRUCTIONS_DESCRIPTION = """Retrieve Kit system instructions and documentation for development.
+GET_KIT_INSTRUCTIONS_DESCRIPTION = """Router / preamble tool that loads Kit development guidance (framework fundamentals, extension patterns, testing, USD, UI) before a coding task.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
-
-PARAMETER:
-- instruction_sets: Instruction sets in ANY convenient format:
-  * Single instruction: "kit_system"
-  * Native array: ["kit_system", "extensions", "testing"] ← WORKS DIRECTLY!
-  * JSON string: '["kit_system", "extensions", "testing"]'
-  * Comma-separated: "kit_system, extensions, testing"
-  * Empty/null: Lists all available instruction sets
+WHEN TO USE THIS TOOL:
+- You are about to start a Kit coding task and want the relevant playbook loaded into context.
+- You need the canonical best-practices for extensions / tests / UI / USD within Kit.
+- Call with no argument to see all available instruction sets.
 
 AVAILABLE INSTRUCTION SETS:
-- **kit_system**: Core Kit framework fundamentals and architecture
-  - Extension system, USD integration, application architecture
-- **extensions**: Extension development guidelines and patterns
-  - Configuration, lifecycle, service patterns, testing
-- **testing**: Test writing best practices and framework usage
-  - Unit tests, UI tests, USD tests, extension tests
-- **usd**: USD integration and scene description patterns
-  - Stage management, prim operations, materials, animation
-- **ui**: UI development with Kit widgets and layouts
-  - Windows, widgets, layouts, styling, 3D UI
+- "kit_system": core Kit framework fundamentals and architecture.
+- "extensions": extension development guidelines (config, lifecycle, services, testing).
+- "testing": test-writing best practices and framework usage.
+- "usd": USD integration patterns within Kit.
+- "ui": omni.ui widget / layout / styling basics within Kit.
 
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_instructions(instruction_sets=["kit_system", "extensions"])
-✅ Single string: get_instructions(instruction_sets="kit_system")
-✅ JSON string: get_instructions(instruction_sets='["kit_system", "extensions", "testing"]')
-✅ Comma format: get_instructions(instruction_sets="kit_system, extensions, testing") 
-✅ List all: get_instructions() or get_instructions(instruction_sets=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["kit_system", "extensions"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- Single API call for multiple instruction sets
-- Combined documentation with clear sections
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- instruction_sets (str | list[str] | null): one or more set names; accepts single string, list, JSON-array string, or comma-separated string. Null lists all sets.
 
 RETURNS:
-- For single instruction set: Formatted documentation with use cases
-- For multiple sets: Combined documentation with section headers
-- For listing: All available instruction sets with descriptions
+Formatted documentation for the requested set(s) with use cases, or a directory listing when called with no argument.
 
-WHEN TO USE:
-- Load "kit_system" when starting Kit development for fundamentals
-- Load "extensions" when creating new extensions
-- Load "testing" for test writing guidance
-- Load "usd" for scene description work
-- Load "ui" for interface development
-- Call without parameters to see all available instructions"""
+USAGE EXAMPLES:
+get_kit_instructions "kit_system"
+get_kit_instructions ["extensions", "testing"]
+get_kit_instructions null
+
+CROSS-SERVER ROUTING:
+- For Universal Scene Description (USD) concepts and pxr API details → use the USD Code MCP's `search_usd_knowledge`.
+- For Omniverse UI (omni.ui) widget styling and window layouts → use the OmniUI MCP's `search_ui_code_examples`.
+- For Isaac Sim robotics, sensor extensions, and synthetic data generation → use the Isaac Sim MCP's `search_isaac_sim_code_examples`.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Free-form Kit questions → use search_kit_knowledge.
+- Concrete code examples → use search_kit_code_examples.
+- Settings / API / extension lookup → use the corresponding specialized tool."""
 
 
 class GetKitInstructionsConfig(FunctionBaseConfig, name="get_kit_instructions"):

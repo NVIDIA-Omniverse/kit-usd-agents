@@ -13,7 +13,7 @@ functions:
     enable_rerank: true
     rerank_k: 10
     # Embedding configuration (uses default NVIDIA API endpoint if not specified)
-    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_model: nvidia/nemotron-3-embed-1b
     embedding_endpoint: null  # null means use default NVIDIA endpoint
     embedding_api_key: ${NVIDIA_API_KEY}
     # Reranking configuration
@@ -28,7 +28,7 @@ functions:
     enable_rerank: true
     rerank_k: 10
     # Embedding configuration (uses default NVIDIA API endpoint if not specified)
-    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_model: nvidia/nemotron-3-embed-1b
     embedding_endpoint: null  # null means use default NVIDIA endpoint
     embedding_api_key: ${NVIDIA_API_KEY}
     # Reranking configuration

@@ -33,9 +33,9 @@ install_requires = req_file("requirements.txt")
 
 setup(
     name="lc_agent_retrievers",
-    version="0.2.8",
+    version="0.4.0",
     author="Omniverse GenAI Team",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="Utility modules for LC Agent",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

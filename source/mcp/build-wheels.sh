@@ -22,13 +22,20 @@
 # Prerequisites:
 #   - Python 3.11+
 #   - Poetry (https://python-poetry.org/docs/#installation)
+#   - 'build' module (auto-installed via `python3 -m pip install build` if missing)
+#
+# Wheels produced (each MCP's dist/ ends up with three .whl files):
+#   - <mcp>_fns-*.whl      : per-MCP function package
+#   - <mcp>_mcp-*.whl      : MCP server package
+#   - ovgenai_retrieval-*.whl : shared hybrid-retrieval library, built from
+#                                source/aiq/ovgenai_retrieval/
 #
 # Usage:
 #   ./build-wheels.sh         # Build all wheels
-#   ./build-wheels.sh kit     # Build only kit-mcp wheels
-#   ./build-wheels.sh omni    # Build only omni-ui-mcp wheels
-#   ./build-wheels.sh usd     # Build only usd-code-mcp wheels
-#   ./build-wheels.sh isaac   # Build only isaacsim-mcp wheels
+#   ./build-wheels.sh kit     # Build only kit-mcp wheels (incl. retrieval)
+#   ./build-wheels.sh omni    # Build only omni-ui-mcp wheels (incl. retrieval)
+#   ./build-wheels.sh usd     # Build only usd-code-mcp wheels (incl. retrieval)
+#   ./build-wheels.sh isaac   # Build only isaacsim-mcp wheels (incl. retrieval)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,6 +58,9 @@ echo_warn() {
 echo_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
+
+# S1192: shared package name used at all four copy_wheel call sites.
+readonly OVGENAI_PKG="ovgenai_retrieval"
 
 # Check prerequisites
 check_prerequisites() {
@@ -101,10 +111,11 @@ _lfs_probe_has_pointers() {
     )
     LFS_POINTER_PATHS=()
     for probe in "${probe_files[@]}"; do
-        if [ -f "$probe" ] && [ "$(stat -c%s "$probe" 2>/dev/null || stat -f%z "$probe" 2>/dev/null || echo 9999)" -lt 1024 ]; then
-            if head -c 50 "$probe" 2>/dev/null | grep -q "$pointer_marker"; then
-                LFS_POINTER_PATHS+=("$probe")
-            fi
+        # S1066: merged the previous nested-if chain into a single conjunction.
+        if [ -f "$probe" ] \
+           && [ "$(stat -c%s "$probe" 2>/dev/null || stat -f%z "$probe" 2>/dev/null || echo 9999)" -lt 1024 ] \
+           && head -c 50 "$probe" 2>/dev/null | grep -q "$pointer_marker"; then
+            LFS_POINTER_PATHS+=("$probe")
         fi
     done
     [ ${#LFS_POINTER_PATHS[@]} -gt 0 ]
@@ -195,7 +206,7 @@ build_wheel() {
     cd "$package_dir"
 
     # Clean old builds
-    rm -rf dist/ build/ *.egg-info
+    rm -rf dist/ build/ ./*.egg-info
 
     # Build wheel
     poetry build
@@ -216,6 +227,31 @@ copy_wheel() {
     cp "$src_dir"/dist/*.whl "$dest_dir/"
 }
 
+# Build the shared ovgenai-retrieval wheel.
+# Called once per invocation; result is reused across all 4 MCP build_*
+# functions via copy_wheel into each MCP's dist/.
+build_ovgenai_retrieval() {
+    local pkg_dir="$ROOT_DIR/source/aiq/ovgenai_retrieval"
+    if [[ ! -d "$pkg_dir" ]]; then
+        echo_warn "ovgenai_retrieval source not found at $pkg_dir; skipping."
+        echo_warn "Docker image installs will fail at the wheel-install step."
+        return 0
+    fi
+    echo_info "Building ovgenai_retrieval wheel..."
+    cd "$pkg_dir"
+    rm -rf dist/ build/ ./*.egg-info
+    # ovgenai_retrieval uses setuptools (PEP-517 'python -m build') rather
+    # than poetry; gracefully fall back to installing 'build' if missing.
+    if ! python3 -c "import build" 2>/dev/null; then
+        echo_info "Installing 'build' module..."
+        python3 -m pip install --user --quiet build
+    fi
+    python3 -m build --wheel
+    echo_info "ovgenai_retrieval wheel built successfully"
+    ls -la dist/*.whl
+    cd - > /dev/null
+}
+
 # Build kit-mcp wheels
 build_kit_mcp() {
     echo_info "=== Building Kit MCP wheels ==="
@@ -226,8 +262,9 @@ build_kit_mcp() {
     # Build kit_mcp (cleans dist/, so must be before copying kit_fns)
     build_wheel "$SCRIPT_DIR/kit_mcp" "kit_mcp"
 
-    # Copy kit_fns to kit_mcp dist (AFTER kit_mcp build to avoid deletion)
+    # Copy kit_fns and ovgenai_retrieval to kit_mcp dist (AFTER kit_mcp build to avoid deletion)
     copy_wheel "$ROOT_DIR/source/aiq/kit_fns" "$SCRIPT_DIR/kit_mcp/dist" "kit_fns"
+    copy_wheel "$ROOT_DIR/source/aiq/$OVGENAI_PKG" "$SCRIPT_DIR/kit_mcp/dist" "$OVGENAI_PKG"
 
     echo_info "Kit MCP wheels ready in: $SCRIPT_DIR/kit_mcp/dist/"
 }
@@ -242,8 +279,9 @@ build_omni_ui_mcp() {
     # Build omni_ui_mcp (cleans dist/, so must be before copying omni_ui_fns)
     build_wheel "$SCRIPT_DIR/omni_ui_mcp" "omni_ui_mcp"
 
-    # Copy omni_ui_fns to omni_ui_mcp dist (AFTER omni_ui_mcp build to avoid deletion)
+    # Copy omni_ui_fns and ovgenai_retrieval to omni_ui_mcp dist (AFTER omni_ui_mcp build to avoid deletion)
     copy_wheel "$ROOT_DIR/source/aiq/omni_ui_fns" "$SCRIPT_DIR/omni_ui_mcp/dist" "omni_ui_fns"
+    copy_wheel "$ROOT_DIR/source/aiq/$OVGENAI_PKG" "$SCRIPT_DIR/omni_ui_mcp/dist" "$OVGENAI_PKG"
 
     echo_info "Omni UI MCP wheels ready in: $SCRIPT_DIR/omni_ui_mcp/dist/"
 }
@@ -258,8 +296,9 @@ build_usd_code_mcp() {
     # Build usd_code_mcp (cleans dist/, so must be before copying usd_code_fns)
     build_wheel "$SCRIPT_DIR/usd_code_mcp" "usd_code_mcp"
 
-    # Copy usd_code_fns to usd_code_mcp dist (AFTER usd_code_mcp build to avoid deletion)
+    # Copy usd_code_fns and ovgenai_retrieval to usd_code_mcp dist (AFTER usd_code_mcp build to avoid deletion)
     copy_wheel "$ROOT_DIR/source/aiq/usd_code_fns" "$SCRIPT_DIR/usd_code_mcp/dist" "usd_code_fns"
+    copy_wheel "$ROOT_DIR/source/aiq/$OVGENAI_PKG" "$SCRIPT_DIR/usd_code_mcp/dist" "$OVGENAI_PKG"
 
     echo_info "USD Code MCP wheels ready in: $SCRIPT_DIR/usd_code_mcp/dist/"
 }
@@ -274,8 +313,9 @@ build_isaacsim_mcp() {
     # Build isaacsim_mcp (cleans dist/, so must be before copying isaacsim_fns)
     build_wheel "$SCRIPT_DIR/isaacsim_mcp" "isaacsim_mcp"
 
-    # Copy isaacsim_fns to isaacsim_mcp dist (AFTER isaacsim_mcp build to avoid deletion)
+    # Copy isaacsim_fns and ovgenai_retrieval to isaacsim_mcp dist (AFTER isaacsim_mcp build to avoid deletion)
     copy_wheel "$ROOT_DIR/source/aiq/isaacsim_fns" "$SCRIPT_DIR/isaacsim_mcp/dist" "isaacsim_fns"
+    copy_wheel "$ROOT_DIR/source/aiq/$OVGENAI_PKG" "$SCRIPT_DIR/isaacsim_mcp/dist" "$OVGENAI_PKG"
 
     echo_info "Isaac Sim MCP wheels ready in: $SCRIPT_DIR/isaacsim_mcp/dist/"
 }
@@ -283,6 +323,11 @@ build_isaacsim_mcp() {
 # Main
 main() {
     check_prerequisites
+
+    # Build the shared ovgenai_retrieval wheel once; it's needed by every MCP
+    # variant below, so build it before the per-MCP cases regardless of which
+    # subset the user asked for.
+    build_ovgenai_retrieval
 
     case "${1:-all}" in
         kit)

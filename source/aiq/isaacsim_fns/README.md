@@ -90,7 +90,7 @@ isaacsim_fns/
 │   ├── services/          # Service layer
 │   ├── utils/            # Utility modules
 │   └── data/             # Data files and indices (versioned)
-│       └── {version}/     # e.g., 6.0/ (controlled by MCP_ISAACSIM_VERSION)
+│       └── {version}/     # e.g., 6.1/ (controlled by MCP_ISAACSIM_VERSION)
 │           ├── instructions/  # Documentation files
 │           ├── extensions/    # Extension database
 │           ├── code_examples/ # Code example indices

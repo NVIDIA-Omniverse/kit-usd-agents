@@ -18,6 +18,8 @@
 import logging
 from typing import List, Optional
 
+from kit_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from kit_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.builder.function_info import FunctionInfo
@@ -27,6 +29,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_extensions import search_extensions
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,47 +57,36 @@ class SearchKitExtensionsInput(BaseModel):
 
 
 # Tool description
-SEARCH_KIT_EXTENSIONS_DESCRIPTION = """Search for Kit extensions using semantic search across 400+ available extensions.
+SEARCH_KIT_EXTENSIONS_DESCRIPTION = """PRIMARY tool for discovering "is there a Kit extension that does X?". Semantic search across the Kit extension catalog.
 
-WHAT IT DOES:
-- Converts your query to embeddings for semantic understanding
-- Searches across Kit extension metadata, descriptions, and features
-- Ranks results by relevance to your specific needs
-- Supports category filtering for targeted searches
-- Returns extensions with descriptions, features, and dependencies
-
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Extension names and descriptions
-- Feature lists and capabilities
-- Category classifications
-- Dependency information
-- Use case descriptions
+WHEN TO USE THIS TOOL:
+- "Is there an extension that provides <feature>?"
+- "Which Kit extension handles viewport / console / manipulators / physics?"
+- Comparing several extensions to pick the right one for a use case.
 
 ARGUMENTS:
-- query (str): Search query describing what you're looking for
-- top_k (int, optional): Number of results to return (default: 10)
+- query (str): natural-language description of the desired capability.
+- top_k (int, optional): number of results to return (default 10).
 
 RETURNS:
-Formatted search results with:
-- Extension names and IDs
-- Relevance scores
-- Brief descriptions
-- Key features (top 3)
-- Dependencies
-- Version information
+Ranked extensions with names, IDs, relevance scores, short descriptions, key features, dependencies, and version info.
 
 USAGE EXAMPLES:
-search_extensions("window management tools", top_k=10)
-search_extensions("ui widgets and controls", top_k=5)
-search_extensions("physics simulation", top_k=10)
-search_extensions("viewport and camera", top_k=3)
+search_kit_extensions "window management tools"
+search_kit_extensions "ui widgets and controls"
+search_kit_extensions "viewport and camera"
 
-TIPS FOR BETTER RESULTS:
-- Use specific terminology (e.g., "viewport", "console", "manipulator")
-- Include functionality keywords (e.g., "window", "widget", "render", "physics")
-- Specify use cases (e.g., "debugging tools", "ui components", "scene editing")
-- Use category filters to narrow results to relevant domains"""
+COVERAGE CAVEAT:
+Coverage is limited to extensions shipped with recent Kit SDK builds (Kit 105.1–110.x). Vendor or lab-only extensions may be missing — fall back to `search_kit_knowledge` for conceptual questions.
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You already know the extension name and want full metadata → use get_kit_extension_details.
+- You need the extension's API surface → use get_kit_extension_apis.
+- You need the extension's dependency tree → use get_kit_extension_dependencies.
+- General "how does Kit X work?" → use search_kit_knowledge.
+- Isaac Sim extension discovery → use the Isaac Sim MCP's search_isaac_sim_extensions.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchKitExtensionsConfig(FunctionBaseConfig, name="search_kit_extensions"):
@@ -120,7 +122,6 @@ async def register_search_kit_extensions(config: SearchKitExtensionsConfig, buil
 
         try:
             # Sanitize user input before sending to external APIs
-            from kit_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
@@ -132,14 +133,17 @@ async def register_search_kit_extensions(config: SearchKitExtensionsConfig, buil
 
             # Use config fields to modify behavior
             if verbose:
-                logger.debug(f"Searched extensions for query: '{input.query}', top_k: {input.top_k}")
+                logger.debug(f"Searched extensions for query: '{_sanitize_log(input.query)}', top_k: {input.top_k}")
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

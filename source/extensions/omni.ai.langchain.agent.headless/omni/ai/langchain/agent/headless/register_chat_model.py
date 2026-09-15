@@ -54,6 +54,16 @@ SETTING_PATH_CUSTOM_MODEL = "/exts/omni.ai.langchain.agent.headless/custom_chat_
 
 # Model configurations
 MODELS = {
+    "openai/gpt-oss-120b": (
+        {
+            "model": "openai/gpt-oss-120b",
+            "temperature": 0.0,
+            "max_tokens": 4 * 1024,
+        },
+        128 * 1024,
+        False,
+        None,
+    ),
     "nvidia/usdcode-llama3-70b-instruct": (
         {
             "model": "nvidia/usdcode-llama3-70b-instruct",

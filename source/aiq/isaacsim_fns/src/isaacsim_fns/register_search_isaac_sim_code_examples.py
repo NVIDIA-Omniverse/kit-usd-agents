@@ -17,6 +17,8 @@
 
 import logging
 
+from isaacsim_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from isaacsim_fns.utils._retrieval_compat import sanitize_query
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
@@ -25,6 +27,17 @@ from pydantic import BaseModel, Field
 
 from .functions.search_code_examples import search_code_examples
 from .utils.usage_logging import get_usage_logger
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,48 +50,33 @@ class SearchIsaacSimCodeExamplesInput(BaseModel):
 
 
 # Tool description
-SEARCH_ISAAC_SIM_CODE_EXAMPLES_DESCRIPTION = """Find relevant Isaac Sim code examples using semantic search.
+SEARCH_ISAAC_SIM_CODE_EXAMPLES_DESCRIPTION = """PRIMARY tool for "show me Isaac Sim code that does X" — robot setup, sensors, synthetic data, OmniGraph, ROS 2, physics.
 
-WHAT IT DOES:
-- Searches across curated Isaac Sim code examples and implementations
-- Uses semantic matching to find relevant code patterns
-- Returns complete code examples with context and file paths
-- Includes implementation details and usage patterns
-
-SEARCH CAPABILITIES:
-Your query is matched against:
-- Extension implementations and patterns
-- UI component creation examples
-- USD operation examples
-- Widget usage and styling patterns
-- Layout and container implementations
-- Event handling and callback patterns
+WHEN TO USE THIS TOOL:
+- "How do I drive a wheeled robot / manipulator in Isaac Sim?"
+- "Show me a camera / depth sensor / RTX sensor setup."
+- "Replicator / synthetic data / MobilityGen example."
 
 ARGUMENTS:
-- query (str): Description of desired code functionality
-- top_k (int, optional): Number of examples to return (default: 10)
+- query (str): natural-language description of the desired Isaac Sim code.
+- top_k (int, optional): number of examples to return (default 10).
 
 RETURNS:
-Formatted code examples with:
-- Complete implementation code
-- File paths and line numbers
-- Extension IDs and context
-- Descriptions and use cases
-- Relevance scores
-- Associated tags
+Formatted code examples with implementation code, file paths, extension IDs, descriptions, relevance scores, and tags.
 
 USAGE EXAMPLES:
-search_code_examples("create window with buttons")
-search_code_examples("USD stage operations", top_k=5)
-search_code_examples("ui layout containers")
-search_code_examples("extension lifecycle management")
-search_code_examples("3d scene ui elements")
+search_isaac_sim_code_examples "wheeled robot teleop"
+search_isaac_sim_code_examples "replicator synthetic data"
+search_isaac_sim_code_examples "RTX lidar sensor"
 
-TIPS FOR BETTER RESULTS:
-- Use Isaac Sim-specific terminology (e.g., "extension", "omni.ui", "USD stage")
-- Include component types (e.g., "window", "button", "layout", "viewport")
-- Reference patterns (e.g., "lifecycle", "callback", "event handling")
-- Specify frameworks (e.g., "omni.ui", "omni.usd", "omni.kit")"""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Robotics / Isaac Sim extension discovery → use search_isaac_sim_extensions.
+- Isaac Sim settings lookup → use search_isaac_sim_settings.
+- Kit-only runtime / lifecycle code → use the Kit MCP's search_kit_code_examples.
+- Pure USD / pxr.* code → use the USD Code MCP's search_usd_code_examples.
+- OmniUI widget / window code → use the OmniUI MCP's search_ui_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand."""
 
 
 class SearchIsaacSimCodeExamplesConfig(FunctionBaseConfig, name="search_isaac_sim_code_examples"):
@@ -109,21 +107,23 @@ async def register_search_isaac_sim_code_examples(config: SearchIsaacSimCodeExam
 
         try:
             # Sanitize user input before sending to external APIs
-            from isaacsim_fns.utils.input_sanitization import sanitize_query
 
             sanitized_query = sanitize_query(input.query)
 
             result = await search_code_examples(query=sanitized_query, top_k=input.top_k)
 
             if verbose:
-                logger.debug(f"Searched code examples for: '{input.query}', top_k: {input.top_k}")
+                logger.debug(f"Searched code examples for: '{_sanitize_log(input.query)}', top_k: {input.top_k}")
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)

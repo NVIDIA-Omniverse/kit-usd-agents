@@ -14,26 +14,28 @@
 docs/images/** filter=lfs diff=lfs merge=lfs -text
 # All wheel files go into Git LFS
 *.whl filter=lfs diff=lfs merge=lfs -text
+*.faiss filter=lfs diff=lfs merge=lfs -text
+# *.pkl removed: FAISS metadata is now stored as index.json (see tools/faiss_safe_convert.py).
+# Pickle is banned — index.pkl is flagged by container scanner as legacy pickle metadata.
 # All files under data go into Git LFS
 data/** filter=lfs diff=lfs merge=lfs -text
 source/extensions/**/data/** filter=lfs diff=lfs merge=lfs -text
 source/modules/**/data/** filter=lfs diff=lfs merge=lfs -text
+*_embeddings.json filter=lfs diff=lfs merge=lfs -text
 # Exceptions for .yaml and .md files in data directories
 data/**/*.yaml -filter -diff -merge text
 data/**/*.md -filter -diff -merge text
 source/extensions/**/data/**/*.yaml -filter -diff -merge text
 source/extensions/**/data/**/*.md -filter -diff -merge text
-*.faiss filter=lfs diff=lfs merge=lfs -text
-*.pkl filter=lfs diff=lfs merge=lfs -text
-*.pickle filter=lfs diff=lfs merge=lfs -text
-*.bin filter=lfs diff=lfs merge=lfs -text
-*.npy filter=lfs diff=lfs merge=lfs -text
-*.npz filter=lfs diff=lfs merge=lfs -text
-*.h5 filter=lfs diff=lfs merge=lfs -text
-*.hdf5 filter=lfs diff=lfs merge=lfs -text
-*.pt filter=lfs diff=lfs merge=lfs -text
-*.pth filter=lfs diff=lfs merge=lfs -text
-*.onnx filter=lfs diff=lfs merge=lfs -text
-*.codeatlas.json filter=lfs diff=lfs merge=lfs -text
-source/aiq/**/data/**/*.json filter=lfs diff=lfs merge=lfs -text
+# NOTE: source/modules/**/data does NOT get .yaml/.md filter-disable
+# exceptions because the three existing prompt files are already stored
+# as LFS objects (usd_agent_system.md, usd_atlas.md, usd_system.md under
+# lc_agent/src/lc_agent/data/). A bare ``-filter`` exception leaves them
+# as 129-byte pointer stubs on fresh checkout; the broad ``source/modules
+# /**/data/** filter=lfs`` rule above resolves them through LFS smudge
+# correctly. Migrating these three files out of LFS would require
+# rewriting LFS history (``git lfs migrate export``) which is out of
+# scope for an attrs change.
+# All JSON files in mcp and aiq data directories go into Git LFS
 source/mcp/**/data/**/*.json filter=lfs diff=lfs merge=lfs -text
+source/aiq/**/data/**/*.json filter=lfs diff=lfs merge=lfs -text

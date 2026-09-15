@@ -29,7 +29,14 @@ if sys.platform == "win32":
 # Add src directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from kit_fns.functions.get_app_examples import get_app_examples, list_app_examples
+from kit_fns.functions.get_app_examples import get_app_examples, list_app_examples, load_template_file
+
+
+def test_load_template_file_accepts_owned_file_and_rejects_escapes():
+    assert load_template_file("kit_base_editor", "README.md") is not None
+    assert load_template_file("../../../../../../..", "etc/passwd") is None
+    assert load_template_file("kit_base_editor", "../../../../../../../../etc/passwd") is None
+    assert load_template_file("kit_base_editor", "/etc/passwd") is None
 
 
 def print_section(title: str):

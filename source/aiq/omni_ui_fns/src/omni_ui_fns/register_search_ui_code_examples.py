@@ -23,10 +23,23 @@ from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
 from nat.data_models.function import FunctionBaseConfig
+from omni_ui_fns.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from omni_ui_fns.utils._retrieval_compat import sanitize_query
 from pydantic import BaseModel, Field
 
 from .config import DEFAULT_RERANK_CODE
 from .functions.get_code_examples import get_code_examples
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,41 +52,33 @@ class SearchUICodeExamplesInput(BaseModel):
 
 
 # Tool description
-SEARCH_UI_CODE_EXAMPLES_DESCRIPTION = """Retrieves relevant code examples using semantic vector search and optional reranking.
+SEARCH_UI_CODE_EXAMPLES_DESCRIPTION = """PRIMARY tool for "show me a widget example" questions in omni.ui. Copy-pastable snippets for buttons, fields, stacks, styling, callbacks, and custom widgets.
 
-WHAT IT DOES:
-- Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
-- Performs semantic similarity search against pre-indexed OmniUI code examples
-- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
-- Returns formatted code examples with their metadata and source code
-
-QUERY MATCHING:
-Your query is compared against OmniUI widget and component implementations,
-including examples like:
-- SearchField, SearchWordButton, and other UI widgets
-- Widget styling and theming functions
-- UI component building patterns (ZStack, VStack, HStack)
-- Event handling and callback patterns
-- Layout and spacing utilities
+WHEN TO USE THIS TOOL:
+- "How do I build a SearchField / ComboBox / TreeView / custom widget?"
+- "Show me VStack / HStack / ZStack layout code."
+- You want runnable omni.ui Python, not API reference or prose.
 
 ARGUMENTS:
-- query (str): Your query describing the desired OmniUI code example
+- query (str): natural-language description of the desired OmniUI snippet.
 
 RETURNS:
-Formatted code examples with file paths, method names, and Python code snippets
+Formatted code examples with file paths, method names, and omni.ui Python snippets.
 
 USAGE EXAMPLES:
 search_ui_code_examples "How to create a search field?"
 search_ui_code_examples "Button styling with themes"
-search_ui_code_examples "event handling callbacks"
 search_ui_code_examples "VStack and HStack layout"
-search_ui_code_examples "create custom widget"
 
-TIPS FOR BETTER RESULTS:
-- Use specific OmniUI terminology (e.g., "SearchField", "ZStack", "VStack")
-- Include UI operations (e.g., "build_ui", "style", "event handling")
-- Reference widget types (e.g., "Button", "Label", "Rectangle", "Spacer")
-- Ask about patterns (e.g., "callback", "subscription", "model binding")
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Full-window layouts / dialogs / modal boxes → use search_ui_window_examples.
+- Specific omni.ui class signature → use get_ui_class_detail.
+- How to style UI elements (colors, shades, fonts) → use get_ui_style_docs.
+- Usage pattern guidance for a named class → use get_ui_class_instructions.
+- Kit-side integration code → use the Kit MCP's search_kit_code_examples.
+- USD stage code (not UI) → use the USD Code MCP's search_usd_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 
@@ -82,18 +87,24 @@ class SearchUICodeExamplesConfig(FunctionBaseConfig, name="search_ui_code_exampl
 
     name: str = "search_ui_code_examples"
     verbose: bool = Field(default=False, description="Enable detailed logging")
-    rerank_k: int = Field(default=DEFAULT_RERANK_CODE, description="Number of documents to keep after reranking")
+    rerank_k: int = Field(
+        default=DEFAULT_RERANK_CODE,
+        description="Number of documents to keep after reranking",
+    )
     enable_rerank: bool = Field(default=True, description="Enable reranking of search results")
 
     # Embedding configuration
-    embedding_model: Optional[str] = Field(default="nvidia/nv-embedqa-e5-v5", description="Embedding model to use")
+    embedding_model: Optional[str] = Field(default="nvidia/nemotron-3-embed-1b", description="Embedding model to use")
     embedding_endpoint: Optional[str] = Field(
         default=None, description="Embedding service endpoint (None for NVIDIA API)"
     )
     embedding_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for embedding service")
 
     # Reranking configuration
-    reranking_model: Optional[str] = Field(default=None, description="Reranking model to use")
+    reranking_model: Optional[str] = Field(
+        default="nvidia/llama-nemotron-rerank-vl-1b-v2",
+        description="Reranking model to use",
+    )
     reranking_endpoint: Optional[str] = Field(
         default=None, description="Reranking service endpoint (None for NVIDIA API)"
     )
@@ -112,7 +123,6 @@ async def register_search_ui_code_examples(config: SearchUICodeExamplesConfig, b
         """Single argument with schema."""
         import time
 
-        from omni_ui_fns.utils.input_sanitization import sanitize_query
         from omni_ui_fns.utils.usage_logging import get_usage_logger
 
         # Extract and sanitize the query string from the input model
@@ -161,16 +171,19 @@ async def register_search_ui_code_examples(config: SearchUICodeExamplesConfig, b
                 )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
                 error_msg = result.get("error", "Unknown error")
                 success = False
-                return f"ERROR: {error_msg}"
+                return f"ERROR: {_sanitize_log(error_msg, cap=500)}"
 
         except Exception as e:
             error_msg = str(e)
             success = False
-            return f"ERROR: Failed to retrieve OmniUI code examples - {error_msg}"
+            return f"ERROR: Failed to retrieve OmniUI code examples - {_sanitize_log(error_msg, cap=500)}"
         finally:
             # Log usage if enabled
             if usage_logger and usage_logger.enabled:

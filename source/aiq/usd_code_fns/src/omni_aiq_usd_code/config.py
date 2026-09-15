@@ -48,12 +48,12 @@ DEFAULT_RAG_TOP_K_KNOWLEDGE = 45
 DEFAULT_RERANK_KNOWLEDGE = 10
 
 # Reranking Configuration
-DEFAULT_RERANK_MODEL = "nvidia/llama-nemotron-rerank-1b-v2"
-DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking"
+DEFAULT_RERANK_MODEL = "nvidia/llama-nemotron-rerank-vl-1b-v2"
+DEFAULT_RERANK_ENDPOINT = "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-vl-1b-v2/reranking"
 
 # Embedding Configuration
-DEFAULT_EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
-DEFAULT_EMBEDDING_ENDPOINT = "https://ai.api.nvidia.com/v1"
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"
+DEFAULT_EMBEDDING_ENDPOINT = "https://integrate.api.nvidia.com/v1"
 
 # Environment variable names for embedder/reranker backend configuration
 ENV_EMBEDDER_BACKEND = "KIT_EMBEDDER_BACKEND"  # "nvidia_api" or "local"

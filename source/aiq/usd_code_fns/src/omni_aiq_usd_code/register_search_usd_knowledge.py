@@ -23,9 +23,21 @@ from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
 from nat.data_models.function import FunctionBaseConfig
+from omni_aiq_usd_code.utils._retrieval_compat import empty_result_sentinel as _empty_result_sentinel
+from omni_aiq_usd_code.utils._retrieval_compat import sanitize_query
 from pydantic import BaseModel, Field
 
 from .config import DEFAULT_RERANK_KNOWLEDGE
+
+
+# Audit R4/R5: strip CR/LF and cap length on user-provided strings before
+# embedding them in log lines or MCP error responses, so a query with
+# ``\r\n`` can't forge structured-log records or leak arbitrary text
+# back to the caller. Not a sanitizer for search purposes — only for
+# *rendering* into logs/errors.
+def _sanitize_log(s: object, *, cap: int = 200) -> str:
+    text = str(s if s is not None else "")
+    return text.replace("\r", " ").replace("\n", " ")[:cap]
 
 
 class SearchUSDKnowledgeInput(BaseModel):
@@ -40,44 +52,34 @@ from .utils.usage_logging_decorator import log_tool_usage
 logger = logging.getLogger(__name__)
 
 # Tool description
-SEARCH_USD_KNOWLEDGE_DESCRIPTION = """Retrieves relevant USD documentation and knowledge using semantic vector search and optional reranking.
+SEARCH_USD_KNOWLEDGE_DESCRIPTION = """PRIMARY tool for any question about Universal Scene Description (USD). Start here for concepts, architecture, workflows, schema behavior, composition, lighting, animation, and "how do I…?" questions about USD.
 
-WHAT IT DOES:
-- Converts your query to embeddings using NVIDIA's nv-embedqa-e5-v5 model
-- Performs semantic similarity search against pre-indexed USD documentation
-- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
-- Returns formatted documentation excerpts with titles and URLs
-
-QUERY MATCHING:
-Your query is compared against the 'index_text' field of each document,
-which contains concise summaries like:
-- "UsdLuxGeometryLight lacks detailed specifications for consistent behavior across renderers"
-- "Different renderers have varying approaches to mesh lights"
-- "The design should cater to specific workflow requirements of geometry lights"
-
-KNOWLEDGE DOMAINS COVERED:
-- USD concepts and architecture (layers, prims, stages, composition)
-- Rendering and lighting (UsdLux, geometry lights, materials)
-- Animation and skeletal systems (UsdSkel)
-- Geometry and scenes (UsdGeom)
-- Workflows and best practices
+WHEN TO USE THIS TOOL:
+- "How does layer composition / stage / prim inheritance work?"
+- "What is UsdLux / UsdGeom / UsdSkel for?"
+- Behavioral or workflow questions about USD across renderers.
+- Any conceptual USD question before reaching for a code example or class signature.
 
 ARGUMENTS:
-- request (str): Your query about USD concepts, workflows, or documentation
+- request (str): natural-language question about USD concepts, workflows, or documentation.
 
 RETURNS:
-Formatted documentation excerpts with titles, content, and source URLs, or error message
+Formatted documentation excerpts with titles, content, and source URLs.
 
 USAGE EXAMPLES:
 search_usd_knowledge "What is layer composition?"
 search_usd_knowledge "USD lighting workflow"
 search_usd_knowledge "prim inheritance"
 
-TIPS FOR BETTER RESULTS:
-- Use specific USD concepts (e.g., "layer composition", "prim inheritance")
-- Include relevant domains (e.g., "lighting", "animation", "geometry")
-- Ask about workflows, specifications, or behavioral details
-- Use USD schema names when relevant (e.g., "UsdLux", "UsdGeom", "UsdSkel")
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Copy-pastable USD Python code → use search_usd_code_examples.
+- Specific class signature / methods (e.g. UsdStage) → use get_usd_class_detail.
+- Specific method docs (e.g. GetPrim) → use get_usd_method_detail.
+- Enumerate pxr.* modules / classes → use list_usd_modules or list_usd_classes.
+- Kit-specific (not pxr) USD integration → use the Kit MCP's search_kit_knowledge.
+- omni.ui scene (3D UI) integration → use the OmniUI MCP's search_ui_code_examples.
+
+Abbreviation tip: the retriever auto-expands common Omniverse abbreviations (SSS, PBR, DLSS, LIVRPS, Gf/Sdf/UsdGeom, etc.). Write the natural term — you don't have to pre-expand.
 """
 
 
@@ -90,14 +92,16 @@ class SearchUSDKnowledgeConfig(FunctionBaseConfig, name="search_usd_knowledge"):
     enable_rerank: bool = Field(default=True, description="Enable reranking of search results")
 
     # Embedding configuration
-    embedding_model: Optional[str] = Field(default="nvidia/nv-embedqa-e5-v5", description="Embedding model to use")
+    embedding_model: Optional[str] = Field(default="nvidia/nemotron-3-embed-1b", description="Embedding model to use")
     embedding_endpoint: Optional[str] = Field(
         default=None, description="Embedding service endpoint (None for NVIDIA API)"
     )
     embedding_api_key: Optional[str] = Field(default="${NVIDIA_API_KEY}", description="API key for embedding service")
 
     # Reranking configuration
-    reranking_model: Optional[str] = Field(default=None, description="Reranking model to use")
+    reranking_model: Optional[str] = Field(
+        default="nvidia/llama-nemotron-rerank-vl-1b-v2", description="Reranking model to use"
+    )
     reranking_endpoint: Optional[str] = Field(
         default=None, description="Reranking service endpoint (None for NVIDIA API)"
     )
@@ -117,7 +121,6 @@ async def register_search_usd_knowledge(config: SearchUSDKnowledgeConfig, builde
         """Single argument - no schema needed."""
         try:
             # Sanitize user input before sending to external APIs
-            from omni_aiq_usd_code.utils.input_sanitization import sanitize_query
 
             sanitized_request = sanitize_query(request)
 
@@ -149,16 +152,19 @@ async def register_search_usd_knowledge(config: SearchUSDKnowledgeConfig, builde
             # Use config fields to modify behavior
             if config.verbose:
                 logger.debug(
-                    f"Retrieved knowledge for: {request}, rerank_k: {config.rerank_k}, enable_rerank: {config.enable_rerank}"
+                    f"Retrieved knowledge for: {_sanitize_log(request)}, rerank_k: {config.rerank_k}, enable_rerank: {config.enable_rerank}"
                 )
 
             if result["success"]:
-                return result["result"]
+                text = result["result"] or ""
+                if not text.strip():
+                    return _empty_result_sentinel()
+                return text
             else:
-                return f"ERROR: {result['error']}"
+                return f"ERROR: {_sanitize_log(result['error'], cap=500)}"
 
         except Exception as e:
-            return f"ERROR: Failed to retrieve USD knowledge - {str(e)}"
+            return f"ERROR: Failed to retrieve USD knowledge - {_sanitize_log(str(e), cap=500)}"
 
     function_info = FunctionInfo.from_fn(
         search_usd_knowledge_wrapper,

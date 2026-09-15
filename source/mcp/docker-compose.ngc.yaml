@@ -1,14 +1,15 @@
-# Docker Compose for deployment using NVIDIA NGC API for embeddings and reranking
+# Docker Compose for deployment using NVIDIA hosted APIs for embeddings and optional reranking
 #
-# This configuration uses NVIDIA's cloud-hosted embedder and reranker services
-# via your NVIDIA API key. No local GPUs are required for embeddings/reranking.
+# This configuration uses NVIDIA's cloud-hosted embedder and, when explicitly
+# enabled, hosted reranker services via your NVIDIA API key. No local GPUs are
+# required for embeddings/reranking.
 #
 # Prerequisites:
 #   - NVIDIA API key from https://build.nvidia.com/
 #   - Docker
 #
 # Usage:
-#   export NVIDIA_API_KEY=your_nvidia_api_key
+#   export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 #   docker compose -f docker-compose.ngc.yaml up --build
 #
 # To run specific services only:
@@ -25,7 +26,7 @@
 
 services:
   # ============================================================================
-  # MCP Servers - Using NVIDIA NGC API for embeddings/reranking
+  # MCP Servers - Using NVIDIA hosted APIs for embeddings/reranking
   # ============================================================================
 
   # OmniUI MCP Server - Port 9901
@@ -45,8 +46,16 @@ services:
       - KIT_LOCAL_EMBEDDER_URL=${KIT_LOCAL_EMBEDDER_URL:-}
       - KIT_RERANKER_BACKEND=${KIT_RERANKER_BACKEND:-nvidia_api}
       - KIT_LOCAL_RERANKER_URL=${KIT_LOCAL_RERANKER_URL:-}
+      # Hosted rerank is opt-in; set OVAI_RERANK=true and pin the current
+      # build.nvidia.com rerank model in OVAI_RERANK_MODEL.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9901/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -70,8 +79,16 @@ services:
       - KIT_LOCAL_EMBEDDER_URL=${KIT_LOCAL_EMBEDDER_URL:-}
       - KIT_RERANKER_BACKEND=${KIT_RERANKER_BACKEND:-nvidia_api}
       - KIT_LOCAL_RERANKER_URL=${KIT_LOCAL_RERANKER_URL:-}
+      # Hosted rerank is opt-in; set OVAI_RERANK=true and pin the current
+      # build.nvidia.com rerank model in OVAI_RERANK_MODEL.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9902/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -95,8 +112,16 @@ services:
       - KIT_LOCAL_EMBEDDER_URL=${KIT_LOCAL_EMBEDDER_URL:-}
       - KIT_RERANKER_BACKEND=${KIT_RERANKER_BACKEND:-nvidia_api}
       - KIT_LOCAL_RERANKER_URL=${KIT_LOCAL_RERANKER_URL:-}
+      # Hosted rerank is opt-in; set OVAI_RERANK=true and pin the current
+      # build.nvidia.com rerank model in OVAI_RERANK_MODEL.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9903/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -120,8 +145,16 @@ services:
       - KIT_LOCAL_EMBEDDER_URL=${KIT_LOCAL_EMBEDDER_URL:-}
       - KIT_RERANKER_BACKEND=${KIT_RERANKER_BACKEND:-nvidia_api}
       - KIT_LOCAL_RERANKER_URL=${KIT_LOCAL_RERANKER_URL:-}
+      # Hosted rerank is opt-in; set OVAI_RERANK=true and pin the current
+      # build.nvidia.com rerank model in OVAI_RERANK_MODEL.
+      - OVAI_RERANK=${OVAI_RERANK:-false}
+      - OVAI_RERANK_BACKEND=${OVAI_RERANK_BACKEND:-nvidia}
+      - OVAI_RERANK_MODEL=${OVAI_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      - OVAI_RETRIEVAL_MODE=hybrid
+      - OVAI_FUSION=rrf
+      - OVAI_QE_LOG=1
     healthcheck:
-      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9904/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
+      test: ["CMD", "curl", "-fL", "-X", "POST", "http://localhost:9904/mcp", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0.0\"}}}"]
       interval: 30s
       timeout: 10s
       retries: 3

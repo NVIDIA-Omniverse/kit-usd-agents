@@ -38,10 +38,10 @@ cp .env.example .env
 2. **Edit `.env` and add your API keys:**
 ```bash
 # Required for all deployment options
-NVIDIA_API_KEY=nvapi-xxxxx
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
 # Required only for Local NIMs deployment (Option 2)
-NGC_API_KEY=your_ngc_key
+NGC_API_KEY=REPLACE_WITH_NGC_API_KEY
 ```
 
 > **Important**: Never commit your `.env` file with real API keys. The `.env` file is already in `.gitignore`.
@@ -140,8 +140,8 @@ Run NVIDIA NIM containers locally on your own GPUs. Better latency, no rate limi
 
 1. **Ensure your `.env` file contains both keys:**
 ```bash
-NVIDIA_API_KEY=nvapi-xxxxx
-NGC_API_KEY=your_ngc_key
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
+NGC_API_KEY=REPLACE_WITH_NGC_API_KEY
 ```
 
 2. **Login to NGC registry:**
@@ -166,8 +166,8 @@ docker compose -f docker-compose.local.yaml up --build
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Embedder NIM | 8001 | `nvidia/nv-embedqa-e5-v5` |
-| Reranker NIM | 8002 | `nvidia/llama-nemotron-rerank-1b-v2` |
+| Embedder NIM | 8001 | `nvidia/nemotron-3-embed-1b` |
+| Reranker NIM | 8002 | `nvidia/llama-nemotron-rerank-vl-1b-v2` |
 | OmniUI MCP | 9901 | http://localhost:9901/mcp |
 | Kit MCP | 9902 | http://localhost:9902/mcp |
 | USD Code MCP | 9903 | http://localhost:9903/mcp |
@@ -234,7 +234,7 @@ ip route show default | awk '/default/ {print $3}'
 
 Add to your `.env`:
 ```bash
-NVIDIA_API_KEY=nvapi-xxxxx
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
 KIT_EMBEDDER_BACKEND=local
 KIT_LOCAL_EMBEDDER_URL=http://172.17.0.1:8001
@@ -247,7 +247,7 @@ KIT_LOCAL_RERANKER_URL=http://172.17.0.1:8002
 
 Add to your `.env`, substituting the actual IP of the machine running the NIMs:
 ```bash
-NVIDIA_API_KEY=nvapi-xxxxx
+NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
 KIT_EMBEDDER_BACKEND=local
 KIT_LOCAL_EMBEDDER_URL=http://192.168.1.50:8001
@@ -309,6 +309,7 @@ After Cursor (or any MCP client) invokes its first tool, the actual factory
 also logs `Creating embedder with backend: local` / `Using local embedder at ...`
 — but those lines are lazy and won't appear until a tool fires. The
 `[mcp-startup]` banner is the canonical "did my .env get through?" signal.
+For local-NIM reranking, the hybrid retrieval shim may instead log `Rerank routed to local NIM at ...`.
 
 **Red flags:**
 - `[mcp-startup] Embedder backend: nvidia_api` when you set `KIT_EMBEDDER_BACKEND=local` in `.env` — the `.env` wasn't picked up; the container is silently using the NVIDIA cloud. Confirm with `docker exec isaacsim-mcp env | grep KIT_`. Most common cause: `.env` placed in the wrong directory. Compose looks for `.env` in the directory containing `docker-compose.ngc.yaml` (i.e., `source/mcp/.env`), not in `source/mcp/isaacsim_mcp/.env`.
@@ -324,7 +325,7 @@ Your embedder must expose `/v1/embeddings` (OpenAI-compatible):
 POST /v1/embeddings
 {
   "input": ["text to embed"],
-  "model": "nvidia/nv-embedqa-e5-v5",
+  "model": "nvidia/nemotron-3-embed-1b",
   "input_type": "query"
 }
 ```
@@ -333,7 +334,7 @@ Your reranker must expose `/v1/ranking`:
 ```json
 POST /v1/ranking
 {
-  "model": "nvidia/llama-nemotron-rerank-1b-v2",
+  "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
   "query": {"text": "query"},
   "passages": [{"text": "passage1"}, {"text": "passage2"}]
 }
@@ -353,21 +354,82 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 curl -X POST http://localhost:9903/mcp/ \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+  -d '{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
 ```
 
 ---
 
 ## Environment Variables Reference
 
+### Embedder / reranker NIM selection
+
+These govern which embedding / reranking service the MCP servers talk to. Used by
+both the legacy semantic-only path and the hybrid retrieval path.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `NVIDIA_API_KEY` | NVIDIA API key (always required for LLM) | Required |
 | `NGC_API_KEY` | NGC key for pulling NIM images | Required for local NIMs |
 | `KIT_EMBEDDER_BACKEND` | `nvidia_api` or `local` | `nvidia_api` |
-| `KIT_LOCAL_EMBEDDER_URL` | URL when backend=local | - |
+| `KIT_LOCAL_EMBEDDER_URL` | URL when backend=local | — |
 | `KIT_RERANKER_BACKEND` | `nvidia_api` or `local` | `nvidia_api` |
-| `KIT_LOCAL_RERANKER_URL` | URL when backend=local | - |
+| `KIT_LOCAL_RERANKER_URL` | URL when backend=local | — |
+
+### Hybrid retrieval (ovgenai-retrieval) tuning
+
+Hybrid mode is the default starting with the `ovgenai-retrieval` migration. These
+variables route through `ovgenai_retrieval.shim.maybe_load_hybrid` so a change here
+takes effect across all four MCPs without a per-package code edit.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OVAI_RETRIEVAL_MODE` | `hybrid` or `semantic` (fall back to legacy LangChain FAISS) | `hybrid` |
+| `OVAI_FUSION` | `rrf` \| `semantic_only` \| `lexical_only` | `rrf` |
+| `OVAI_BM25_BACKEND` | `rank_bm25` \| `tantivy` \| `whoosh` | `rank_bm25` |
+| `OVAI_RERANK` | Enable a second-stage reranker on top of fusion (`true`/`false`). When unset, the legacy `*_RERANKER_BACKEND` env vars below act as a fallback signal — set one of them (e.g. `KIT_RERANKER_BACKEND=local`) and reranking is on. Set `OVAI_RERANK=false` explicitly to force-off even when a legacy var is set. | `false`, **but defaults to `true` if any legacy `*_RERANKER_BACKEND` is non-empty** |
+| `OVAI_RERANK_BACKEND` | `cross_encoder` (local sentence-transformers) or `nvidia` (hosted endpoint or local NIM via `*_LOCAL_RERANKER_URL`, uses `langchain-nvidia-ai-endpoints`). When unset, legacy `*_RERANKER_BACKEND=local` plus a local reranker URL routes to `nvidia` with that base URL; legacy `=local` without a URL falls back to `cross_encoder`; legacy `=nvidia_api` maps to `nvidia`. | `cross_encoder` |
+| `OVAI_RERANK_MODEL` | Reranker model. `NvidiaReranker` ignores values that don't start with `nvidia/` and uses its own default (`nvidia/llama-nemotron-rerank-vl-1b-v2`). Set a current `nvidia/...` value here when pinning a hosted model or matching a local NIM image. | `cross-encoder/ms-marco-MiniLM-L6-v2` |
+| `OVAI_QE_DOMAINS` | Comma-separated glossary categories that scope query expansion. Overrides per-MCP defaults (kit_mcp: `kit,ui,rendering,general`; isaacsim_mcp: `physics,sensors,ai,general`; usd_code_mcp: `usd_modules,geometry,general`; omni_ui_mcp: `ui,kit,general`). Set empty to disable. | per-package |
+
+To exercise the NVIDIA hosted reranker on any MCP, set a current rerank model
+in your `.env`:
+```bash
+OVAI_RERANK=true
+OVAI_RERANK_BACKEND=nvidia
+OVAI_RERANK_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2
+```
+
+> **NVIDIA hosted rerank model EOL (2026-05-18)**
+>
+> NVIDIA retired `nvidia/llama-3.2-nv-rerankqa-1b-v2` on 2026-05-18. Older
+> configs/images that still pin that model with `OVAI_RERANK=true` +
+> `OVAI_RERANK_BACKEND=nvidia` will hit:
+> ```
+> Exception: [410] Gone
+> This endpoint has reached its end of life on 2026-05-18T00:00:00Z and is
+> no longer available.
+> ```
+> Mitigations (pick one):
+> 1. **Pin a replacement model** in `.env`. Check
+>    [build.nvidia.com/explore/retrieval](https://build.nvidia.com/explore/retrieval)
+>    for a current `nvidia/*rerank*` model,
+>    then set:
+>    ```bash
+>    OVAI_RERANK_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2
+>    ```
+> 2. **Disable rerank** until the replacement is wired up — embedder-only hybrid
+>    (RRF fusion of BM25 + dense) still produces good results:
+>    ```bash
+>    OVAI_RERANK=false
+>    ```
+> 3. **Run the rerank NIM locally** (`docker-compose.local.yaml` Option 2) and
+>    point at it via `KIT_LOCAL_RERANKER_URL=http://<nim-host>:8002` — the shim
+>    routes that through `NvidiaReranker(base_url=...)`, so the EOL of the
+>    hosted endpoint doesn't affect on-prem deployments.
+>
+> Verified on 2026-05-18: with `OVAI_RERANK=false`, the live MCP smoke
+> (`source/mcp/mcp_tool_smoke.py`) returns 102 PASS / 0 EMPTY / 0 ERROR across
+> all four non-MaaS MCPs.
 
 ---
 

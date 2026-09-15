@@ -81,42 +81,28 @@ class GetIsaacSimExtensionDetailsInput(BaseModel):
 
 
 # Tool description
-GET_ISAAC_SIM_EXTENSION_DETAILS_DESCRIPTION = """Get detailed information about Isaac Sim extensions - SUPER FLEXIBLE INPUT!
+GET_ISAAC_SIM_EXTENSION_DETAILS_DESCRIPTION = """Fetch full metadata (description, features, version, config, Overview.md) for one or more named Isaac Sim extensions.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- You already know the Isaac Sim extension ID and want its full docs.
+- Comparing the feature sets of several Isaac Sim extensions.
+- Listing all available Isaac Sim extensions (pass null).
 
-PARAMETER:
-- extension_ids: Extension IDs in ANY convenient format:
-  * Single ID: "omni.ui"
-  * Native array: ["omni.ui", "omni.kit.window.console"] ← WORKS DIRECTLY!
-  * JSON string: '["omni.ui", "omni.kit.window.console"]'
-  * Comma-separated: "omni.ui, omni.kit.window.console"
-  * Empty/null: Lists all available extensions
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_extension_details(extension_ids=["omni.ui", "omni.ui.scene"])
-✅ Single string: get_extension_details(extension_ids="omni.ui")
-✅ JSON string: get_extension_details(extension_ids='["omni.ui", "omni.kit.window.console"]')
-✅ Comma format: get_extension_details(extension_ids="omni.ui, omni.ui.scene")
-✅ List all: get_extension_details() or get_extension_details(extension_ids=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["omni.ui", "omni.ui.scene"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- 70% faster when fetching multiple extensions
-- Single API call instead of multiple round-trips
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- extension_ids (str | list[str] | null): extension ID(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all available extensions.
 
 RETURNS:
-- For single extension: Complete extension information (2-4k tokens max)
-- For multiple extensions: Array with all extension details plus summary
-- Includes: features, dependencies, configuration options, usage patterns
-- Error handling for invalid/missing extensions
+For a single extension: full metadata including features, dependencies, configuration options, and usage patterns (long_description derived from Overview.md; longer than 500 chars gets a concise summary). For multiple extensions: an array of per-extension details plus a summary.
 
+USAGE EXAMPLES:
+get_isaac_sim_extension_details "omni.isaac.sensor"
+get_isaac_sim_extension_details ["omni.isaac.core", "omni.isaac.sensor"]
 
-NOTES:
-- long_description is derived from Overview.md. If it exceeds 500 characters, the response includes a concise summary (< 500 chars)."""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You don't know the extension name → use search_isaac_sim_extensions.
+- Specific Isaac Sim setting path → use search_isaac_sim_settings.
+- Runnable sample code → use search_isaac_sim_code_examples.
+- Non-Isaac Kit extension → use the Kit MCP's get_kit_extension_details."""
 
 
 class GetIsaacSimExtensionDetailsConfig(FunctionBaseConfig, name="get_isaac_sim_extension_details"):

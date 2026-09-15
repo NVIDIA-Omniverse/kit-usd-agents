@@ -50,7 +50,7 @@ async def check_mcp_endpoint(port: int = 9902, timeout: int = 5) -> bool:
                 "id": 1,
                 "method": "initialize",
                 "params": {
-                    "protocolVersion": "2024-11-05",
+                    "protocolVersion": "2025-11-25",
                     "capabilities": {},
                     "clientInfo": {"name": "health-check", "version": "1.0.0"},
                 },

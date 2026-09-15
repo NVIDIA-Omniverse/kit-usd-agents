@@ -34,9 +34,9 @@ The OmniUI MCP Server is a Model Context Protocol (MCP) server that provides int
 The flagship feature of version 0.2.0, this function provides semantic search capabilities for OmniUI code examples.
 
 #### What It Does
-- Converts natural language queries to embeddings using NVIDIA's nv-embedqa-e5-v5 model
+- Converts natural language queries to embeddings using NVIDIA's nemotron-3-embed-1b model
 - Performs semantic similarity search against 3,594 pre-indexed code examples
-- Optionally reranks results using NVIDIA's llama-nemotron-rerank-1b-v2 model
+- Optionally reranks results using NVIDIA's llama-nemotron-rerank-vl-1b-v2 model
 - Returns formatted code examples with metadata
 
 #### Key Features
@@ -89,12 +89,12 @@ graph LR
 ### Service Dependencies
 
 1. **Embedding Service**
-   - Model: `nvidia/nv-embedqa-e5-v5`
+   - Model: `nvidia/nemotron-3-embed-1b`
    - Endpoint: NVIDIA AI Foundation or custom
    - Converts text to 1024-dimensional vectors
 
 2. **Reranking Service**
-   - Model: `nvidia/llama-nemotron-rerank-1b-v2`
+   - Model: `nvidia/llama-nemotron-rerank-vl-1b-v2`
    - Endpoint: NVIDIA AI Foundation or custom
    - Improves relevance of search results
 
@@ -123,10 +123,10 @@ Retrieves relevant OmniUI code examples using semantic vector search.
 |-----------|------|---------|-------------|
 | `enable_rerank` | `bool` | `true` | Enable reranking of search results |
 | `rerank_k` | `int` | `10` | Number of documents to keep after reranking |
-| `embedding_model` | `str` | `nvidia/nv-embedqa-e5-v5` | Embedding model to use |
+| `embedding_model` | `str` | `nvidia/nemotron-3-embed-1b` | Embedding model to use |
 | `embedding_endpoint` | `str` | `null` | Custom embedding endpoint (null for NVIDIA API) |
 | `embedding_api_key` | `str` | `${NVIDIA_API_KEY}` | API key for embedding service |
-| `reranking_model` | `str` | `nvidia/llama-nemotron-rerank-1b-v2` | Reranking model to use |
+| `reranking_model` | `str` | `nvidia/llama-nemotron-rerank-vl-1b-v2` | Reranking model to use |
 | `reranking_endpoint` | `str` | `null` | Custom reranking endpoint (null for NVIDIA API) |
 | `reranking_api_key` | `str` | `${NVIDIA_API_KEY}` | API key for reranking service |
 
@@ -184,10 +184,10 @@ functions:
     verbose: false
     enable_rerank: true
     rerank_k: 10
-    embedding_model: nvidia/nv-embedqa-e5-v5
+    embedding_model: nvidia/nemotron-3-embed-1b
     embedding_endpoint: null  # Use NVIDIA API
     embedding_api_key: ${NVIDIA_API_KEY}
-    reranking_model: nvidia/llama-nemotron-rerank-1b-v2
+    reranking_model: nvidia/llama-nemotron-rerank-vl-1b-v2
     reranking_endpoint: null  # Use NVIDIA API
     reranking_api_key: ${NVIDIA_API_KEY}
 
@@ -211,9 +211,9 @@ For on-premise deployments or custom services:
 functions:
   get_omni_ui_code_example:
     embedding_endpoint: http://your-embedding-service:8080
-    embedding_api_key: your-custom-key
+    embedding_api_key: REPLACE_WITH_API_KEY
     reranking_endpoint: http://your-reranking-service:8081
-    reranking_api_key: your-custom-key
+    reranking_api_key: REPLACE_WITH_API_KEY
 ```
 
 ---
@@ -293,10 +293,10 @@ request = {
 **Solution**: 
 ```bash
 # Windows
-set NVIDIA_API_KEY=your_api_key_here
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
 # Linux/Mac
-export NVIDIA_API_KEY=your_api_key_here
+export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 ```
 
 #### 3. "FAISS index not found" Error

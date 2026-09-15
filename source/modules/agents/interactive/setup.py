@@ -18,7 +18,7 @@ setup(
     name="lc_agent_interactive",
     version="0.1.1",
     author="Omniverse GenAI Team",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="Interactive base for module-guided assistants",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",

@@ -13,7 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Code search service for finding Isaac Sim code examples and test patterns using FAISS."""
+"""Code search service for finding Isaac Sim code examples and test patterns using FAISS.
+
+Structurally mirrors ``kit_fns.services.code_search_service`` (Kit parity); only
+the version constant import (``ISAACSIM_VERSION``) and the docstring tags differ.
+"""
 
 import json
 import logging
@@ -21,7 +25,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..config import ISAACSIM_VERSION
+from ..config import DEFAULT_RAG_TOP_K_CODE, DEFAULT_RERANK_CODE, EMBEDDING_MODEL, ISAACSIM_VERSION
 from .embedder_service import EmbedderFactory
 
 logger = logging.getLogger(__name__)
@@ -67,6 +71,8 @@ class CodeSearchService:
         self.code_vectorstore = None  # For regular/production code
         self.test_vectorstore = None  # For test code
         self.embedder = None
+        self._hybrid_code = None  # ovgenai-retrieval HybridRetriever if enabled
+        self._hybrid_test = None
 
         # Initialize fallback data
         self.code_examples_data = None
@@ -84,7 +90,7 @@ class CodeSearchService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model="nvidia/nv-embedqa-e5-v5")
+            self.embedder = EmbedderFactory.create(model=EMBEDDING_MODEL)
 
             # Try to load regular code FAISS index (priority order: regular, all, legacy)
             code_faiss_loaded = False
@@ -117,6 +123,21 @@ class CodeSearchService:
             if not code_faiss_loaded:
                 logger.warning("No code examples FAISS database found")
 
+            # Optional hybrid path via ovgenai-retrieval (OVAI_RETRIEVAL_MODE=hybrid)
+            if code_faiss_loaded:
+                try:
+                    from ..utils.hybrid_shim import maybe_load_hybrid
+
+                    for _path in [CODE_EXAMPLES_FAISS_PATHS.get(m) for m in ("regular", "all")] + [
+                        LEGACY_CODE_EXAMPLES_FAISS_PATH
+                    ]:
+                        if _path and _path.exists():
+                            self._hybrid_code = maybe_load_hybrid(str(_path), self.embedder, top_k=20)
+                            if self._hybrid_code is not None:
+                                break
+                except Exception as e:
+                    logger.warning(f"Hybrid code retriever init failed: {e}")
+
             # Try to load test examples FAISS index (priority order: tests, all, use code vectorstore)
             test_faiss_loaded = False
             for mode in ["tests", "all"]:
@@ -139,6 +160,21 @@ class CodeSearchService:
                     logger.info("Using code examples FAISS database for test searches")
                 else:
                     logger.warning("No test examples FAISS database found")
+
+            # Optional hybrid path for test retriever (falls back to code hybrid when no test bundle)
+            try:
+                from ..utils.hybrid_shim import maybe_load_hybrid
+
+                if test_faiss_loaded:
+                    for _path in [CODE_EXAMPLES_FAISS_PATHS.get(m) for m in ("tests", "all")]:
+                        if _path and _path.exists():
+                            self._hybrid_test = maybe_load_hybrid(str(_path), self.embedder, top_k=20)
+                            if self._hybrid_test is not None:
+                                break
+                if self._hybrid_test is None:
+                    self._hybrid_test = self._hybrid_code
+            except Exception as e:
+                logger.warning(f"Hybrid test retriever init failed: {e}")
 
         except Exception as e:
             logger.error(f"Failed to initialize FAISS: {e}")
@@ -330,12 +366,16 @@ class CodeSearchService:
             or (self.test_examples_data is not None and len(self.test_examples_data) > 0)
         )
 
-    def search_code_examples(self, query: str, top_k: int = 20) -> List[Dict[str, Any]]:
-        """Search for code examples using semantic search with FAISS.
+    def search_code_examples(
+        self, query: str, top_k: int = DEFAULT_RAG_TOP_K_CODE, reranker=None, rerank_k: int = DEFAULT_RERANK_CODE
+    ) -> List[Dict[str, Any]]:
+        """Search for code examples using semantic search with FAISS and optional reranking.
 
         Args:
             query: Search query describing desired functionality
-            top_k: Number of results to return (default: 20)
+            top_k: Number of results to return (default: DEFAULT_RAG_TOP_K_CODE)
+            reranker: Optional reranker instance for improving result relevance
+            rerank_k: Number of results to keep after reranking (default: DEFAULT_RERANK_CODE)
 
         Returns:
             List of relevant code examples with scores
@@ -345,12 +385,20 @@ class CodeSearchService:
 
         results = []
 
-        # Use FAISS semantic search if available
-        if self.code_vectorstore:
+        # Use FAISS semantic search if available (hybrid when enabled)
+        if self.code_vectorstore or self._hybrid_code is not None:
             try:
-                # Perform similarity search
-                docs_with_scores = self.code_vectorstore.similarity_search_with_score(query, k=top_k * 2)
+                # Hybrid path takes precedence when enabled.
+                if self._hybrid_code is not None:
+                    from ..utils.hybrid_shim import hits_to_documents_with_scores
 
+                    docs_with_scores = hits_to_documents_with_scores(self._hybrid_code.retrieve(query, top_k=top_k))
+                else:
+                    # Perform similarity search
+                    docs_with_scores = self.code_vectorstore.similarity_search_with_score(query, k=top_k)
+
+                # Collect all candidate results first
+                candidate_results = []
                 for doc, score in docs_with_scores:
                     metadata = doc.metadata
 
@@ -377,12 +425,39 @@ class CodeSearchService:
                         "code": source_code,
                         "tags": self._extract_tags_from_metadata(metadata),
                         "relevance_score": float(1.0 / (1.0 + score)),  # Convert distance to similarity
+                        "page_content": doc.page_content,
                     }
 
-                    results.append(result)
+                    candidate_results.append(result)
 
-                    if len(results) >= top_k:
-                        break
+                # Apply reranking if available
+                if reranker and candidate_results:
+                    try:
+                        # Extract texts for reranking
+                        texts = [result["page_content"] for result in candidate_results]
+
+                        # Rerank documents
+                        reranked_results = reranker.rerank(query, texts, top_k=rerank_k)
+
+                        # Reorder results based on reranking
+                        reranked_candidate_indices = []
+                        for rank_result in reranked_results:
+                            idx = rank_result["index"]
+                            if idx < len(candidate_results):
+                                reranked_candidate_indices.append(idx)
+
+                        # Use reranked results if we have them, otherwise fall back to original
+                        results = (
+                            list(map(lambda idx: candidate_results[idx], reranked_candidate_indices[:rerank_k]))
+                            if reranked_candidate_indices
+                            else candidate_results[:rerank_k]
+                        )
+                    except Exception as e:
+                        logger.warning(f"Reranking failed: {e}, using original results")
+                        results = candidate_results[:rerank_k]
+                else:
+                    # No reranking, use original results
+                    results = candidate_results[:rerank_k]
 
             except Exception as e:
                 logger.error(f"FAISS search failed: {e}")
@@ -394,12 +469,16 @@ class CodeSearchService:
 
         return results
 
-    def search_test_examples(self, query: str, top_k: int = 20) -> List[Dict[str, Any]]:
-        """Search for test examples using semantic search with FAISS.
+    def search_test_examples(
+        self, query: str, top_k: int = DEFAULT_RAG_TOP_K_CODE, reranker=None, rerank_k: int = DEFAULT_RERANK_CODE
+    ) -> List[Dict[str, Any]]:
+        """Search for test examples using semantic search with FAISS and optional reranking.
 
         Args:
             query: Search query describing test scenario
-            top_k: Number of results to return (default: 20)
+            top_k: Number of results to return (default: DEFAULT_RAG_TOP_K_CODE)
+            reranker: Optional reranker instance for improving result relevance
+            rerank_k: Number of results to keep after reranking (default: DEFAULT_RERANK_CODE)
 
         Returns:
             List of relevant test examples with scores
@@ -409,12 +488,20 @@ class CodeSearchService:
 
         results = []
 
-        # Use FAISS semantic search if available
-        if self.test_vectorstore:
+        # Use FAISS semantic search if available (hybrid when enabled)
+        if self.test_vectorstore or self._hybrid_test is not None:
             try:
-                # Perform similarity search
-                docs_with_scores = self.test_vectorstore.similarity_search_with_score(query, k=top_k * 2)
+                # Hybrid path takes precedence when enabled.
+                if self._hybrid_test is not None:
+                    from ..utils.hybrid_shim import hits_to_documents_with_scores
 
+                    docs_with_scores = hits_to_documents_with_scores(self._hybrid_test.retrieve(query, top_k=top_k))
+                else:
+                    # Perform similarity search
+                    docs_with_scores = self.test_vectorstore.similarity_search_with_score(query, k=top_k)
+
+                # Collect all candidate results first
+                candidate_results = []
                 for doc, score in docs_with_scores:
                     metadata = doc.metadata
 
@@ -446,19 +533,46 @@ class CodeSearchService:
                         "code": source_code,
                         "tags": self._extract_tags_from_metadata(metadata),
                         "relevance_score": float(1.0 / (1.0 + score)),
+                        "page_content": doc.page_content,
                     }
 
-                    results.append(result)
+                    candidate_results.append(result)
 
-                    if len(results) >= top_k:
-                        break
+                # Apply reranking if available
+                if reranker and candidate_results:
+                    try:
+                        # Extract texts for reranking
+                        texts = [result["page_content"] for result in candidate_results]
+
+                        # Rerank documents
+                        reranked_results = reranker.rerank(query, texts, top_k=rerank_k)
+
+                        # Reorder results based on reranking
+                        reranked_candidate_indices = []
+                        for rank_result in reranked_results:
+                            idx = rank_result["index"]
+                            if idx < len(candidate_results):
+                                reranked_candidate_indices.append(idx)
+
+                        # Use reranked results if we have them, otherwise fall back to original
+                        results = (
+                            list(map(lambda idx: candidate_results[idx], reranked_candidate_indices[:rerank_k]))
+                            if reranked_candidate_indices
+                            else candidate_results[:rerank_k]
+                        )
+                    except Exception as e:
+                        logger.warning(f"Reranking failed: {e}, using original results")
+                        results = candidate_results[:rerank_k]
+                else:
+                    # No reranking, use original results
+                    results = candidate_results[:rerank_k]
 
             except Exception as e:
                 logger.error(f"FAISS test search failed: {e}")
 
         # Fallback to test examples data
         if not results and self.test_examples_data:
-            results = self._keyword_search(query, self.test_examples_data, top_k)
+            results = self._keyword_search(query, self.test_examples_data, rerank_k)
 
         return results
 

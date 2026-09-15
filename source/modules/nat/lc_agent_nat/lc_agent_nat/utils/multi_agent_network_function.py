@@ -18,7 +18,7 @@ from typing import Optional
 
 from nat.builder.builder import Builder
 from nat.builder.function import Function, FunctionGroup
-from nat.data_models.api_server import AIQChatRequest
+from nat.data_models.api_server import ChatRequest
 
 from lc_agent import get_node_factory
 from .lc_agent_function import LCAgentFunction
@@ -26,7 +26,7 @@ from ..nodes.function_runnable_node import FunctionRunnableNode, ValidationError
 
 
 class MultiAgentNetworkFunction(LCAgentFunction):
-    async def pre_invoke(self, value: AIQChatRequest) -> None:
+    async def pre_invoke(self, value: ChatRequest) -> None:
         # Get the tool names from the config
         function_names = self.config.tool_names
         self.filtered_function_names = []
@@ -74,7 +74,7 @@ class MultiAgentNetworkFunction(LCAgentFunction):
 
         await super().pre_invoke(value)
 
-    async def post_invoke(self, value: AIQChatRequest, success: bool = True, error: Optional[Exception] = None) -> None:
+    async def post_invoke(self, value: ChatRequest, success: bool = True, error: Optional[Exception] = None) -> None:
         # Unregister all the functions we registered (including those from function groups)
         for name in self.filtered_function_names:
             # Try to get it as a regular function

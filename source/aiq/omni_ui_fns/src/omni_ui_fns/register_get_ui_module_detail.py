@@ -99,38 +99,29 @@ class GetUIModuleDetailInput(BaseModel):
 
 
 # Tool description
-GET_UI_MODULE_DETAIL_DESCRIPTION = """Get detailed information about OmniUI modules - SUPER FLEXIBLE INPUT!
+GET_UI_MODULE_DETAIL_DESCRIPTION = """Inspect one or more omni.ui modules — lists the classes, functions, and owning extensions in each module.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- "What's in omni.ui / omni.ui.scene / omni.ui.workspace?"
+- Picking the right class from a module before calling get_ui_class_detail.
+- Comparing module contents side-by-side.
 
-PARAMETER:
-- module_names: Module names in ANY convenient format:
-  * Single module string: "omni.ui"
-  * Native array: ["omni.ui", "omni.ui.scene", "omni.ui.workspace"] ← WORKS DIRECTLY!
-  * JSON string: '["omni.ui", "omni.ui.scene", "omni.ui.workspace"]'
-  * Comma-separated: "omni.ui, omni.ui.scene, omni.ui.workspace"
-  * Empty/null: Lists all available modules
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_ui_module_detail(module_names=["omni.ui", "omni.ui.scene"])
-✅ Single string: get_ui_module_detail(module_names="omni.ui")
-✅ JSON string: get_ui_module_detail(module_names='["omni.ui", "omni.ui.scene", "omni.ui.workspace"]')
-✅ Comma format: get_ui_module_detail(module_names="omni.ui, omni.ui.scene, omni.ui.workspace") 
-✅ List all: get_ui_module_detail() or get_ui_module_detail(module_names=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["omni.ui", "omni.ui.scene"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- 70% faster when fetching multiple modules
-- Single API call instead of multiple round-trips
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- module_names (str | list[str] | null): module name(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all modules.
 
 RETURNS:
-- For single module: Standard JSON with module details
-- For multiple modules: Array with all module details plus metadata
-- Includes: classes, functions, file paths, extensions for each module
-- Error handling for invalid/missing modules"""
+For a single module: module details (classes, functions, file paths, extensions). For multiple modules: array of per-module details plus metadata.
+
+USAGE EXAMPLES:
+get_ui_module_detail "omni.ui"
+get_ui_module_detail ["omni.ui", "omni.ui.scene"]
+get_ui_module_detail "omni.ui.workspace"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You don't know which module → use list_ui_modules.
+- You want a class's full signature → use get_ui_class_detail.
+- You want a method's detail → use get_ui_method_detail.
+- You want working code → use search_ui_code_examples."""
 
 
 class GetUIModuleDetailConfig(FunctionBaseConfig, name="get_ui_module_detail"):

@@ -12,7 +12,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessageChunk
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-from nat.data_models.config import AIQConfig
+from nat.data_models.config import Config
 from nat.builder.workflow_builder import WorkflowBuilder
 import copy
 from lc_agent import RunnableNetwork
@@ -42,7 +42,7 @@ class NATWrapper(BaseChatModel):
             chat_model_name: Optional name of the chat model to use, overrides the instance default
 
         Returns:
-            AIQConfig: Validated configuration object ready for NAT
+            Config: Validated configuration object ready for NAT
         """
         # Create a deep copy of the configuration to avoid modifying the original
         nat_config = copy.deepcopy(self._nat_config)
@@ -77,7 +77,7 @@ class NATWrapper(BaseChatModel):
             nat_config["workflow"] = workflow
 
         # Validate the configuration using NAT's validation system
-        return AIQConfig.model_validate(nat_config)
+        return Config.model_validate(nat_config)
 
     def _get_child_network_of_parent_node(self):
         """Find the child network created by the parent node.
@@ -90,7 +90,7 @@ class NATWrapper(BaseChatModel):
         which is the child network of that parent.
 
         This is used to identify networks created by lc_agent_function.py when
-        AIQWrapper is invoked within a parent RunnableNetwork context.
+        NATWrapper is invoked within a parent RunnableNetwork context.
 
         Returns:
             RunnableNetwork or None: The child network if found, None otherwise.

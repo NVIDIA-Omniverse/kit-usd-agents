@@ -38,7 +38,7 @@ ENV_LOCAL_EMBEDDER_URL = "KIT_LOCAL_EMBEDDER_URL"  # URL for local embedder
 class LocalEmbedder:
     """Wrapper for local embedder API that mimics LangChain embeddings interface."""
 
-    def __init__(self, base_url: str, model: str = "nvidia/nv-embedqa-e5-v5"):
+    def __init__(self, base_url: str, model: str = "nvidia/nemotron-3-embed-1b"):
         """Initialize local embedder.
 
         Args:
@@ -78,7 +78,7 @@ class LocalEmbedder:
             payload = {
                 "input": texts,
                 "model": self.model,
-                "input_type": "search_document",
+                "input_type": "passage",
             }
 
             response = self._requests.post(url, json=payload, headers=headers, timeout=30)
@@ -149,7 +149,7 @@ class EmbedderFactory:
     @staticmethod
     def create(
         api_key: Optional[str] = None,
-        model: str = "nvidia/nv-embedqa-e5-v5",
+        model: str = "nvidia/nemotron-3-embed-1b",
         backend: Optional[str] = None,
         local_url: Optional[str] = None,
     ) -> Any:
@@ -206,7 +206,7 @@ class EmbedderFactory:
     @staticmethod
     def get_instance(
         api_key: Optional[str] = None,
-        model: str = "nvidia/nv-embedqa-e5-v5",
+        model: str = "nvidia/nemotron-3-embed-1b",
         backend: Optional[str] = None,
         local_url: Optional[str] = None,
     ) -> Any:

@@ -98,53 +98,33 @@ class GetUIStyleDocsInput(BaseModel):
 
 
 # Tool description
-GET_UI_STYLE_DOCS_DESCRIPTION = """Retrieve comprehensive OmniUI style documentation - SUPER FLEXIBLE INPUT!
+GET_UI_STYLE_DOCS_DESCRIPTION = """Canonical omni.ui styling reference — syntax, units, fonts, shades/themes, and per-widget style properties.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
-
-PARAMETER:
-- sections: Section names in ANY convenient format:
-  * Single section string: "buttons" or "widgets"
-  * Native array: ["buttons", "widgets", "containers"] ← WORKS DIRECTLY!
-  * JSON string: '["buttons", "widgets", "containers"]'
-  * Comma-separated: "buttons, widgets, containers"
-  * Empty/null: Gets complete combined documentation
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_ui_style_docs(sections=["buttons", "widgets"])
-✅ Single string: get_ui_style_docs(sections="buttons")
-✅ JSON string: get_ui_style_docs(sections='["buttons", "widgets", "containers"]')
-✅ Comma format: get_ui_style_docs(sections="buttons, widgets, containers")
-✅ Complete docs: get_ui_style_docs() or get_ui_style_docs(sections=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["buttons", "widgets"] - no need to convert to strings!
+WHEN TO USE THIS TOOL:
+- "How do I style a Button / Slider / Window?"
+- Looking up colors, shades, fonts, units, or theme (dark/light) rules.
+- Implementing custom selectors or state-based styling (hover / pressed / disabled).
 
 AVAILABLE SECTIONS:
-- **overview**: High-level introduction to OmniUI styling system
-- **styling**: Core styling syntax and rules
-- **units**: Measurement system for UI elements (px, %, em, rem)
-- **fonts**: Typography system and text styling
-- **shades**: Color palettes and theme management (dark/light modes)
-- **window**: Window-level styling and frame customization
-- **containers**: Layout components (Frame, Stack, Grid, ScrollArea)
-- **widgets**: Individual UI components (Label, Input, Checkbox, ComboBox, etc.)
-- **buttons**: Button variations and states (normal, hover, pressed, disabled)
-- **sliders**: Slider and range components with customization options
-- **shapes**: Basic geometric elements (Rectangle, Circle, Triangle, Polygon)
-- **line**: Line and curve elements with styling options
+- "overview", "styling" (core syntax), "units" (px, %, em, rem), "fonts", "shades" (palettes / themes).
+- "window", "containers" (Frame, Stack, Grid, ScrollArea), "widgets" (Label, Input, Checkbox, ComboBox).
+- "buttons", "sliders", "shapes", "line".
+
+ARGUMENTS:
+- sections (str | list[str] | null): one or more section names; accepts single string, list, JSON-array string, or comma-separated string. Null returns the complete combined documentation (~37.8k tokens).
 
 RETURNS:
-- For single section: Section content with metadata
-- For multiple sections: Dictionary of sections with their content
-- For combined: Complete documentation with all sections (37,820+ tokens)
-- Includes: Property descriptions, usage examples, and best practices
-- Maximum compatibility with all AI models
+For a single section: section content with metadata. For multiple sections: a dictionary keyed by section. For null: the complete combined docs.
 
-USE CASES:
-- Learning OmniUI styling syntax and customization
-- Finding specific styling properties for UI components
-- Understanding theme and color management systems
-- Implementing custom widget styles and layouts"""
+USAGE EXAMPLES:
+get_ui_style_docs "buttons"
+get_ui_style_docs ["shades", "fonts"]
+get_ui_style_docs null
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- Widget structure / class methods, not style rules → use get_ui_class_detail.
+- Example code applying styles → use search_ui_code_examples.
+- General omni.ui playbook → use get_ui_instructions."""
 
 
 class GetUIStyleDocsConfig(FunctionBaseConfig, name="get_ui_style_docs"):

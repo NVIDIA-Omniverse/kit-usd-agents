@@ -99,38 +99,30 @@ class GetUIClassDetailInput(BaseModel):
 
 
 # Tool description
-GET_UI_CLASS_DETAIL_DESCRIPTION = """Get detailed information about OmniUI classes - SUPER FLEXIBLE INPUT!
+GET_UI_CLASS_DETAIL_DESCRIPTION = """Inspect one or more omni.ui classes — full docstring, methods, parent classes, and metadata.
 
-🚀 FLEXIBLE API: Accepts ANY input format - strings, arrays, JSON - whatever is natural!
+WHEN TO USE THIS TOOL:
+- "What methods does ui.Button / ui.TreeView / ui.Window have?"
+- Disambiguating between similar widget classes.
+- Batch inspection of several OmniUI classes.
 
-PARAMETER:
-- class_names: Class names in ANY convenient format:
-  * Single class string: "TreeView"
-  * Native array: ["Button", "Label", "TreeView"] ← WORKS DIRECTLY!
-  * JSON string: '["Button", "Label", "TreeView"]'
-  * Comma-separated: "Button, Label, TreeView"
-  * Empty/null: Lists all available classes
-
-USAGE EXAMPLES (ALL FORMATS WORK):
-✅ Direct array: get_ui_class_detail(class_names=["TreeView", "Window"])
-✅ Single string: get_ui_class_detail(class_names="TreeView")
-✅ JSON string: get_ui_class_detail(class_names='["Button", "Label", "TreeView"]')
-✅ Comma format: get_ui_class_detail(class_names="Button, Label, TreeView")
-✅ List all: get_ui_class_detail() or get_ui_class_detail(class_names=null)
-
-💡 FOR AI MODELS: You can pass arrays directly like ["TreeView", "Window"] - no need to convert to strings!
-
-BATCH PROCESSING BENEFITS:
-- 80% faster when fetching multiple classes
-- Single API call instead of multiple round-trips
-- Efficient context window usage
-- Maximum compatibility with all AI models
+ARGUMENTS:
+- class_names (str | list[str] | null): class name(s); accepts single string, list, JSON-array string, or comma-separated string. Null lists all classes.
 
 RETURNS:
-- For single class: Standard JSON with class details
-- For multiple classes: Array with all class details plus metadata
-- Includes: full_name, methods, parent_classes, docstring, etc.
-- Error handling for invalid/missing classes"""
+For a single class: JSON with full_name, methods, parent_classes, docstring. For multiple classes: array of per-class details plus metadata.
+
+USAGE EXAMPLES:
+get_ui_class_detail "TreeView"
+get_ui_class_detail ["Button", "Label", "TreeView"]
+get_ui_class_detail "Window"
+
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You don't know the class name → use list_ui_classes.
+- You want usage patterns / guidance → use get_ui_class_instructions.
+- You want a specific method's signature → use get_ui_method_detail.
+- You want working example code → use search_ui_code_examples.
+- Styling rules → use get_ui_style_docs."""
 
 
 class GetUIClassDetailConfig(FunctionBaseConfig, name="get_ui_class_detail"):

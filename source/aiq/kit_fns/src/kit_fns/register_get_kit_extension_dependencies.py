@@ -38,46 +38,30 @@ class GetKitExtensionDependenciesInput(BaseModel):
 
 
 # Tool description
-GET_KIT_EXTENSION_DEPENDENCIES_DESCRIPTION = """Analyze and visualize Kit extension dependency graphs.
+GET_KIT_EXTENSION_DEPENDENCIES_DESCRIPTION = """Walk the dependency tree of a named Kit extension and surface version requirements, optional deps, and potential conflicts.
 
-WHAT IT DOES:
-- Analyzes dependency tree for specified extension
-- Provides hierarchical dependency information
-- Shows required and optional dependencies
-- Identifies potential dependency conflicts
-- Returns version requirements and compatibility info
-
-ANALYSIS FEATURES:
-- Recursive dependency traversal
-- Configurable depth exploration
-- Optional dependency inclusion
-- Dependency conflict detection
-- Version requirement analysis
+WHEN TO USE THIS TOOL:
+- "What does extension X depend on?"
+- Diagnosing missing-extension errors or resolving load order.
+- Auditing a dependency chain before pinning versions.
 
 ARGUMENTS:
-- extension_id (str): Extension ID to analyze (e.g., "omni.ui", "omni.kit.window.console")
-- depth (int, optional): Tree depth to explore (default: 2, max recommended: 5)
-- include_optional (bool, optional): Include optional dependencies (default: false)
+- extension_id (str): extension ID to analyze (e.g. "omni.ui").
+- depth (int, optional): tree depth to explore (default 2; recommended max 5).
+- include_optional (bool, optional): include optional dependencies (default false).
 
 RETURNS:
-Dependency tree information including:
-- Extension name and version
-- Required dependencies at each level
-- Optional dependencies (if requested)
-- Dependency hierarchy structure
-- Version requirements
-- Potential conflicts or circular dependencies
+Hierarchical dependency tree with extension name/version, required dependencies per level, optional dependencies (when requested), version requirements, and any circular-dependency warnings.
 
 USAGE EXAMPLES:
-get_extension_dependencies("omni.ui")
-get_extension_dependencies("omni.kit.window.console", depth=3)
-get_extension_dependencies("omni.ui.scene", include_optional=true)
+get_kit_extension_dependencies "omni.ui"
+get_kit_extension_dependencies "omni.kit.window.console" depth=3
+get_kit_extension_dependencies "omni.ui.scene" include_optional=true
 
-TIPS:
-- Use depth=1 for immediate dependencies only
-- Use depth=3+ for complete dependency analysis
-- Enable include_optional for comprehensive dependency mapping
-- Monitor for circular dependencies in complex extension trees"""
+WHEN TO USE A DIFFERENT TOOL INSTEAD:
+- You want the extension's APIs, not its deps → use get_kit_extension_apis.
+- You want metadata (description, version, features) → use get_kit_extension_details.
+- You don't know the extension name → use search_kit_extensions first."""
 
 
 class GetKitExtensionDependenciesConfig(FunctionBaseConfig, name="get_kit_extension_dependencies"):

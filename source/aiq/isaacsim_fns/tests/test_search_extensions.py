@@ -361,7 +361,7 @@ async def run_all_tests():
     # Check if NVIDIA_API_KEY is set
     if not os.getenv("NVIDIA_API_KEY"):
         print("\n[WARNING] NVIDIA_API_KEY not set. FAISS search may use fallback.")
-        print("Set it with: set NVIDIA_API_KEY=your_api_key")
+        print("Set it with: set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY")
 
     # List of all test functions
     tests = [

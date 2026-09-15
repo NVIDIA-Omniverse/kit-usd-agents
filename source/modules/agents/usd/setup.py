@@ -35,7 +35,7 @@ setup(
     name="lc_agent_usd",
     version="0.2.5",
     author="Omniverse GenAI Team",
-    author_email="doyopk-org@exchange.nvidia.com",
+    author_email="NVIDIA Omniverse",
     description="USD Code Agent",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

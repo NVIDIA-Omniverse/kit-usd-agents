@@ -1,5 +1,5 @@
 [package]
-version = "1.2.3"
+version = "1.2.4"
 authors = ["Omniverse GenAI Team"]
 title = "Headless USD Agent (Preview)"
 description = "Headless USD manipulation through AI-assisted code generation for Kit applications"
@@ -32,8 +32,8 @@ prompt = ""
 # Agent type to use for USD manipulation (default: "USD Code Interactive")
 agent = "USD Code Interactive"
 
-# AI model to use for code generation (default: "nvidia/usdcode-llama-3.1-70b-instruct")
-model = "nvidia/usdcode-llama-3.1-70b-instruct"
+# AI model to use for code generation
+model = "openai/gpt-oss-120b"
 
 # Path to the USD file to manipulate
 stage = ""

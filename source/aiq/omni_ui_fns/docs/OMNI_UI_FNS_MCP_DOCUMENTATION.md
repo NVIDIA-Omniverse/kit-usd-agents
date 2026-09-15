@@ -86,8 +86,8 @@ This system eliminates the need for AI models to navigate complex UI documentati
 - **FAISS**: High-performance semantic search with NVIDIA embeddings
 - **Pydantic**: Input validation and schema definition
 - **Redis**: Distributed telemetry and usage tracking
-- **NVIDIA Embeddings**: nv-embedqa-e5-v5 for semantic understanding
-- **NVIDIA Reranking**: llama-nemotron-rerank-1b-v2 for relevance scoring
+- **NVIDIA Embeddings**: nemotron-3-embed-1b for semantic understanding
+- **NVIDIA Reranking**: llama-nemotron-rerank-vl-1b-v2 for relevance scoring
 - **Python 3.11+**: Core implementation language
 
 ---
@@ -199,14 +199,14 @@ Comprehensive telemetry captures:
 **Purpose**: Provides semantic search capabilities using FAISS vector databases and NVIDIA embeddings.
 
 **Key Components**:
-- **Embeddings**: Converts queries to vectors using NVIDIA's nv-embedqa-e5-v5 model
+- **Embeddings**: Converts queries to vectors using NVIDIA's nemotron-3-embed-1b model
 - **FAISS Search**: Performs similarity search across indexed code examples
 - **Context Formatting**: Structures results for RAG consumption
 
 **Configuration Options**:
 ```python
 {
-    "model": "nvidia/nv-embedqa-e5-v5",
+    "model": "nvidia/nemotron-3-embed-1b",
     "endpoint": None,  # Uses NVIDIA API by default
     "api_key": "${NVIDIA_API_KEY}"
 }
@@ -224,13 +224,13 @@ Comprehensive telemetry captures:
 
 **How It Works**:
 1. Receives top-k candidates from FAISS search (typically 90)
-2. Uses NVIDIA's llama-nemotron-rerank-1b-v2 model to score relevance
+2. Uses NVIDIA's llama-nemotron-rerank-vl-1b-v2 model to score relevance
 3. Returns top-n most relevant results (typically 10)
 
 **Configuration Options**:
 ```python
 {
-    "model": "nvidia/llama-nemotron-rerank-1b-v2",
+    "model": "nvidia/llama-nemotron-rerank-vl-1b-v2",
     "endpoint": None,  # Uses NVIDIA API by default
     "api_key": "${NVIDIA_API_KEY}"
 }
@@ -830,13 +830,13 @@ get_ui_style_docs(None)  # Complete documentation
 1. **faiss_index_omni_ui/**: Code examples embeddings
    - Curated OmniUI implementations from extensions
    - Production code patterns and widget usage
-   - NVIDIA nv-embedqa-e5-v5 embeddings
+   - NVIDIA nemotron-3-embed-1b embeddings
    - Schema: file paths, method names, source code
 
 2. **ui_window_examples_faiss/**: Window examples embeddings
    - Window and dialog implementations
    - Complete code with descriptions
-   - NVIDIA nv-embedqa-e5-v5 embeddings
+   - NVIDIA nemotron-3-embed-1b embeddings
    - Schema: descriptions, code, file paths, class/function names
 
 ### UI Atlas Database

@@ -27,6 +27,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
+
+# The retrieval pipeline depends on ``ovgenai_retrieval.maybe_load_hybrid``,
+# which is deliberately *not* listed as a poetry dep so a fresh
+# ``poetry install`` doesn't need network access (see
+# ``utils/_retrieval_compat.py``). The lib IS installed in the production
+# docker build path via ``source/mcp/build-wheels.sh``. Skip this whole
+# module when running in the poetry-only env that lacks the wheel
+# *or* has a stale copy that predates ``maybe_load_hybrid``.
+try:
+    from ovgenai_retrieval import maybe_load_hybrid  # noqa: F401 — availability probe
+except ImportError:
+    pytest.skip(
+        "ovgenai_retrieval.maybe_load_hybrid not importable (poetry-only env or stale lib)",
+        allow_module_level=True,
+    )
+
 from omni_ui_fns.config import FAISS_CODE_INDEX_PATH
 from omni_ui_fns.functions.get_code_examples import get_code_examples
 from omni_ui_fns.services.retrieval import Retriever, get_rag_context_omni_ui_code
@@ -72,7 +88,7 @@ def test_retriever_initialization():
 
         # Create embedding config
         embedding_config = {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -111,7 +127,7 @@ def test_retriever_search():
 
         # Create embedding config
         embedding_config = {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -196,7 +212,7 @@ def test_rag_context_formatting():
 
         # Create embedding config
         embedding_config = {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -274,7 +290,7 @@ async def test_get_code_examples_async():
 
         # Create configs
         embedding_config = {
-            "model": "nvidia/nv-embedqa-e5-v5",
+            "model": "nvidia/nemotron-3-embed-1b",
             "endpoint": None,
             "api_key": api_key,
         }
@@ -372,7 +388,7 @@ async def test_get_code_examples_returns_valid_python():
 
     # Create embedding config
     embedding_config = {
-        "model": "nvidia/nv-embedqa-e5-v5",
+        "model": "nvidia/nemotron-3-embed-1b",
         "endpoint": None,
         "api_key": api_key,
     }
