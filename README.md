@@ -1,6 +1,6 @@
 # Kit USD Agents
 
-AI-powered development tools for NVIDIA Omniverse, including Chat USD and Model Context Protocol (MCP) servers for Kit, USD, OmniUI, and Isaac Sim development.
+AI-powered development tools for NVIDIA Omniverse, including Chat USD and Model Context Protocol (MCP) servers for Kit, Universal Scene Description (USD), OmniUI, and Isaac Sim development.
 
 ## What's Included
 
@@ -22,7 +22,7 @@ Chat USD is an AI assistant that runs inside NVIDIA Omniverse Kit, enabling natu
 Four standalone [Model Context Protocol](https://modelcontextprotocol.io/) servers that integrate with AI coding assistants like Claude, Cursor, and other MCP-compatible tools.
 
 #### USD Code MCP Server
-Provides USD/OpenUSD API assistance with 7 specialized tools:
+Provides [USD/OpenUSD](https://openusd.org/) API assistance with 7 specialized tools:
 - Browse USD modules and classes
 - Get detailed class, module, and method API documentation
 - Search code examples with semantic search
