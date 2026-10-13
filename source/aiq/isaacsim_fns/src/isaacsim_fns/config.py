@@ -97,7 +97,7 @@ def get_env_float(env_var: str, default: float) -> float:
 # Runtime configuration
 MCP_PORT = get_env_int(ENV_MCP_PORT, DEFAULT_MCP_PORT)
 USAGE_LOGGING_ENABLED = not get_env_bool(ENV_DISABLE_LOGGING, False)
-ISAACSIM_VERSION = os.environ.get(ENV_ISAACSIM_VERSION, "6.1")
+ISAACSIM_VERSION = os.environ.get(ENV_ISAACSIM_VERSION, "6.2")
 
 # Model selection. These are the values the services actually use; the DEFAULT_*
 # constants above are only the fallback. Hosted models get retired periodically

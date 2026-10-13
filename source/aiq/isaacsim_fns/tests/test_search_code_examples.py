@@ -351,3 +351,91 @@ async def test_python_code_validation():
 
     assert all_passed, f"Some code blocks had invalid Python syntax"
     logger.info(f"✅ All {total_code_blocks} code blocks contain valid Python")
+
+
+# ---------------------------------------------------------------------------
+# Embedding-backend failures must surface as errors, not as "no results".
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def code_search_service_with_failing_embedder(tmp_path, monkeypatch, request):
+    """Build a real CodeSearchService over a tiny on-disk index whose embedder always fails.
+
+    Keyword-fallback data is also present, so the test proves a backend failure is
+    not masked by either an empty result or unrelated keyword matches.
+    """
+    import json
+
+    import isaacsim_fns.services.code_search_service as code_search_module
+    from mock_embedding_backend import FailingEmbedder, write_faiss_bundle
+
+    bundle = write_faiss_bundle(
+        tmp_path / "code_examples_faiss",
+        [
+            ("create_articulation", {"name": "create_articulation", "file_path": "isaacsim/core/api/robot.py"}),
+            ("test_create_articulation", {"name": "test_create_articulation", "file_path": "tests/test_robot.py"}),
+        ],
+    )
+    methods_dir = tmp_path / "extracted_methods_regular"
+    methods_dir.mkdir()
+    (methods_dir / "isaacsim.core.api.example.json").write_text(
+        json.dumps(
+            {
+                "extension_name": "isaacsim.core.api",
+                "methods": [
+                    {"name": "create_articulation", "file_path": "robot.py", "source_code": "def create(): ..."},
+                    {"name": "test_create_articulation", "file_path": "test_robot.py", "source_code": "def t(): ..."},
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setenv("OVAI_RETRIEVAL_MODE", "semantic")
+    monkeypatch.setattr(
+        code_search_module, "CODE_EXAMPLES_FAISS_PATHS", {m: bundle for m in ("regular", "tests", "all")}
+    )
+    monkeypatch.setattr(code_search_module, "LEGACY_CODE_EXAMPLES_FAISS_PATH", bundle)
+    monkeypatch.setattr(
+        code_search_module, "EXTRACTED_METHODS_PATHS", {m: methods_dir for m in ("regular", "tests", "all")}
+    )
+    monkeypatch.setattr(code_search_module, "LEGACY_EXTRACTED_METHODS_PATH", methods_dir)
+
+    embedder = FailingEmbedder(status_code=410, reason="Gone", style=getattr(request, "param", "http_error"))
+    with patch.object(code_search_module.EmbedderFactory, "create", return_value=embedder):
+        service = CodeSearchService()
+
+    assert service.code_vectorstore is not None, "fixture index failed to load"
+    assert service.code_examples_data, "fixture keyword-fallback data failed to load"
+    return service, embedder
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code_search_service_with_failing_embedder", ["http_error", "nvidia_client"], indirect=True)
+async def test_embedding_backend_error_is_reported(code_search_service_with_failing_embedder):
+    """A retired/unavailable embedding model must return success=False, not an empty or keyword result."""
+    service, embedder = code_search_service_with_failing_embedder
+
+    with patch("isaacsim_fns.functions.search_code_examples.get_code_search_service", return_value=service):
+        with patch("isaacsim_fns.functions.search_code_examples.ensure_telemetry_initialized", new_callable=AsyncMock):
+            with patch("isaacsim_fns.functions.search_code_examples.telemetry") as mock_telemetry:
+                mock_telemetry.capture_call = AsyncMock()
+
+                result = await search_code_examples("create an articulation", top_k=5)
+
+    assert embedder.calls >= 1, "the embedding backend was never queried"
+    assert result["success"] is False, f"backend failure reported as success: {result!r}"
+    assert "410" in result["error"]
+    assert "embedding" in result["error"].lower()
+    assert result["result"] == ""
+    assert mock_telemetry.capture_call.await_args.kwargs["success"] is False
+
+
+def test_embedding_backend_error_propagates_from_test_example_search(code_search_service_with_failing_embedder):
+    """search_test_examples must raise on backend failure instead of returning keyword-fallback hits."""
+    from isaacsim_fns.services.embedder_service import EmbeddingBackendError
+
+    service, _ = code_search_service_with_failing_embedder
+
+    with pytest.raises(EmbeddingBackendError, match="410"):
+        service.search_test_examples("create an articulation", top_k=5)

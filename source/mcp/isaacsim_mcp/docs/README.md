@@ -158,11 +158,12 @@ get_isaac_sim_extension_details(["omni.isaac.core", "omni.isaac.sensor", "omni.i
 
 ### Versioned Data
 
-All data is versioned by Isaac Sim version (controlled by the `MCP_ISAACSIM_VERSION` env var, default `6.1`):
+All data is versioned by Isaac Sim version (controlled by the `MCP_ISAACSIM_VERSION` env var, default `6.2`):
 ```
 data/
 ├── 6.0/            # Isaac Sim 6.0
-├── 6.1/            # Isaac Sim 6.1 (default)
+├── 6.1/            # Isaac Sim 6.1
+├── 6.2/            # Isaac Sim 6.2 (default)
 └── ...             # Additional versions as needed
 ```
 

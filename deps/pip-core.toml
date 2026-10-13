@@ -1,12 +1,9 @@
 [[dependency]]
 # This file is used to install the pip dependencies for the core extension.
-# Cache-bust marker: 2026-09-02 retrieval model migration requiring
-# langchain-nvidia-ai-endpoints>=1.4.3 and langchain-core>=1.4.7. The latter
-# still requires the typing_extensions shim in
-# omni.ai.langchain.core 2.3.2 (omni.kit.pip_archive ships typing_extensions 4.12.2,
-# too old for langchain_protocol's PEP 728 TypedDict). Changing this file's hash
-# forces packman to re-install the local source/modules/* packages even though
-# pip-core.toml itself pins no versions on them.
+# Cache-bust marker: 2026-09-29 Isaac Sim 6.2 RC.1 security floors for
+# transitive prebundle packages (internal issues 6830604, 6830392, 6830382). Changing
+# this file's hash forces packman to re-install the local source/modules/*
+# packages even though pip-core.toml itself pins no versions on them.
 python = "../_build/target-deps/python"
 packages = [
     # Local packages - use ./ prefix to ensure pip uses local source, not external registry
@@ -23,7 +20,7 @@ packages = [
     "faiss-cpu==1.12.0",
     "fastapi==0.136.1",
     "jsonschema",
-    "langchain>=0.3.28",
+    "langchain>=1.3.17",
     "langchain-core>=1.4.7,<2.0.0",
     "langchain-nvidia-ai-endpoints>=1.4.3,<2.0.0",
     "langchain-community>=0.3.27",
@@ -33,8 +30,14 @@ packages = [
     "numpy",
     "starlette>=1.6.0,<2.0.0",
     "urllib3>=2.7.0",
+    # Transitive packages flagged in Isaac Sim 6.2 RC.1 scans; floors keep a
+    # stale resolver cache from shipping the vulnerable versions again.
+    "anyio>=4.14.2",  # CVE-2026-63374, CVE-2026-63349
+    "langchain-classic>=1.0.7",  # GHSA-3644-q5cj-c5c7
+    "langgraph-sdk>=0.3.15",  # CVE-2026-48776
+    "langsmith>=0.8.18",  # GHSA-3644-q5cj-c5c7, GHSA-f4xh-w4cj-qxq8
     "uvicorn",
-    "lxml>=5.4.0",
+    "lxml>=6.1.3",  # libxslt BDSAs; Windows libxml2 2.11.9 finding
     "tiktoken",
 ]
 extra_args = ["--no-cache-dir", "--force-reinstall", "--upgrade", "--ignore-installed"]

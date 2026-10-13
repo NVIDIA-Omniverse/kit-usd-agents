@@ -14,6 +14,7 @@
 :: limitations under the License.
 
 @echo off
+setlocal
 REM Windows development setup script for Kit MCP Server
 REM This script sets up the local development environment
 
@@ -64,39 +65,68 @@ echo.
 echo Configuring Poetry to use local virtual environment...
 poetry config virtualenvs.in-project true
 
-REM Install dependencies. If the shipped poetry.lock is older than the current
-REM pyproject.toml (which happens any time a new dep lands without `poetry lock`
-REM being re-run on the maintainer side), `poetry install` will refuse with a
-REM "pyproject.toml changed significantly..." error. Auto-recover by running
-REM `poetry lock` once and retrying — same behavior as setup-dev.sh.
+REM These MCP servers resolve every dependency from public PyPI, so Poetry never
+REM needs stored credentials. Poetry still queries the Windows Credential Manager
+REM for each package URL, and in sessions without a logon-session credential
+REM store that raises an uncaught "(1312, 'CredRead', ...)" error which aborts
+REM both `poetry lock` and `poetry install`. Disable the keyring lookup for this
+REM script unless the caller has already chosen a setting. The variable is scoped
+REM to this script by the setlocal at the top.
+if not defined POETRY_KEYRING_ENABLED set "POETRY_KEYRING_ENABLED=false"
+
+REM If the shipped poetry.lock no longer matches pyproject.toml, `poetry install`
+REM refuses with a "pyproject.toml changed significantly..." error. Detect that up
+REM front with `poetry check --lock` and refresh the lock only in that case, so a
+REM later install failure is reported as what it really is.
 REM
-REM Implementation note: cmd.exe expands %errorlevel% at PARSE time of an
-REM outer "if (...)" block, so nested ``if %errorlevel% neq 0`` checks
-REM inside the same block see the stale value from when the block was
-REM entered. Flatten the recovery flow with ``goto`` so each errorlevel
-REM check is at top level and re-evaluates correctly.
+REM Implementation note: cmd.exe expands environment variables at PARSE time of
+REM an outer "if (...)" block, so nested errorlevel checks inside the same block
+REM see the stale value from when the block was entered. Keep the flow flat with
+REM ``goto`` so each errorlevel check is at top level. Compare the errorlevel
+REM with 0 (equ/neq) rather than using ``if errorlevel 1``: the latter treats negative exit
+REM codes (a crash, or Ctrl-C answered with N) as success.
+echo.
+echo Checking that poetry.lock matches pyproject.toml...
+poetry check --lock >nul 2>&1
+if %errorlevel% equ 0 goto :lock_ok
+echo poetry.lock is out of date. Refreshing it with 'poetry lock'...
+poetry lock
+if %errorlevel% neq 0 goto :lock_failed
+:lock_ok
+
 echo.
 echo Installing dependencies...
 poetry install
-if not errorlevel 1 goto :install_done
+if %errorlevel% equ 0 goto :install_done
+REM Poetry treats only "true" or "1" (any case) as enabled. With the keyring
+REM lookup disabled the failure cannot be a keyring error.
+if /i "%POETRY_KEYRING_ENABLED%"=="true" goto :install_failed_keyring
+if "%POETRY_KEYRING_ENABLED%"=="1" goto :install_failed_keyring
+goto :install_failed
+
+:install_failed_keyring
 
 echo.
-echo poetry install failed ^(likely a stale lock file^). Refreshing lock and retrying...
-poetry lock
-if errorlevel 1 goto :lock_failed
-poetry install
-if errorlevel 1 goto :retry_failed
-goto :install_done
-
-:lock_failed
-echo ERROR: poetry lock failed
+echo ERROR: poetry install failed with Poetry's keyring lookup enabled
+echo ^(POETRY_KEYRING_ENABLED=%POETRY_KEYRING_ENABLED%^).
+echo If the output above mentions CredRead, 1312 or
+echo "A specified logon session does not exist", the Windows credential store
+echo is unavailable in this session.
+echo These MCP servers only use public PyPI and need no credentials. Disable
+echo Poetry's keyring lookup and re-run this script:
+echo     set POETRY_KEYRING_ENABLED=false
 pause
 exit /b 1
 
-:retry_failed
+:lock_failed
 echo.
-echo ERROR: Failed to install dependencies even after refreshing the lock
-echo Please check your internet connection and try again
+echo ERROR: 'poetry lock' failed. See the output above for the cause.
+pause
+exit /b 1
+
+:install_failed
+echo.
+echo ERROR: poetry install failed. See the output above for the cause.
 pause
 exit /b 1
 

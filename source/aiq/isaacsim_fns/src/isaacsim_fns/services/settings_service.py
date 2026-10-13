@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..config import EMBEDDING_MODEL, ISAACSIM_VERSION
-from .embedder_service import EmbedderFactory
+from .embedder_service import EmbedderFactory, EmbeddingBackendError, guard_backend_errors
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ class SettingsService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model=EMBEDDING_MODEL)
+            self.embedder = guard_backend_errors(EmbedderFactory.create(model=EMBEDDING_MODEL))
 
             # Load FAISS index via faiss_safe (JSON-backed metadata)
             from ..utils.faiss_safe import load_faiss_safe
@@ -178,6 +178,9 @@ class SettingsService:
                         }
                     )
                 return results[:top_k]
+            except EmbeddingBackendError:
+                # A broken backend must be reported, not masked by fallback results.
+                raise
             except Exception as e:
                 logger.warning(f"Hybrid settings search failed, falling back: {e}")
 
@@ -218,6 +221,9 @@ class SettingsService:
                     if len(results) >= top_k:
                         break
 
+            except EmbeddingBackendError:
+                # A broken backend must be reported, not masked by fallback results.
+                raise
             except Exception as e:
                 logger.error(f"FAISS search failed: {e}")
                 # Fall back to keyword search

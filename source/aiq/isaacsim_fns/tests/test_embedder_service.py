@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
 from isaacsim_fns.config import DEFAULT_EMBEDDING_ENDPOINT
-from isaacsim_fns.services.embedder_service import LocalEmbedder
+from isaacsim_fns.services.embedder_service import EmbeddingBackendError, LocalEmbedder, guard_backend_errors
 
 
 class _Response:
@@ -41,3 +42,22 @@ def test_local_embedder_uses_supported_input_types():
     assert document_call["url"] == "https://embedder/v1/embeddings"
     assert document_call["json"]["input_type"] == "passage"
     assert query_call["json"]["input_type"] == "query"
+
+
+class _RaisingEmbedder:
+    model = "nvidia/retired-model"
+
+    def embed_query(self, text):
+        raise Exception("[410] Gone")
+
+    def embed_documents(self, texts):
+        raise Exception("[410] Gone")
+
+
+def test_guarded_embedder_exposes_model_and_names_it_in_errors():
+    wrapped = guard_backend_errors(_RaisingEmbedder())
+    # load_faiss_safe reads ``embeddings.model`` for its provenance check.
+    assert wrapped.model == "nvidia/retired-model"
+
+    with pytest.raises(EmbeddingBackendError, match=r"model: nvidia/retired-model.*\[410\] Gone"):
+        wrapped.embed_query("q")

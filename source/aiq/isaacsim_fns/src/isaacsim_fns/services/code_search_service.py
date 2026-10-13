@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..config import DEFAULT_RAG_TOP_K_CODE, DEFAULT_RERANK_CODE, EMBEDDING_MODEL, ISAACSIM_VERSION
-from .embedder_service import EmbedderFactory
+from .embedder_service import EmbedderFactory, EmbeddingBackendError, guard_backend_errors
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class CodeSearchService:
 
         try:
             # Create embedder using factory
-            self.embedder = EmbedderFactory.create(model=EMBEDDING_MODEL)
+            self.embedder = guard_backend_errors(EmbedderFactory.create(model=EMBEDDING_MODEL))
 
             # Try to load regular code FAISS index (priority order: regular, all, legacy)
             code_faiss_loaded = False
@@ -459,6 +459,9 @@ class CodeSearchService:
                     # No reranking, use original results
                     results = candidate_results[:rerank_k]
 
+            except EmbeddingBackendError:
+                # A broken backend must be reported, not masked by fallback results.
+                raise
             except Exception as e:
                 logger.error(f"FAISS search failed: {e}")
                 # Fall back to keyword search
@@ -567,6 +570,9 @@ class CodeSearchService:
                     # No reranking, use original results
                     results = candidate_results[:rerank_k]
 
+            except EmbeddingBackendError:
+                # A broken backend must be reported, not masked by fallback results.
+                raise
             except Exception as e:
                 logger.error(f"FAISS test search failed: {e}")
 

@@ -75,9 +75,9 @@ Each MCP server can be run locally with Docker or Python. See the individual ser
 **Quick Start (Docker - Recommended):**
 ```bash
 # Set your NVIDIA API key first
-export NVIDIA_API_KEY=your_api_key_here  # Linux/macOS
+export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY  # Linux/macOS
 # or
-set NVIDIA_API_KEY=your_api_key_here     # Windows
+set NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY     # Windows
 
 # Build wheels and start all MCP servers
 cd source/mcp
@@ -91,8 +91,8 @@ This uses NVIDIA's cloud-hosted embedder and reranker services via your API key.
 
 For running embedder/reranker models locally on your own GPUs (requires 2 NVIDIA GPUs):
 ```bash
-export NGC_API_KEY=your_ngc_api_key      # For pulling NIM container images
-export NVIDIA_API_KEY=your_nvidia_api_key
+export NGC_API_KEY=REPLACE_WITH_NGC_API_KEY      # For pulling NIM container images
+export NVIDIA_API_KEY=REPLACE_WITH_NVIDIA_API_KEY
 
 cd source/mcp
 ./build-wheels.sh all

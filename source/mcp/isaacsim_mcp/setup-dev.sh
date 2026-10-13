@@ -81,20 +81,55 @@ echo
 echo "Configuring Poetry to use local virtual environment..."
 poetry config virtualenvs.in-project true
 
-# Install dependencies. If the shipped poetry.lock is older than the current
-# pyproject.toml (which happens any time we add a dep on the kit-usd-agents
-# side without rolling the lock), ``poetry install`` will refuse with a
-# "pyproject.toml changed significantly..." error. Auto-recover by running
-# ``poetry lock`` once and retrying — this avoids forcing the user through a
-# two-step manual flow.
+# These MCP servers resolve every dependency from public PyPI, so Poetry never
+# needs stored credentials. Poetry still queries the system keyring for each
+# package URL, and on Windows sessions without a logon-session credential store
+# that raises an uncaught "(1312, 'CredRead', ...)" error which aborts both
+# ``poetry lock`` and ``poetry install``. Disable the keyring lookup for this
+# script unless the caller has already chosen a setting.
+export POETRY_KEYRING_ENABLED="${POETRY_KEYRING_ENABLED:-false}"
+
+# If the shipped poetry.lock no longer matches pyproject.toml, ``poetry install``
+# refuses with a "pyproject.toml changed significantly..." error. Detect that up
+# front with ``poetry check --lock`` and refresh the lock only in that case, so a
+# later install failure is reported as what it really is.
+echo
+echo "Checking that poetry.lock matches pyproject.toml..."
+if ! poetry check --lock > /dev/null 2>&1; then
+    echo "poetry.lock is out of date. Refreshing it with 'poetry lock'..."
+    if ! poetry lock; then
+        echo
+        echo "ERROR: 'poetry lock' failed. See the output above for the cause."
+        exit 1
+    fi
+fi
+
+# Keep a copy of the install output so a failure can be classified below.
 echo
 echo "Installing dependencies..."
-if ! poetry install; then
+INSTALL_LOG="$(mktemp "${TMPDIR:-/tmp}/mcp-poetry-install.XXXXXX")"
+poetry install 2>&1 | tee "$INSTALL_LOG"
+INSTALL_STATUS=${PIPESTATUS[0]}
+if [ "$INSTALL_STATUS" -ne 0 ]; then
     echo
-    echo "poetry install failed (likely a stale lock file). Refreshing lock and retrying..."
-    poetry lock
-    poetry install
+    # Poetry treats only "true" or "1" (any case) as enabled; with the keyring
+    # lookup disabled the failure cannot be a keyring error.
+    case "$POETRY_KEYRING_ENABLED" in
+        [Tt][Rr][Uu][Ee]|1) KEYRING_ON=1 ;;
+        *) KEYRING_ON=0 ;;
+    esac
+    if [ "$KEYRING_ON" -eq 1 ] && grep -qE "CredRead|logon session|KeyringError|keyring\.(errors|backends)" "$INSTALL_LOG"; then
+        echo "ERROR: poetry install failed while querying the system keyring for credentials."
+        echo "These MCP servers only use public PyPI and need no credentials. Disable"
+        echo "Poetry's keyring lookup and re-run this script:"
+        echo "    export POETRY_KEYRING_ENABLED=false"
+    else
+        echo "ERROR: poetry install failed (exit code $INSTALL_STATUS). See the output above for the cause."
+    fi
+    echo "Full install output: $INSTALL_LOG"
+    exit 1
 fi
+rm -f "$INSTALL_LOG"
 
 # Create local directories if they don't exist
 mkdir -p logs

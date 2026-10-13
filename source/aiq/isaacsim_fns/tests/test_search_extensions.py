@@ -20,6 +20,9 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add parent directory to path to import functions
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -406,6 +409,41 @@ async def run_all_tests():
     else:
         print("\n[FAIL] Some tests failed. Please check the output above.")
         return 1
+
+
+@pytest.mark.asyncio
+async def test_search_extensions_reports_embedding_backend_error(tmp_path, monkeypatch):
+    """A failing embedding backend must return success=False, not keyword-fallback extensions."""
+    import isaacsim_fns.services.extension_service as extension_module
+    from mock_embedding_backend import FailingEmbedder, stub_hybrid_shim, write_faiss_bundle
+
+    ext_id = "isaacsim.core.api"
+    bundle = write_faiss_bundle(tmp_path / "extensions_faiss", [(ext_id, {"extension_id": ext_id})])
+    atlas = MagicMock()
+    atlas.is_available.return_value = True
+    atlas.get_extension_list.return_value = [ext_id]
+    atlas.get_extension_metadata.return_value = {"id": ext_id, "description": "Core API for articulations"}
+
+    monkeypatch.setenv("OVAI_RETRIEVAL_MODE", "semantic")
+    stub_hybrid_shim(monkeypatch)
+    embedder = FailingEmbedder(status_code=410, reason="Gone", style="nvidia_client")
+    with patch.object(extension_module, "KitExtensionsAtlasService", return_value=atlas):
+        with patch.object(extension_module.EmbedderFactory, "create", return_value=embedder):
+            service = ExtensionService(faiss_db_path=str(bundle))
+    assert service.vectorstore is not None, "fixture index failed to load"
+
+    with patch("isaacsim_fns.functions.search_extensions.get_extension_service", return_value=service):
+        with patch("isaacsim_fns.functions.search_extensions.ensure_telemetry_initialized", new_callable=AsyncMock):
+            with patch("isaacsim_fns.functions.search_extensions.telemetry") as mock_telemetry:
+                mock_telemetry.capture_call = AsyncMock()
+
+                result = await search_extensions("isaacsim core articulations", top_k=5)
+
+    assert embedder.calls >= 1, "the embedding backend was never queried"
+    assert result["success"] is False, f"backend failure reported as success: {result!r}"
+    assert "410" in result["error"]
+    assert "embedding" in result["error"].lower()
+    assert ext_id not in result["result"]
 
 
 def main():

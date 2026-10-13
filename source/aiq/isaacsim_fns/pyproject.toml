@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "isaacsim-fns"
-version = "2.2.2"
+version = "2.2.3"
 description = "Isaac Sim functions for NVIDIA Omniverse Isaac Sim development - providing Isaac Sim extension information, APIs, code examples, and application templates (NAT-compatible)"
 authors = ["NVIDIA Omniverse"]
 readme = "README.md"

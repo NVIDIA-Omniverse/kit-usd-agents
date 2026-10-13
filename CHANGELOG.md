@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Isaac Sim code-example, extension and settings searches now
+  return an error naming the embedding model and HTTP status when the
+  embedding backend fails (for example a retired model), instead of
+  reporting success with no results or unrelated keyword-fallback matches.
+  Searches made without a valid `NVIDIA_API_KEY` now also return this error
+  instead of keyword-only results.
+- The `isaacsim_mcp`, `kit_mcp`, `omni_ui_mcp`, and `usd_code_mcp` locks
+  resolved `opentelemetry-exporter-otlp` 1.11.1 against protobuf 7, so the
+  `nat_opentelemetry` and `nat_langchain` plugins failed to load with
+  `TypeError: Descriptors cannot be created directly`. Each project now
+  requires `opentelemetry-exporter-otlp>=1.39`; the relocked graphs use
+  OpenTelemetry 1.42.1 with protobuf 6.33.6, still above the 6.33.5 floor.
+- `setup-dev.sh` and `setup-dev.bat` for the same four MCP servers no longer
+  report every `poetry install` failure as a stale lock. They run
+  `poetry lock` only when `poetry check --lock` reports a mismatch, then
+  install once and report the real failure. They also disable Poetry's
+  keyring lookup unless the caller set `POETRY_KEYRING_ENABLED`, because
+  these projects only use public PyPI. This avoids the Windows
+  `(1312, 'CredRead', ...)` failure in sessions without a logon-session
+  credential store.
+
 ## [1.5.3] - 2026-09-03
 
 ### Security

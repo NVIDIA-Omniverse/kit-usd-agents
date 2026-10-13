@@ -331,6 +331,9 @@ To avoid conflicts when running multiple MCP servers:
 | Tools not appearing in IDE | MCP config not loaded or wrong URL | Verify with `check_mcp_health.py`, check IDE's MCP config URL (use `/mcp` — trailing slash works too via 307 redirect), reload the IDE |
 | Claude CLI: `usd-code-mcp` missing from `claude mcp list` | `-t http` registered the MCP at project scope (writes `.claude.json` in cwd) | Re-add with `--scope user` for global, or always launch Claude CLI from the project root where you registered |
 | Rate limiting errors from cloud endpoints | Heavy usage | Wait and retry; for sustained load, switch to local NIM (Option B) |
+| `(1312, 'CredRead', 'A specified logon session does not exist. ...')` during `setup-dev` or `poetry install` / `poetry lock` | Poetry queries the Windows Credential Manager for every package URL, and this session has no logon-session credential store | `setup-dev.bat` / `setup-dev.sh` disable Poetry's keyring lookup automatically (this MCP only uses public PyPI). When running Poetry yourself, or if you set `POETRY_KEYRING_ENABLED` before running `setup-dev`: `set POETRY_KEYRING_ENABLED=false` (Windows) / `export POETRY_KEYRING_ENABLED=false` (Linux) |
+| `pyproject.toml changed significantly since poetry.lock was last generated` | `poetry.lock` is out of date with `pyproject.toml` | `setup-dev` detects this with `poetry check --lock` and runs `poetry lock` for you; manually: `poetry lock`, then `poetry install` |
+| `TypeError: Descriptors cannot be created directly` while loading `nat_opentelemetry` / `nat_langchain` | Environment installed from an older lock that paired `opentelemetry-proto` 1.11.1 with protobuf 7 | Re-run `setup-dev` to install the corrected lock. Do not set `PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python` |
 
 ---
 

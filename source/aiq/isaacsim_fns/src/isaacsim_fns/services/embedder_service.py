@@ -19,6 +19,8 @@ import logging
 import os
 from typing import Any, List, Optional
 
+from langchain_core.embeddings import Embeddings
+
 from ..config import EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
@@ -195,6 +197,70 @@ class LocalEmbedder:
             Embedding vector
         """
         return self.embed_query(text)
+
+
+class EmbeddingBackendError(RuntimeError):
+    """The embedding backend could not embed a query or documents.
+
+    Covers HTTP errors (retired or unknown model, bad API key), connection
+    failures and timeouts. Search services re-raise it instead of degrading to
+    empty or keyword-fallback results, so callers report the outage rather than
+    presenting it as "no matches".
+    """
+
+
+def _describe_backend_error(exc: Exception, model: Optional[str]) -> str:
+    """Build an error message naming the model and, when known, the HTTP status."""
+    message = "Embedding backend request failed"
+    if model:
+        message += f" (model: {model})"
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status is not None:
+        message += f": HTTP {status}"
+    return f"{message}: {exc}"
+
+
+class BackendErrorGuardedEmbedder(Embeddings):
+    """Wrap an embedder so any failure of an embedding call raises ``EmbeddingBackendError``.
+
+    ``NVIDIAEmbeddings`` reports HTTP errors as a bare ``Exception`` and
+    ``LocalEmbedder`` as ``requests.HTTPError``. Wrapping lets the search
+    services tell a backend failure apart from local index/processing errors
+    without matching on either backend's exception types or messages. Other
+    attributes (e.g. ``model``, read by the FAISS loader's provenance check) are
+    delegated to the wrapped embedder.
+    """
+
+    def __init__(self, inner: Any):
+        self._inner = inner
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "_inner":
+            raise AttributeError(name)
+        return getattr(self._inner, name)
+
+    def _model(self) -> Optional[str]:
+        model = getattr(self._inner, "model", None)
+        return model if isinstance(model, str) else None
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        try:
+            return self._inner.embed_documents(texts)
+        except Exception as e:
+            raise EmbeddingBackendError(_describe_backend_error(e, self._model())) from e
+
+    def embed_query(self, text: str) -> List[float]:
+        try:
+            return self._inner.embed_query(text)
+        except Exception as e:
+            raise EmbeddingBackendError(_describe_backend_error(e, self._model())) from e
+
+
+def guard_backend_errors(embedder: Any) -> Any:
+    """Return ``embedder`` wrapped so its failures surface as ``EmbeddingBackendError``."""
+    if isinstance(embedder, BackendErrorGuardedEmbedder):
+        return embedder
+    return BackendErrorGuardedEmbedder(embedder)
 
 
 class EmbedderFactory:

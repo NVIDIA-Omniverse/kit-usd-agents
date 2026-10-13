@@ -20,12 +20,22 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 # Add parent directory to path to import modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from isaacsim_fns.functions.search_settings import search_settings
 from isaacsim_fns.services.settings_service import SettingsService
+
+# These tests query the hosted embedding endpoint. Without a key the backend
+# answers 401, which the search services now report as an error rather than
+# falling back to keyword matches.
+requires_nvidia_api_key = pytest.mark.skipif(
+    not os.getenv("NVIDIA_API_KEY"), reason="NVIDIA_API_KEY not set; live embedding endpoint required"
+)
 
 
 def print_section(title: str):
@@ -35,6 +45,7 @@ def print_section(title: str):
     print(f"{'='*60}\n")
 
 
+@requires_nvidia_api_key
 def test_settings_service():
     """Test the Settings service directly."""
     print_section("Testing Settings Service")
@@ -151,6 +162,7 @@ def test_settings_service():
     assert all_tests_passed, "Some settings service tests failed"
 
 
+@requires_nvidia_api_key
 async def test_search_function():
     """Test the search_settings function."""
     print_section("Testing search_settings Function")
@@ -266,6 +278,75 @@ async def test_search_function():
         all_tests_passed = False
 
     assert all_tests_passed, "Some search function tests failed"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("prefix_filter", "use_hybrid"),
+    [("persistent", False), (None, True)],
+    ids=["dense-filtered", "hybrid"],
+)
+async def test_search_settings_reports_embedding_backend_error(tmp_path, monkeypatch, prefix_filter, use_hybrid):
+    """A failing embedding backend must return success=False, not keyword-fallback settings."""
+    import json
+
+    import isaacsim_fns.services.settings_service as settings_module
+    from mock_embedding_backend import FailingEmbedder, stub_hybrid_shim, write_faiss_bundle
+
+    setting_key = "/persistent/isaac/asset_root/timeout"
+    bundle = write_faiss_bundle(
+        tmp_path / "settings_faiss",
+        [(setting_key, {"setting_key": setting_key, "prefix": "persistent", "type": "int"})],
+    )
+    summary = tmp_path / "setting_summary.json"
+    summary.write_text(
+        json.dumps(
+            {
+                "settings": {
+                    setting_key: {"type": "int", "default_value": 10, "documentation": "Asset root timeout"},
+                },
+                "metadata": {},
+            }
+        )
+    )
+
+    monkeypatch.setenv("OVAI_RETRIEVAL_MODE", "semantic")
+    stub_hybrid_shim(monkeypatch)
+    embedder = FailingEmbedder(status_code=410, reason="Gone")
+    with patch.object(settings_module.EmbedderFactory, "create", return_value=embedder):
+        service = SettingsService(faiss_db_path=str(bundle), settings_summary_path=str(summary))
+    assert service.vectorstore is not None, "fixture index failed to load"
+    if use_hybrid:
+        # Mirrors ovgenai_retrieval's SemanticSearcher: the hybrid retriever embeds the
+        # query with the service's (guarded) embedder and does not catch its errors.
+        service._hybrid = _QueryEmbeddingHybridRetriever(service.embedder)
+
+    with patch("isaacsim_fns.functions.search_settings.get_settings_service", return_value=service):
+        with patch("isaacsim_fns.functions.search_settings.ensure_telemetry_initialized", new_callable=AsyncMock):
+            with patch("isaacsim_fns.functions.search_settings.telemetry") as mock_telemetry:
+                mock_telemetry.capture_call = AsyncMock()
+
+                result = await search_settings("asset root timeout", top_k=5, prefix_filter=prefix_filter)
+
+    assert embedder.calls >= 1, "the embedding backend was never queried"
+    assert result["success"] is False, f"backend failure reported as success: {result!r}"
+    assert "410" in result["error"]
+    assert "embedding" in result["error"].lower()
+    assert setting_key not in result["result"]
+    if use_hybrid:
+        # The hybrid failure must be raised directly, not retried via the dense FAISS path.
+        assert embedder.calls == 1
+
+
+class _QueryEmbeddingHybridRetriever:
+    """Hybrid retriever stand-in whose retrieve() embeds the query like the real semantic leg."""
+
+    def __init__(self, embedder):
+        self._embedder = embedder
+
+    def retrieve(self, query, top_k):
+        self._embedder.embed_query(query)
+        return []
 
 
 def main():
